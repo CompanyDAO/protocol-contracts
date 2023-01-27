@@ -109,10 +109,6 @@ abstract contract GovernanceSettings is IGovernanceSettings {
     {
         // Check all values for sanity
         require(
-            settings.proposalThreshold < DENOM,
-            ExceptionsLibrary.INVALID_VALUE
-        );
-        require(
             settings.quorumThreshold < DENOM,
             ExceptionsLibrary.INVALID_VALUE
         );

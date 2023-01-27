@@ -324,6 +324,11 @@
                 "internalType": "struct ITGE.TGEInfo",
                 "name": "_info",
                 "type": "tuple"
+            },
+            {
+                "internalType": "uint256",
+                "name": "protocolFee_",
+                "type": "uint256"
             }
         ],
         "name": "initialize",
@@ -348,7 +353,7 @@
         "inputs": [
             {
                 "internalType": "address",
-                "name": "",
+                "name": "account",
                 "type": "address"
             }
         ],
@@ -404,6 +409,19 @@
             }
         ],
         "name": "maxPurchaseOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "protocolFee",
         "outputs": [
             {
                 "internalType": "uint256",

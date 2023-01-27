@@ -119,6 +119,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
      * @dev Add event record
      * @param pool Pool address
      * @param eventType Event type
+     * @param eventContract Address of the event contract
      * @param proposalId Proposal ID
      * @param metaHash Hash value of event metadata
      * @return index Record index
@@ -126,6 +127,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     function addEventRecord(
         address pool,
         EventType eventType,
+        address eventContract,
         uint256 proposalId,
         string calldata metaHash
     ) external onlyService returns (uint256 index) {
@@ -134,6 +136,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
             Event({
                 eventType: eventType,
                 pool: pool,
+                eventContract: eventContract,
                 proposalId: proposalId,
                 metaHash: metaHash
             })
@@ -157,5 +160,51 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
             index.exists
                 ? contractRecords[index.index].contractType
                 : ContractType.None;
+    }
+
+    /**
+     * @notice Returns number of contract records
+     * @return Contract records count
+     */
+    function contractRecordsCount() external view returns (uint256) {
+        return contractRecords.length;
+    }
+
+    /**
+     * @notice Returns number of proposal records
+     * @return Proposal records count
+     */
+    function proposalRecordsCount() external view returns (uint256) {
+        return proposalRecords.length;
+    }
+
+    /**
+     * @notice Returns number of event records
+     * @return Event records count
+     */
+    function eventRecordsCount() external view returns (uint256) {
+        return events.length;
+    }
+
+    /**
+     * @dev Return global proposal ID
+     * @param pool Pool address
+     * @param proposalId Proposal ID
+     * @return Global proposal ID
+     */
+    function getGlobalProposalId(address pool, uint256 proposalId)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 count = proposalRecords.length;
+        for (uint256 i = 1; i <= count; i++) {
+            address poolRecord = proposalRecords[i].pool;
+            uint256 proposalIdRecord = proposalRecords[i].proposalId;
+            if (poolRecord == pool && proposalIdRecord == proposalId) {
+                return i;
+            }
+        }
+        return 0;
     }
 }

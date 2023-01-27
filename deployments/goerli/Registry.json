@@ -1,5 +1,5 @@
 {
-  "address": "0x2140DF98b07586AC12E2347e77e5642E1c26C31E",
+  "address": "0xA5aDE084F015F5015a4E5650399D822aeA0Cbc99",
   "abi": [
     {
       "anonymous": false,
@@ -134,37 +134,10 @@
           "type": "uint256"
         },
         {
-          "components": [
-            {
-              "internalType": "uint256",
-              "name": "jurisdiction",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "entityType",
-              "type": "uint256"
-            },
-            {
-              "internalType": "string",
-              "name": "ein",
-              "type": "string"
-            },
-            {
-              "internalType": "string",
-              "name": "dateOfIncorporation",
-              "type": "string"
-            },
-            {
-              "internalType": "uint256",
-              "name": "fee",
-              "type": "uint256"
-            }
-          ],
           "indexed": false,
-          "internalType": "struct ICompaniesRegistry.CompanyInfo",
-          "name": "info",
-          "type": "tuple"
+          "internalType": "address",
+          "name": "poolAddress",
+          "type": "address"
         }
       ],
       "name": "CompanyCreated",
@@ -464,6 +437,11 @@
           "type": "uint8"
         },
         {
+          "internalType": "address",
+          "name": "eventContract",
+          "type": "address"
+        },
+        {
           "internalType": "uint256",
           "name": "proposalId",
           "type": "uint256"
@@ -580,12 +558,12 @@
           "type": "bytes32"
         }
       ],
-      "name": "companyExists",
+      "name": "companyIndex",
       "outputs": [
         {
-          "internalType": "bool",
+          "internalType": "uint256",
           "name": "",
-          "type": "bool"
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -615,6 +593,19 @@
           "internalType": "string",
           "name": "description",
           "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "contractRecordsCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -684,6 +675,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "eventRecordsCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint256",
@@ -704,6 +708,11 @@
           "type": "address"
         },
         {
+          "internalType": "address",
+          "name": "eventContract",
+          "type": "address"
+        },
+        {
           "internalType": "uint256",
           "name": "proposalId",
           "type": "uint256"
@@ -712,6 +721,115 @@
           "internalType": "string",
           "name": "metaHash",
           "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "jurisdiction",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "entityType",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "ein",
+          "type": "string"
+        }
+      ],
+      "name": "getCompany",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "jurisdiction",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "entityType",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "ein",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "dateOfIncorporation",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "fee",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct ICompaniesRegistry.CompanyInfo",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "jurisdiction",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "entityType",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        }
+      ],
+      "name": "getCompanyPoolAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "pool",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "proposalId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getGlobalProposalId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
         }
       ],
       "stateMutability": "view",
@@ -965,6 +1083,19 @@
       "type": "function"
     },
     {
+      "inputs": [],
+      "name": "proposalRecordsCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [
         {
           "internalType": "uint256",
@@ -1156,35 +1287,35 @@
       "type": "constructor"
     }
   ],
-  "transactionHash": "0x01c4f85d94ddae0e02aff93704c05508534e9fd3e022765e63db8749c91c5877",
+  "transactionHash": "0x2237327300ec2180f92eb0c4aa26310396ee023570fa013461af476772301f0a",
   "receipt": {
     "to": null,
     "from": "0xF89e3d72F182BBcccEfFB7F7d2c9ce796D6547e6",
-    "contractAddress": "0x2140DF98b07586AC12E2347e77e5642E1c26C31E",
-    "transactionIndex": 83,
+    "contractAddress": "0xA5aDE084F015F5015a4E5650399D822aeA0Cbc99",
+    "transactionIndex": 117,
     "gasUsed": "837331",
-    "logsBloom": "0x00000004000000000000000000000000400000000000000000000000000000000000000000000000000000020020000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000001000010000021000000000000000000800000000800000000000000000000000000000000000000000000000000000000000000000000080000001000000800000000000000000000000000000000400000000000000000000001000000000000000000220000000000000000008040000000000000400000100000000000020000000000000000000000000000000000000080000000000000000000000000000",
-    "blockHash": "0x0cfa8840dbd834999119527e0050b66d9852f0df93126a867e385e06d2d5ef0f",
-    "transactionHash": "0x01c4f85d94ddae0e02aff93704c05508534e9fd3e022765e63db8749c91c5877",
+    "logsBloom": "0x00000004000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000002000000000000000000000000000000004000010000021000000000000000000800000000800000000000000000000000000000000000000000000000000000000000000000200080000000000000808000000000000000000000000000000400000000000000000000001000000000000000000020000000000000000800040000000000000400000100000000000020000000000000000000000000000000000000080000000000000000000000000000",
+    "blockHash": "0xc9bfbfc00f20de170e9ab3c54379b6e279836f59c4b2fa4cddc8342c71e55b0f",
+    "transactionHash": "0x2237327300ec2180f92eb0c4aa26310396ee023570fa013461af476772301f0a",
     "logs": [
       {
-        "transactionIndex": 83,
-        "blockNumber": 8339634,
-        "transactionHash": "0x01c4f85d94ddae0e02aff93704c05508534e9fd3e022765e63db8749c91c5877",
-        "address": "0x2140DF98b07586AC12E2347e77e5642E1c26C31E",
+        "transactionIndex": 117,
+        "blockNumber": 8380453,
+        "transactionHash": "0x2237327300ec2180f92eb0c4aa26310396ee023570fa013461af476772301f0a",
+        "address": "0xA5aDE084F015F5015a4E5650399D822aeA0Cbc99",
         "topics": [
           "0xbc7cd75a20ee27fd9adebab32041f755214dbc6bffa90cc0225b39da2e5c2d3b",
-          "0x000000000000000000000000676e0f3d737321b9ecc6eed5c258184c4f61194a"
+          "0x000000000000000000000000800221cced09b568be50462ffe6568fcc603bddf"
         ],
         "data": "0x",
-        "logIndex": 174,
-        "blockHash": "0x0cfa8840dbd834999119527e0050b66d9852f0df93126a867e385e06d2d5ef0f"
+        "logIndex": 225,
+        "blockHash": "0xc9bfbfc00f20de170e9ab3c54379b6e279836f59c4b2fa4cddc8342c71e55b0f"
       },
       {
-        "transactionIndex": 83,
-        "blockNumber": 8339634,
-        "transactionHash": "0x01c4f85d94ddae0e02aff93704c05508534e9fd3e022765e63db8749c91c5877",
-        "address": "0x2140DF98b07586AC12E2347e77e5642E1c26C31E",
+        "transactionIndex": 117,
+        "blockNumber": 8380453,
+        "transactionHash": "0x2237327300ec2180f92eb0c4aa26310396ee023570fa013461af476772301f0a",
+        "address": "0xA5aDE084F015F5015a4E5650399D822aeA0Cbc99",
         "topics": [
           "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d",
           "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -1192,42 +1323,42 @@
           "0x000000000000000000000000f89e3d72f182bbccceffb7f7d2c9ce796d6547e6"
         ],
         "data": "0x",
-        "logIndex": 175,
-        "blockHash": "0x0cfa8840dbd834999119527e0050b66d9852f0df93126a867e385e06d2d5ef0f"
+        "logIndex": 226,
+        "blockHash": "0xc9bfbfc00f20de170e9ab3c54379b6e279836f59c4b2fa4cddc8342c71e55b0f"
       },
       {
-        "transactionIndex": 83,
-        "blockNumber": 8339634,
-        "transactionHash": "0x01c4f85d94ddae0e02aff93704c05508534e9fd3e022765e63db8749c91c5877",
-        "address": "0x2140DF98b07586AC12E2347e77e5642E1c26C31E",
+        "transactionIndex": 117,
+        "blockNumber": 8380453,
+        "transactionHash": "0x2237327300ec2180f92eb0c4aa26310396ee023570fa013461af476772301f0a",
+        "address": "0xA5aDE084F015F5015a4E5650399D822aeA0Cbc99",
         "topics": [
           "0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498"
         ],
         "data": "0x0000000000000000000000000000000000000000000000000000000000000001",
-        "logIndex": 176,
-        "blockHash": "0x0cfa8840dbd834999119527e0050b66d9852f0df93126a867e385e06d2d5ef0f"
+        "logIndex": 227,
+        "blockHash": "0xc9bfbfc00f20de170e9ab3c54379b6e279836f59c4b2fa4cddc8342c71e55b0f"
       },
       {
-        "transactionIndex": 83,
-        "blockNumber": 8339634,
-        "transactionHash": "0x01c4f85d94ddae0e02aff93704c05508534e9fd3e022765e63db8749c91c5877",
-        "address": "0x2140DF98b07586AC12E2347e77e5642E1c26C31E",
+        "transactionIndex": 117,
+        "blockNumber": 8380453,
+        "transactionHash": "0x2237327300ec2180f92eb0c4aa26310396ee023570fa013461af476772301f0a",
+        "address": "0xA5aDE084F015F5015a4E5650399D822aeA0Cbc99",
         "topics": [
           "0x7e644d79422f17c01e4894b5f4f588d331ebfa28653d42ae832dc59e38c9798f"
         ],
-        "data": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000007b4bf75677b98924baebbe53c16df860f479669a",
-        "logIndex": 177,
-        "blockHash": "0x0cfa8840dbd834999119527e0050b66d9852f0df93126a867e385e06d2d5ef0f"
+        "data": "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000022d2aa68074508c7a1ebb4a01ed9a1acb16e52ff",
+        "logIndex": 228,
+        "blockHash": "0xc9bfbfc00f20de170e9ab3c54379b6e279836f59c4b2fa4cddc8342c71e55b0f"
       }
     ],
-    "blockNumber": 8339634,
-    "cumulativeGasUsed": "13266493",
+    "blockNumber": 8380453,
+    "cumulativeGasUsed": "28700839",
     "status": 1,
     "byzantium": true
   },
   "args": [
-    "0x676E0f3D737321B9Ecc6EED5C258184C4F61194A",
-    "0x7b4bF75677b98924bAEbBE53C16DF860f479669A",
+    "0x800221CceD09b568be50462FfE6568Fcc603bDdF",
+    "0x22d2Aa68074508C7A1ebb4a01eD9A1Acb16E52ff",
     "0x8129fc1c"
   ],
   "numDeployments": 1,
@@ -1239,7 +1370,7 @@
     "methodName": "initialize",
     "args": []
   },
-  "implementation": "0x676E0f3D737321B9Ecc6EED5C258184C4F61194A",
+  "implementation": "0x800221CceD09b568be50462FfE6568Fcc603bDdF",
   "devdoc": {
     "details": "This contract implements a proxy that is upgradeable by an admin. To avoid https://medium.com/nomic-labs-blog/malicious-backdoors-in-ethereum-proxies-62629adf3357[proxy selector clashing], which can potentially be used in an attack, this contract uses the https://blog.openzeppelin.com/the-transparent-proxy-pattern/[transparent proxy pattern]. This pattern implies two things that go hand in hand: 1. If any account other than the admin calls the proxy, the call will be forwarded to the implementation, even if that call matches one of the admin functions exposed by the proxy itself. 2. If the admin calls the proxy, it can access the admin functions, but its calls will never be forwarded to the implementation. If the admin tries to call a function on the implementation it will fail with an error that says \"admin cannot fallback to proxy target\". These properties mean that the admin account can only be used for admin actions like upgrading the proxy or changing the admin, so it's best if it's a dedicated account that is not used for anything else. This will avoid headaches due to sudden errors when trying to call a function from the proxy implementation. Our recommendation is for the dedicated account to be an instance of the {ProxyAdmin} contract. If set up this way, you should think of the `ProxyAdmin` instance as the real administrative interface of your proxy.",
     "kind": "dev",

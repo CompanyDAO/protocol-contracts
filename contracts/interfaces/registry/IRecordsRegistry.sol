@@ -47,12 +47,14 @@ interface IRecordsRegistry {
      * @dev Event information structure
      * @param eventType Event type
      * @param pool Pool address
+     * @param eventContract Address of the Event contract
      * @param proposalId Proposal ID
      * @param metaHash Hash value of event metadata
      */
     struct Event {
         EventType eventType;
         address pool;
+        address eventContract;
         uint256 proposalId;
         string metaHash;
     }
@@ -70,6 +72,7 @@ interface IRecordsRegistry {
     function addEventRecord(
         address pool,
         EventType eventType,
+        address eventContract,
         uint256 proposalId,
         string calldata metaHash
     ) external returns (uint256 index);

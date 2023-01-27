@@ -21,7 +21,11 @@ interface ITGE {
         uint256 lockupTVL;
     }
 
-    function initialize(IToken token_, TGEInfo calldata info) external;
+    function initialize(
+        IToken token_,
+        TGEInfo calldata info,
+        uint256 protocolFee
+    ) external;
 
     enum State {
         Active,

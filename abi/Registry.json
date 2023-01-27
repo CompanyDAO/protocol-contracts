@@ -14,37 +14,10 @@
                 "type": "uint256"
             },
             {
-                "components": [
-                    {
-                        "internalType": "uint256",
-                        "name": "jurisdiction",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "entityType",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "ein",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "dateOfIncorporation",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "fee",
-                        "type": "uint256"
-                    }
-                ],
                 "indexed": false,
-                "internalType": "struct ICompaniesRegistry.CompanyInfo",
-                "name": "info",
-                "type": "tuple"
+                "internalType": "address",
+                "name": "poolAddress",
+                "type": "address"
             }
         ],
         "name": "CompanyCreated",
@@ -344,6 +317,11 @@
                 "type": "uint8"
             },
             {
+                "internalType": "address",
+                "name": "eventContract",
+                "type": "address"
+            },
+            {
                 "internalType": "uint256",
                 "name": "proposalId",
                 "type": "uint256"
@@ -460,12 +438,12 @@
                 "type": "bytes32"
             }
         ],
-        "name": "companyExists",
+        "name": "companyIndex",
         "outputs": [
             {
-                "internalType": "bool",
+                "internalType": "uint256",
                 "name": "",
-                "type": "bool"
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -495,6 +473,19 @@
                 "internalType": "string",
                 "name": "description",
                 "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "contractRecordsCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -564,6 +555,19 @@
         "type": "function"
     },
     {
+        "inputs": [],
+        "name": "eventRecordsCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
                 "internalType": "uint256",
@@ -584,6 +588,11 @@
                 "type": "address"
             },
             {
+                "internalType": "address",
+                "name": "eventContract",
+                "type": "address"
+            },
+            {
                 "internalType": "uint256",
                 "name": "proposalId",
                 "type": "uint256"
@@ -592,6 +601,115 @@
                 "internalType": "string",
                 "name": "metaHash",
                 "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "entityType",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "ein",
+                "type": "string"
+            }
+        ],
+        "name": "getCompany",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "jurisdiction",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "entityType",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "ein",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "dateOfIncorporation",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "fee",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct ICompaniesRegistry.CompanyInfo",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "entityType",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "id",
+                "type": "uint256"
+            }
+        ],
+        "name": "getCompanyPoolAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "proposalId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getGlobalProposalId",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -839,6 +957,19 @@
                 "internalType": "string",
                 "name": "description",
                 "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "proposalRecordsCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",

@@ -30,7 +30,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     TGEInfo public info;
 
     /// @dev Mapping of user's address to whitelist status
-    mapping(address => bool) public isUserWhitelisted;
+    mapping(address => bool) private _isUserWhitelisted;
 
     /// @dev Block of TGE's creation
     uint256 public createdAt;
@@ -52,6 +52,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     /// @dev Total amount of tokens vested
     uint256 public totalVested;
+
+    /// @dev Protocol fee
+    uint256 public protocolFee;
 
     /// @dev Protocol token fee is a percentage of tokens sold during TGE. Returns true if fee was claimed by the governing DAO.
     bool public isProtocolTokenFeeClaimed;
@@ -104,24 +107,27 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @param _token pool's token
      * @param _info TGE parameters
      */
-    function initialize(IToken _token, TGEInfo calldata _info)
-        external
-        initializer
-    {
+    function initialize(
+        IToken _token,
+        TGEInfo calldata _info,
+        uint256 protocolFee_
+    ) external initializer {
         __ReentrancyGuard_init();
         IService(msg.sender).validateTGEInfo(
             _info,
             _token.cap(),
-            _token.totalSupply()
+            _token.totalSupply(),
+            _token.tokenType()
         );
 
         token = _token;
         info = _info;
+        protocolFee = protocolFee_;
         vestingTVLReached = (_info.vestingTVL == 0);
         lockupTVLReached = (_info.lockupTVL == 0);
 
         for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
-            isUserWhitelisted[_info.userWhitelist[i]] = true;
+            _isUserWhitelisted[_info.userWhitelist[i]] = true;
         }
 
         createdAt = block.number;
@@ -141,20 +147,23 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         nonReentrant
         whenPoolNotPaused
     {
+        // Check purchase price transfer depending on unit of account
         address unitOfAccount = info.unitOfAccount;
+        uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
         if (unitOfAccount == address(0)) {
             require(
-                msg.value >= (amount * info.price) / 10**18,
+                msg.value >= purchasePrice,
                 ExceptionsLibrary.INCORRECT_ETH_PASSED
             );
         } else {
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
                 msg.sender,
                 address(this),
-                (amount * info.price) / 10**18
+                purchasePrice
             );
         }
 
+        // Check purchase size
         require(
             amount >= info.minPurchase,
             ExceptionsLibrary.MIN_PURCHASE_UNDERFLOW
@@ -164,20 +173,24 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             ExceptionsLibrary.MAX_PURCHASE_OVERFLOW
         );
 
+        // Accrue TGE stats
         totalPurchased += amount;
         purchaseOf[msg.sender] += amount;
+
+        // Mint tokens directly to user
         uint256 vestedAmount = (amount * info.vestingPercent + (DENOM - 1)) /
             DENOM;
-
         IToken _token = token;
         if (amount - vestedAmount > 0) {
             _token.mint(msg.sender, amount - vestedAmount);
         }
 
+        // Mint tokens to vesting
         _token.mint(address(this), vestedAmount);
         vestedBalanceOf[msg.sender] += vestedAmount;
         totalVested += vestedAmount;
 
+        // Emit event
         emit Purchased(msg.sender, amount);
     }
 
@@ -198,6 +211,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         uint256 refundAmount = 0;
 
+        // Calculate redeem from vesting
         uint256 vestedBalance = vestedBalanceOf[msg.sender];
         if (vestedBalance > 0) {
             vestedBalanceOf[msg.sender] = 0;
@@ -207,6 +221,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             token.burn(address(this), vestedBalance);
         }
 
+        // Calculate redeemed balance
         uint256 balanceToRedeem = MathUpgradeable.min(
             token.balanceOf(msg.sender),
             purchaseOf[msg.sender]
@@ -217,9 +232,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             token.burn(msg.sender, balanceToRedeem);
         }
 
+        // Check that there is anything to refund
         require(refundAmount > 0, ExceptionsLibrary.NOTHING_TO_REDEEM);
-        uint256 refundValue = (refundAmount * info.price) / 10**18;
 
+        // Transfer refund value
+        uint256 refundValue = (refundAmount * info.price + (1 ether - 1)) /
+            1 ether;
         if (info.unitOfAccount == address(0)) {
             payable(msg.sender).sendValue(refundValue);
         } else {
@@ -229,6 +247,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             );
         }
 
+        // Emit event
         emit Redeemed(msg.sender, refundValue);
     }
 
@@ -313,19 +332,25 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     /// @dev Transfers protocol token fee in form of pool's governance tokens to protocol treasury
     function _claimProtocolTokenFee() private {
+        // Return if already claimed
         if (isProtocolTokenFeeClaimed) {
             return;
         }
+
+        // Retrun for preference token
         IToken _token = token;
         if (_token.tokenType() == IToken.TokenType.Preference) {
             return;
         }
-        uint256 tokenFee = _token.service().getProtocolTokenFee(totalPurchased);
 
+        // Mark fee as claimed
         isProtocolTokenFeeClaimed = true;
 
+        // Mint fee to treasury
+        uint256 tokenFee = (totalPurchased * protocolFee + (DENOM - 1)) / DENOM;
         _token.mint(_token.service().protocolTreasury(), tokenFee);
 
+        // Emit event
         emit ProtocolTokenFeeClaimed(address(_token), tokenFee);
     }
 
@@ -336,6 +361,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return Amount of tokens
      */
     function maxPurchaseOf(address account) public view returns (uint256) {
+        if (!isUserWhitelisted(account)) {
+            return 0;
+        }
         return
             MathUpgradeable.min(
                 info.maxPurchase - purchaseOf[account],
@@ -428,6 +456,15 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         return info.userWhitelist;
     }
 
+    /**
+     * @dev Checks if user is whitelisted
+     * @param account User address
+     * @return Flag if user if whitelisted
+     */
+    function isUserWhitelisted(address account) public view returns (bool) {
+        return info.userWhitelist.length == 0 || _isUserWhitelisted[account];
+    }
+
     // MODIFIER
 
     modifier onlyState(State state_) {
@@ -437,7 +474,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     modifier onlyWhitelistedUser() {
         require(
-            info.userWhitelist.length == 0 || isUserWhitelisted[msg.sender],
+            isUserWhitelisted(msg.sender),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;

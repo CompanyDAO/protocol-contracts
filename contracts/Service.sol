@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@openzeppelin/contracts-upgradeable/utils/Create2Upgradeable.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IToken.sol";
@@ -215,7 +216,7 @@ contract Service is
             );
 
             // Create pool
-            pool = _createPool();
+            pool = _createPool(companyInfo);
 
             // Initialize pool contract
             pool.initialize(
@@ -266,7 +267,7 @@ contract Service is
         pool.setToken(address(token), IToken.TokenType.Governance);
 
         // Initialize TGE
-        tge.initialize(token, tgeInfo);
+        tge.initialize(token, tgeInfo, protocolTokenFee);
 
         // Emit event
         emit PoolCreated(address(pool), address(token), address(tge));
@@ -305,7 +306,7 @@ contract Service is
             token.addTGE(address(tge));
 
             // Initialize TGE
-            tge.initialize(token, tgeInfo);
+            tge.initialize(token, tgeInfo, protocolTokenFee);
         } else if (tokenInfo.tokenType == IToken.TokenType.Preference) {
             // Case of Preference token
 
@@ -327,7 +328,7 @@ contract Service is
                 );
 
                 // Initialize TGE
-                tge.initialize(token, tgeInfo);
+                tge.initialize(token, tgeInfo, 0);
             } else {
                 // Check that there is no active TGE
                 require(
@@ -339,7 +340,7 @@ contract Service is
                 token.addTGE(address(tge));
 
                 // Initialize TGE
-                tge.initialize(token, tgeInfo);
+                tge.initialize(token, tgeInfo, 0);
             }
         } else {
             // Revert for unsupported token types
@@ -369,7 +370,13 @@ contract Service is
         uint256 proposalId,
         string calldata metaHash
     ) external onlyPool whenNotPaused {
-        registry.addEventRecord(msg.sender, eventType, proposalId, metaHash);
+        registry.addEventRecord(
+            msg.sender,
+            eventType,
+            address(0),
+            proposalId,
+            metaHash
+        );
     }
 
     // RESTRICTED FUNCTIONS
@@ -455,25 +462,17 @@ contract Service is
      * @return softCap minimum soft cap
      */
     function getMinSoftCap() public view returns (uint256) {
-        return DENOM / protocolTokenFee;
+        return (DENOM + protocolTokenFee - 1) / protocolTokenFee;
     }
 
     /**
-     * @dev calculates protocol token fee for given token amount
+     * @dev Сalculates protocol token fee for given token amount
      * @param amount Token amount
      * @return tokenFee
      */
     function getProtocolTokenFee(uint256 amount) public view returns (uint256) {
         require(amount >= getMinSoftCap(), ExceptionsLibrary.INVALID_VALUE);
-
-        // TODO: refactor
-        uint256 mul = 1;
-        if (amount > 10**20) {
-            mul = 10**12;
-            amount = amount / mul;
-        }
-
-        return ((protocolTokenFee * amount) / DENOM) * mul;
+        return (amount * protocolTokenFee + (DENOM - 1)) / DENOM;
     }
 
     /**
@@ -499,7 +498,8 @@ contract Service is
     function validateTGEInfo(
         ITGE.TGEInfo calldata info,
         uint256 cap,
-        uint256 totalSupply
+        uint256 totalSupply,
+        IToken.TokenType tokenType
     ) external view {
         // Check unit of account
         if (info.unitOfAccount != address(0))
@@ -508,16 +508,9 @@ contract Service is
                 ExceptionsLibrary.INVALID_TOKEN
             );
 
-        // Check min purchase and price
+        // Check hardcap
         require(
-            info.minPurchase >= 1000 &&
-                (info.price * info.minPurchase >= 10**18 || info.price == 0),
-            ExceptionsLibrary.INVALID_VALUE
-        );
-
-        // Check hardcap and softcap
-        require(
-            info.hardcap >= getMinSoftCap() && info.hardcap >= info.softcap,
+            info.hardcap >= info.softcap,
             ExceptionsLibrary.INVALID_HARDCAP
         );
 
@@ -527,21 +520,67 @@ contract Service is
             info.hardcap <= remainingSupply,
             ExceptionsLibrary.HARDCAP_OVERFLOW_REMAINING_SUPPLY
         );
-        require(
-            info.hardcap + getProtocolTokenFee(info.hardcap) <= remainingSupply,
-            ExceptionsLibrary.HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
-        );
+        if (tokenType == IToken.TokenType.Governance) {
+            require(
+                info.hardcap + getProtocolTokenFee(info.hardcap) <=
+                    remainingSupply,
+                ExceptionsLibrary
+                    .HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
+            );
+        }
+    }
+
+    /**
+     * @dev Get's create2 address for pool
+     * @param info Company info
+     * @return Pool contract address
+     */
+    function getPoolAddress(IRegistry.CompanyInfo memory info)
+        external
+        view
+        returns (address)
+    {
+        (bytes32 salt, bytes memory bytecode) = _getCreate2Data(info);
+        return Create2Upgradeable.computeAddress(salt, keccak256(bytecode));
     }
 
     // INTERNAL FUNCTIONS
 
     /**
+     * @dev Gets data for pool's create2
+     * @param info Company info
+     * @return salt Create2 salt
+     * @return deployBytecode Deployed bytecode
+     */
+    function _getCreate2Data(IRegistry.CompanyInfo memory info)
+        internal
+        view
+        returns (bytes32 salt, bytes memory deployBytecode)
+    {
+        // Get salt
+        salt = keccak256(
+            abi.encode(info.jurisdiction, info.entityType, info.ein)
+        );
+
+        // Get bytecode
+        bytes memory proxyBytecode = type(BeaconProxy).creationCode;
+        deployBytecode = abi.encodePacked(
+            proxyBytecode,
+            abi.encode(poolBeacon, "")
+        );
+    }
+
+    /**
      * @dev Create pool contract and initialize it
      * @return pool Pool contract
      */
-    function _createPool() internal returns (IPool pool) {
-        // Create pool contract
-        pool = IPool(address(new BeaconProxy(poolBeacon, "")));
+    function _createPool(IRegistry.CompanyInfo memory info)
+        internal
+        returns (IPool pool)
+    {
+        // Create pool contract using Create2
+        (bytes32 salt, bytes memory bytecode) = _getCreate2Data(info);
+        pool = IPool(Create2Upgradeable.deploy(0, salt, bytecode));
 
         // Add pool contract to registry
         registry.addContractRecord(
@@ -588,6 +627,12 @@ contract Service is
         );
 
         // Add TGE event to registry
-        registry.addEventRecord(pool, IRecordsRegistry.EventType.TGE, 0, "");
+        registry.addEventRecord(
+            pool,
+            IRecordsRegistry.EventType.TGE,
+            address(tge),
+            0,
+            ""
+        );
     }
 }

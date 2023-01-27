@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 
 import "./RegistryBase.sol";
 import "../libraries/ExceptionsLibrary.sol";
+import "../interfaces/IService.sol";
 import "../interfaces/registry/ICompaniesRegistry.sol";
 
 abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
@@ -24,17 +25,17 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
     /// @dev Last company index
     uint256 public lastCompanyIndex;
 
-    /// @dev Status of combination of (jurisdiction, entityType, EIN) existing
-    mapping(bytes32 => bool) public companyExists;
+    /// @dev Mapping of combination of (jurisdiction, entityType, EIN) to company index (if exists)
+    mapping(bytes32 => uint256) public companyIndex;
 
     // EVENTS
 
     /**
      * @dev Event emitted on company creation
      * @param index Company list index
-     * @param info Company info
+     * @param poolAddress Future pool address
      */
-    event CompanyCreated(uint256 index, CompanyInfo info);
+    event CompanyCreated(uint256 index, address poolAddress);
 
     /**
      * @dev Event emitted on company deletion
@@ -79,18 +80,18 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         bytes32 companyHash = keccak256(
             abi.encodePacked(info.jurisdiction, info.entityType, info.ein)
         );
-        require(!companyExists[companyHash], ExceptionsLibrary.INVALID_EIN);
-        companyExists[companyHash] = true;
+        require(companyIndex[companyHash] == 0, ExceptionsLibrary.INVALID_EIN);
+        uint256 index = ++lastCompanyIndex;
+        companyIndex[companyHash] = index;
 
         // Add record to list
-        uint256 index = ++lastCompanyIndex;
         companies[index] = info;
 
         // Add record to queue
         queue[info.jurisdiction][info.entityType].push(index);
 
         // Emit event
-        emit CompanyCreated(index, info);
+        emit CompanyCreated(index, IService(service).getPoolAddress(info));
     }
 
     /**
@@ -107,12 +108,12 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         require(queueLength > 0, ExceptionsLibrary.NO_COMPANY);
 
         // Get index and pop queue
-        uint256 companyIndex = queue[jurisdiction][entityType][queueLength - 1];
+        uint256 index = queue[jurisdiction][entityType][queueLength - 1];
         queue[jurisdiction][entityType].pop();
 
         // Get company info and remove it from list
-        info = companies[companyIndex];
-        delete companies[companyIndex];
+        info = companies[index];
+        delete companies[index];
     }
 
     /**
@@ -127,7 +128,7 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         uint256 id
     ) external onlyRole(COMPANIES_MANAGER_ROLE) {
         // Get index and pop queue
-        uint256 companyIndex = queue[jurisdiction][entityType][id];
+        uint256 index = queue[jurisdiction][entityType][id];
         uint256 lastId = queue[jurisdiction][entityType].length - 1;
         queue[jurisdiction][entityType][id] = queue[jurisdiction][entityType][
             lastId
@@ -135,14 +136,14 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         queue[jurisdiction][entityType].pop();
 
         // Remove company from list
-        string memory ein = companies[companyIndex].ein;
-        delete companies[companyIndex];
+        string memory ein = companies[index].ein;
+        delete companies[index];
 
         // Mark company as not existing
         bytes32 companyHash = keccak256(
             abi.encodePacked(jurisdiction, entityType, ein)
         );
-        companyExists[companyHash] = false;
+        companyIndex[companyHash] = 0;
 
         // Emit event
         emit CompanyDeleted(id);
@@ -161,12 +162,9 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         uint256 id,
         uint256 fee
     ) external onlyRole(COMPANIES_MANAGER_ROLE) {
-        // Get company index
-        uint256 queueLength = queue[jurisdiction][entityType].length;
-        uint256 companyIndex = queue[jurisdiction][entityType][queueLength - 1];
-
         // Update fee
-        companies[companyIndex].fee = fee;
+        uint256 index = queue[jurisdiction][entityType][id];
+        companies[index].fee = fee;
 
         // Emit event
         emit CompanyFeeUpdated(jurisdiction, entityType, id, fee);
@@ -186,5 +184,39 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         returns (bool)
     {
         return queue[jurisdiction][entityType].length > 0;
+    }
+
+    /**
+     * @dev Get company pool address by metadata
+     * @param jurisdiction Jurisdiction
+     * @param entityType Entity type
+     * @param id Queue id
+     * @return Future company's pool address
+     */
+    function getCompanyPoolAddress(
+        uint256 jurisdiction,
+        uint256 entityType,
+        uint256 id
+    ) public view returns (address) {
+        uint256 index = queue[jurisdiction][entityType][id];
+        return IService(service).getPoolAddress(companies[index]);
+    }
+
+    /**
+     * @dev Get company array by metadata
+     * @param jurisdiction Jurisdiction
+     * @param entityType Entity type
+     * @param ein EIN
+     * @return Company data
+     */
+    function getCompany(
+        uint256 jurisdiction,
+        uint256 entityType,
+        string calldata ein
+    ) external view returns (CompanyInfo memory) {
+        bytes32 companyHash = keccak256(
+            abi.encodePacked(jurisdiction, entityType, ein)
+        );
+        return companies[companyIndex[companyHash]];
     }
 }

@@ -50,6 +50,12 @@ interface IService is IAccessControlEnumerableUpgradeable {
     function validateTGEInfo(
         ITGE.TGEInfo calldata info,
         uint256 cap,
-        uint256 totalSupply
+        uint256 totalSupply,
+        IToken.TokenType tokenType
     ) external view;
+
+    function getPoolAddress(IRegistry.CompanyInfo memory info)
+        external
+        view
+        returns (address);
 }

@@ -35,11 +35,7 @@ abstract contract GovernorProposals is
 
     modifier onlyValidProposer() {
         require(
-            shareReached(
-                _getCurrentVotes(msg.sender),
-                _getCurrentTotalVotes(),
-                proposalThreshold
-            ),
+            _getCurrentVotes(msg.sender) >= proposalThreshold,
             ExceptionsLibrary.THRESHOLD_NOT_REACHED
         );
         _;
@@ -152,7 +148,12 @@ abstract contract GovernorProposals is
         }
 
         // Validate TGE info
-        service.validateTGEInfo(tgeInfo, tokenInfo.cap, totalSupply);
+        service.validateTGEInfo(
+            tgeInfo,
+            tokenInfo.cap,
+            totalSupply,
+            tokenInfo.tokenType
+        );
 
         // Prepare proposal action
         address[] memory targets = new address[](1);
@@ -229,7 +230,7 @@ abstract contract GovernorProposals is
                     executionDelay: _getDelay(IRecordsRegistry.EventType.TGE)
                 }),
                 ProposalMetaData({
-                    proposalType: IRecordsRegistry.EventType.TGE,
+                    proposalType: IRecordsRegistry.EventType.GovernanceSettings,
                     description: description,
                     metaHash: metaHash
                 }),
