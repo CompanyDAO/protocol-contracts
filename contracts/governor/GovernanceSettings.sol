@@ -117,10 +117,5 @@ abstract contract GovernanceSettings is IGovernanceSettings {
             ExceptionsLibrary.INVALID_VALUE
         );
         require(settings.votingDuration > 0, ExceptionsLibrary.INVALID_VALUE);
-        require(
-            settings.executionDelays[0] > 0 &&
-                settings.executionDelays[0] < MAX_BASE_EXECUTION_DELAY,
-            ExceptionsLibrary.INVALID_VALUE
-        );
     }
 }
