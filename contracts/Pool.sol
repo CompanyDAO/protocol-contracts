@@ -32,6 +32,9 @@ contract Pool is
     /// @dev Pool tokens addresses
     mapping(IToken.TokenType => address) public tokens;
 
+    /// @dev last proposal id for address
+    mapping(address => uint256) public lastProposalIdForAddress;
+
     // EVENTS
 
     /**
@@ -268,5 +271,14 @@ contract Pool is
     {
         // Pausable
         return super.paused();
+    }
+
+    /**
+     * @dev Function that gets amount of votes for given account at given block
+     * @param proposer Proposer's address
+     * @param proposalId Proposal id
+     */
+    function _setLastProposalIdForAddress(address proposer, uint256 proposalId) internal override {
+        lastProposalIdForAddress[proposer] = proposalId;
     }
 }

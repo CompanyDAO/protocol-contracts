@@ -256,6 +256,8 @@ abstract contract Governor {
             meta: meta
         });
 
+        _setLastProposalIdForAddress(msg.sender, proposalId);
+
         // Call creation hook
         _afterProposalCreated(proposalId);
 
@@ -452,4 +454,11 @@ abstract contract Governor {
         view
         virtual
         returns (uint256);
+
+    /**
+     * @dev Function that gets amount of votes for given account at given block
+     * @param proposer Proposer's address
+     * @param proposalId Proposal id
+     */
+    function _setLastProposalIdForAddress(address proposer, uint256 proposalId) internal virtual;
 }

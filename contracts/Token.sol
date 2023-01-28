@@ -76,8 +76,9 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      */
     function mint(address to, uint256 amount) external onlyTGE {
         // Delegate to self if first mint andno delegatee set
-        if (balanceOf(to) == 0 && delegates(to) == address(0)) {
-            _delegate(to, to);
+        if (tokenType == IToken.TokenType.Governance) {
+            if (balanceOf(to) == 0 && delegates(to) == address(0))
+                _delegate(to, to);
         }
 
         // Mint tokens
@@ -233,6 +234,11 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
             amount <= unlockedBalanceOf(from),
             ExceptionsLibrary.LOW_UNLOCKED_BALANCE
         );
+
+        if (tokenType == IToken.TokenType.Governance) {
+            if (balanceOf(to) == 0 && delegates(to) == address(0))
+                _delegate(to, to);
+        }
 
         // Execute transfer
         super._transfer(from, to, amount);
