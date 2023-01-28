@@ -72,7 +72,11 @@ contract Pool is
         }
         _;
     }
-
+    
+    modifier onlyState(PoolState state_) {
+        require(state() == state_, ExceptionsLibrary.WRONG_POOL_STATE);
+        _;
+    }
     // INITIALIZER AND CONFIGURATOR
 
     /// @custom:oz-upgrades-unsafe-allow constructor
