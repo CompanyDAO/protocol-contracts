@@ -132,8 +132,7 @@ contract Service is
         );
         _;
     }
-    
-    modifier onlyPoolState(IPool.PoolState state_) {
+     modifier onlyPoolState(IPool.PoolState state_) {
         require(
             IPool(msg.sender).state() == state_,
             ExceptionsLibrary.WRONG_POOL_STATE
@@ -273,6 +272,8 @@ contract Service is
 
     /**
      * @dev Create token and primary TGE
+     * @param tokenCap Pool token cap
+     * @param tokenSymbol Pool token symbol
      * @param tgeInfo TGE parameters
      * @param metadataURI Metadata URI
      */

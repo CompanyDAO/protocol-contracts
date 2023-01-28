@@ -23,6 +23,13 @@ interface IPool is IGovernorProposals {
         IRegistry.CompanyInfo memory companyInfo_
     ) external;
 
+    function createPrimaryTGE(
+        uint256 tokenCap,
+        string memory tokenSymbol,
+        ITGE.TGEInfo memory tgeInfo,
+        string memory metadataURI
+    ) external;
+    
     function setToken(address token_, IToken.TokenType tokenType_) external;
 
     function cancelProposal(uint256 proposalId) external;

@@ -117,6 +117,23 @@ contract Pool is
     // PUBLIC FUNCTIONS
 
     /**
+     * @dev Create token and primary TGE
+     * @param tokenCap Pool token cap
+     * @param tokenSymbol Pool token symbol
+     * @param tgeInfo TGE parameters
+     * @param metadataURI Metadata URI
+     */
+    function createPrimaryTGE(
+        uint256 tokenCap,
+        string memory tokenSymbol,
+        ITGE.TGEInfo memory tgeInfo,
+        string memory metadataURI
+    ) external override onlyOwner onlyState(PoolState.Pool) nonReentrant whenNotPaused {
+
+        service.createPrimaryTGE(tokenCap, tokenSymbol, tgeInfo, metadataURI);
+
+    }
+    /**
      * @dev Cast proposal vote
      * @param proposalId Pool proposal ID
      * @param support Against or for
