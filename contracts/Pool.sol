@@ -181,12 +181,35 @@ contract Pool is
      * @dev Return if pool had a successful governance TGE
      * @return Is any governance TGE successful
      */
-    function isDAO() external view returns (bool) {
+    function isDAO() public view returns (bool) {
         return
             IToken(tokens[IToken.TokenType.Governance])
                 .isPrimaryTGESuccessful();
     }
-
+    
+    /**
+     * @dev Returns Pool's state.
+     * @return PoolState
+     */
+    function state() public view returns (PoolState) {
+        // Check if Pool is paused
+        if (paused()) {
+            // Return Paused state if true
+            return PoolState.Paused;
+        }
+        // Check if  Pool is Dao
+        if (isDAO()) {
+            // Return Dao state if true
+            return PoolState.Dao;
+        }
+        // Check if Pool has Governance Tokens
+        if (tokens[IToken.TokenType.Governance] != address(0)) {
+            // Return PoolwithToken state if true
+            return PoolState.PoolwithToken;
+        }
+        // Default PoolState
+        return PoolState.Pool;
+    }
     /**
      * @dev Return pool owner
      * @return Owner address

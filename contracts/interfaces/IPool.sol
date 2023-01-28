@@ -8,6 +8,14 @@ import "./governor/IGovernanceSettings.sol";
 import "./governor/IGovernorProposals.sol";
 
 interface IPool is IGovernorProposals {
+    
+    enum PoolState {
+        Paused,
+        Pool,
+        PoolwithToken,
+        Dao
+    }
+    
     function initialize(
         address owner_,
         string memory trademark_,
@@ -22,6 +30,8 @@ interface IPool is IGovernorProposals {
     function owner() external view returns (address);
 
     function isDAO() external view returns (bool);
+
+    function state() external view returns (PoolState);
 
     function trademark() external view returns (string memory);
 
