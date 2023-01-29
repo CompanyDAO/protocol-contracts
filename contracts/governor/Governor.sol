@@ -397,7 +397,7 @@ abstract contract Governor {
 
         // Check for early guaranteed result
         if (
-            !shareReached(
+            !shareOvercome(
                 proposal.vote.forVotes + extraVotes,
                 proposal.vote.availableVotes,
                 proposal.core.decisionThreshold
@@ -428,6 +428,21 @@ abstract contract Governor {
     ) internal pure returns (bool) {
         return amount * DENOM >= share * total;
     }
+
+    /**
+     * @dev Checks if `amount` divided by `total` overcomes `share`
+     * @param amount Amount numerator
+     * @param total Amount denominator
+     * @param share Share numerator
+     */
+    function shareOvercome(
+        uint256 amount,
+        uint256 total,
+        uint256 share
+    ) internal pure returns (bool) {
+        return amount * DENOM > share * total;
+    }
+
 
     // ABSTRACT FUNCTIONS
 
