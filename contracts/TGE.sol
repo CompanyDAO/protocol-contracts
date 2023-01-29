@@ -14,6 +14,8 @@ import "./interfaces/IPool.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
 /// @title Token Generation Event
+/// @dev A contract whose purpose is to distribute Governance and Preference tokens and ensure their blocking according to the settings. This contract has an active period, after which the sale of tokens stops, but additional rules related to this token - Lockup and Vesting - begin to apply.    Such a contract is considered successful if at least softcap tokens have been sold using it in the allotted time. Dependencies of TGE contracts on each other for one token - 1) before there is at least one successfully completed TGE, each subsequent created TGE is considered primary (including the very first for the token), 2) if there was at least one successful TGE for an existing token before the launch of a new TGE, then the created TGE is called secondary (and does not have a softcap, that is, any purchase makes it successful).
+
 contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -103,7 +105,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Constructor function, can only be called once
+     * @dev Constructor function, can only be called once. In this method, settings for the TGE event are assigned, such as the contract of the token implemented using TGE, as well as the TGEInfo structure, which includes the parameters of purchase, vesting and lockup. If no lockup or westing conditions were set for the TVL value when creating the TGE, then the TVL achievement flag is set to true from the very beginning.
      * @param _token pool's token
      * @param _info TGE parameters
      */
@@ -136,7 +138,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     // PUBLIC FUNCTIONS
 
     /**
-     * @dev Purchase pool's tokens during TGE
+     * @dev Purchase pool's tokens during TGE. The method for users from the TGE whitelist (set in TGEInfo when initializing the TGE contract), if the list is not set, then the sale is carried out for any address. The contract, when using this method, exchanges info.unitofaccount tokens available to buyers (if the address of the info.unitofaccount contract is set as zero, then the native ETH is considered unitofaccount) at the info.price rate of info.unitofaccount tokens for one pool token being sold. The buyer specifies the purchase amount in pool tokens, not in Unitofaccount. After receiving the user's funds by the contract, part of the tokens are minted to the buyer's balance, part of the tokens are minted to the address of the TGE contract in vesting. The percentage of vesting is specified in info.vestingPercent, if it is equal to 0, then all tokens are transferred to the buyer's balance.
      * @param amount amount of tokens in wei (10**18 = 1 token)
      */
     function purchase(uint256 amount)
@@ -195,7 +197,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Return purchased tokens and get back tokens paid
+     * @dev Return purchased tokens and get back tokens paid. This method allows buyers of TGE who have not collected softcap and are considered failed to return the funds spent by handing back the purchased tokens. The refund of funds for tokens from vesting, blocked within this TGE, is made first of all. The buyer cannot hand over more tokens than he acquired during this TGE. The tokens returned to the contract are sent for burning.
      */
     function redeem()
         external
@@ -252,7 +254,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Claim vested tokens
+     * @dev The method allows you to return the tokens in the vesting from the TGE contract to the balance of the user's address, provided that the vesting within a specific TGE has been assigned, and the conditions necessary for its completion have been met. In TGE that ended in failure (softcap was not built), working with the method is impossible.
      */
     function claim() external whenPoolNotPaused {
         // Check that vested tokens can be claim
@@ -276,6 +278,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         emit Claimed(msg.sender, amountToClaim);
     }
 
+    /// @dev Set the flag that the condition for achieving the pool balance set in the westing settings is met. The action is irreversible.
     function setVestingTVLReached() external whenPoolNotPaused onlyManager {
         // Check that TVL has not been reached yet
         require(!vestingTVLReached, ExceptionsLibrary.VESTING_TVL_REACHED);
@@ -284,6 +287,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         vestingTVLReached = true;
     }
 
+    /// @dev Set the flag that the condition for achieving the pool balance of the value specified in the lockup settings is met. The action is irreversible.
     function setLockupTVLReached() external whenPoolNotPaused onlyManager {
         // Check that TVL has not been reached yet
         require(!lockupTVLReached, ExceptionsLibrary.LOCKUP_TVL_REACHED);
@@ -295,7 +299,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     // RESTRICTED FUNCTIONS
 
     /**
-     * @dev Transfer proceeds from TGE to pool's treasury. Claim protocol fee.
+     * @dev This method is used to perform the following actions for a successful TGE after its completion: transfer funds collected from buyers in the form of info.unitofaccount tokens or ETH to the address of the pool to which TGE belongs (if info.price is 0, then this action is not performed), as well as for Governance tokens make a minting of the percentage of the amount of all user purchases specified in the Service.sol protocolTokenFee contract and transfer it to the address specified in the Service.sol contract in the protocolTreasury() getter. Can be executed only once. Any address can call the method.
      */
     function transferFunds()
         external
@@ -357,7 +361,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     // VIEW FUNCTIONS
 
     /**
-     * @dev How many tokens an address can purchase.
+     * @dev Shows the maximum possible number of tokens to be purchased by a specific address, taking into account whether the user is on the white list and 0 what amount of purchases he made within this TGE.
      * @return Amount of tokens
      */
     function maxPurchaseOf(address account) public view returns (uint256) {
@@ -372,7 +376,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Returns TGE's state.
+     * @dev The Getter allows you to find out the status of the current TGE. Usually, the status necessarily changes to 1 - "failure" or 2 - "success" at the end of the TGE validity period, depending on whether the softcap failed or was collected. However, if the buyers purchased 100% of the tokens offered for purchase, the status changes ahead of time to 2 - "success". The active TGE (which has not expired and has not collected hardcap) has the status 0. Changing the status from 0 to 1 or 2 is irreversible.
      * @return State
      */
     function state() public view returns (State) {
@@ -401,7 +405,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Is claim available for vested tokens.
+     * @dev The given getter shows whether users have the opportunity to withdraw their tokens from vesting. To do this, a flag must be set that the TVL provided for unlocking tokens by vesting has been reached at least once by the pool, and also that the time allotted for blocking tokens within vesting has ended. For TGE without a lead program, this method always returns true.
      * @return Is claim available
      */
     function claimAvailable() public view returns (bool) {
@@ -412,7 +416,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Is transfer available for lockup preference tokens.
+     * @dev The given getter shows whether the transfer method is available for tokens that were distributed using a specific TGE contract. If the lockup period is over or if the lockup was not provided for this TGE, the getter always returns true.
      * @return Is transfer available
      */
     function transferUnlocked() public view returns (bool) {
@@ -421,7 +425,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Locked balance of account in current TGE
+     * @dev Shows the number of TGE tokens blocked in this contract. If the lockup is completed or has not been assigned, the method returns 0 (all tokens on the address balance are available for transfer). If the lockup period is still active, then the difference between the tokens purchased by the user and those in the vesting is shown (both parameters are only for this TGE).
      * @param account Account address
      * @return Locked balance
      */
@@ -433,7 +437,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Get total value of all purchased tokens
+     * @dev The given getter shows how much info.unitofaccount was collected within this TGE. To do this, the amount of tokens purchased by all buyers is multiplied by info.price.
      * @return Total value
      */
     function getTotalPurchasedValue() public view returns (uint256) {
@@ -441,7 +445,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Get total value of all vestied tokens
+     * @dev This getter shows the total value of all tokens that are in the vesting. Tokens that were transferred to user’s wallet addresses upon request for successful TGEs and that were burned as a result of user funds refund for unsuccessful TGEs are not taken into account.
      * @return Total value
      */
     function getTotalVestedValue() public view returns (uint256) {

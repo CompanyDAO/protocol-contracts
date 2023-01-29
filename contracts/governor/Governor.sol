@@ -151,7 +151,7 @@ abstract contract Governor {
     // PUBLIC VIEW FUNCTIONS
 
     /**
-     * @dev Return proposal state
+     * @dev This method returns the outcome for a specific proposal in the pool, a proposal is approved if the quorum and decision threshold values are reached before the voting duration period has elapsed
      * @param proposalId Proposal ID
      * @return ProposalState
      */
@@ -229,7 +229,7 @@ abstract contract Governor {
     // INTERNAL FUNCTIONS
 
     /**
-     * @dev Create proposal
+     * @dev Creating a proposal and assigning it a unique identifier to store in the list of proposals in the Governor contract.
      * @param core Proposal core data
      * @param meta Proposal meta data
      * @param votingDuration Voting duration in blocks
@@ -266,7 +266,7 @@ abstract contract Governor {
     }
 
     /**
-     * @dev Cast vote for a proposal
+     * @dev A method through which participating addresses vote to approve or decline any proposal, this methos can only be used only for active proposals, and the probability of an early end of voting is taken into account, after each call of this method, an assessment is made of whether the remaining free votes can change the course of voting, if not, then the proposal closes ahead of schedule.
      * @param proposalId Proposal ID
      * @param support Against or for
      */
@@ -313,7 +313,7 @@ abstract contract Governor {
     }
 
     /**
-     * @dev Execute proposal
+     * @dev Performance of the proposal with checking its status. Only the Awaiting Execution of the proposals can be executed.
      * @param proposalId Proposal ID
      * @param service Service address
      */
@@ -354,7 +354,7 @@ abstract contract Governor {
     }
 
     /**
-     * @dev Cancel proposal
+     * @dev The substitution of proposals, both active and those that have a positive voting result, but have not yet been executed.
      * @param proposalId Proposal ID
      */
     function _cancelProposal(uint256 proposalId) internal {
@@ -375,7 +375,7 @@ abstract contract Governor {
     }
 
     /**
-     * @dev Check if proposal voting can be finished already (if result is guaranteed)
+     * @dev The method checks whether it is possible to end the voting early with the result fixed. If a quorum was reached and so many votes were cast in favor that even if all other available votes were cast against, or if so many votes were cast against that it could not affect the result of the vote, this function will change set the end block of the proposal to the current block  
      * @param proposalId Proposal ID
      */
     function _checkProposalVotingEarlyEnd(uint256 proposalId) internal {
@@ -432,19 +432,19 @@ abstract contract Governor {
     // ABSTRACT FUNCTIONS
 
     /**
-     * @dev Hook called after proposal creation
+     * @dev Hook called after a proposal is created
      * @param proposalId Proposal ID
      */
     function _afterProposalCreated(uint256 proposalId) internal virtual;
 
     /**
-     * @dev Function that gets total amount of votes
+     * @dev Function that returns the total amount of votes in the pool
      * @return Total amount of votes
      */
     function _getCurrentTotalVotes() internal view virtual returns (uint256);
 
     /**
-     * @dev Function that gets amount of votes for given account at given block
+     * @dev Function that returns the amount of votes for a client adrress at any given block
      * @param account Account's address
      * @param blockNumber Block number
      * @return Account's votes at given block
@@ -456,7 +456,7 @@ abstract contract Governor {
         returns (uint256);
 
     /**
-     * @dev Function that gets amount of votes for given account at given block
+     * @dev Function that returns the amount of votes for a client address at any given block
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */

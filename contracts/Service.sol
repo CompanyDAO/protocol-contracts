@@ -18,7 +18,7 @@ import "./interfaces/ITGE.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
-/// @dev Protocol entry point
+/// @dev The main service contract through which the administrator manages the project, assigns roles to individual wallets, changes service commissions, and also through which the user creates pool contracts. Exists in a single copy.
 contract Service is
     Initializable,
     AccessControlEnumerableUpgradeable,
@@ -61,7 +61,7 @@ contract Service is
     /// @dev TGE beacon
     address public tgeBeacon;
 
-    /// @dev address that collects protocol token fees
+    /// @dev There gets 0.1% (the value can be changed by the admin) of all Governance tokens from successful TGE
     address public protocolTreasury;
 
     /// @dev protocol token fee percentage value with 4 decimals. Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000
@@ -170,7 +170,7 @@ contract Service is
     // PUBLIC FUNCTIONS
 
     /**
-     * @dev Create pool
+     * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type, which are used as keys to, firstly, find out if there is a company available for acquisition with such parameters among the Registry records, and secondly, to get the data of such a company if it exists, save them to the deployed pool contract, while recording the company is removed from the Registry. This action is only available to users who are on the global white list of addresses allowed before the acquisition of companies. At the same time, the Governance token contract and the TGE contract are deployed for its implementation.
      * @param pool Pool address. If not address(0) - creates new token and new primary TGE for an existing pool.
      * @param tokenCap Pool token cap
      * @param tokenSymbol Pool token symbol
@@ -276,7 +276,7 @@ contract Service is
     // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL)
 
     /**
-     * @dev Create secondary TGE
+     * @dev Method for launching secondary TGE (i.e. without reissuing the token) for Governance tokens, as well as for creating and launching TGE for Preference tokens. It can be started only as a result of the execution of the proposal on behalf of the pool.
      * @param tgeInfo TGE parameters
      * @param tokenInfo Token parameters
      * @param metadataURI Metadata URI
@@ -397,7 +397,7 @@ contract Service is
     }
 
     /**
-     * @dev Set protocol treasury address
+     * @dev Assignment of the address to which the commission will be collected in the form of Governance tokens issued under successful TGE
      * @param _protocolTreasury Protocol treasury address
      */
     function setProtocolTreasury(address _protocolTreasury)
@@ -495,6 +495,7 @@ contract Service is
         return type(uint256).max - getProtocolTokenFee(type(uint256).max);
     }
 
+    /// @dev Service function that is used to check the correctness of TGE parameters (for the absence of conflicts between parameters)
     function validateTGEInfo(
         ITGE.TGEInfo calldata info,
         uint256 cap,
