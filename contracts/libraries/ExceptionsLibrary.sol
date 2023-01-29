@@ -15,8 +15,6 @@ library ExceptionsLibrary {
     string public constant IS_DAO = "IS_DAO";
     string public constant NOT_DAO = "NOT_DAO";
     string public constant NOT_WHITELISTED = "NOT_WHITELISTED";
-    string public constant ALREADY_WHITELISTED = "ALREADY_WHITELISTED";
-    string public constant ALREADY_NOT_WHITELISTED = "ALREADY_NOT_WHITELISTED";
     string public constant NOT_SERVICE = "NOT_SERVICE";
     string public constant WRONG_STATE = "WRONG_STATE";
     string public constant TRANSFER_FAILED = "TRANSFER_FAILED";
@@ -46,7 +44,6 @@ library ExceptionsLibrary {
     string public constant ONLY_POOL = "ONLY_POOL";
     string public constant ETH_TRANSFER_FAIL = "ETH_TRANSFER_FAIL";
     string public constant TOKEN_TRANSFER_FAIL = "TOKEN_TRANSFER_FAIL";
-    string public constant BLOCK_DELAY = "BLOCK_DELAY";
     string public constant SERVICE_PAUSED = "SERVICE_PAUSED";
     string public constant INVALID_PROPOSAL_TYPE = "INVALID_PROPOSAL_TYPE";
     string public constant EXECUTION_FAILED = "EXECUTION_FAILED";
@@ -55,7 +52,7 @@ library ExceptionsLibrary {
     string public constant LAUNCHED = "LAUNCHED";
     string public constant VESTING_TVL_REACHED = "VESTING_TVL_REACHED";
     string public constant PREFERENCE_TOKEN_EXISTS = "PREFERENCE_TOKEN_EXISTS";
-    string public constant INVALID_SOFTCAP = "INVALID_SOFTCAP";
     string public constant THRESHOLD_NOT_REACHED = "THRESHOLD_NOT_REACHED";
     string public constant UNSUPPORTED_TOKEN_TYPE = "UNSUPPORTED_TOKEN_TYPE";
+    string public constant ALREADY_VOTED = "ALREADY_VOTED";
 }

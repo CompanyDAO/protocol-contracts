@@ -284,6 +284,10 @@ abstract contract Governor {
             proposals[proposalId].vote.endBlock > block.number,
             ExceptionsLibrary.VOTING_FINISHED
         );
+        require(
+           ballots[msg.sender][proposalId] == Ballot.None,
+           ExceptionsLibrary.ALREADY_VOTED
+        );
 
         // Get number of votes
         uint256 votes = _getPastVotes(
