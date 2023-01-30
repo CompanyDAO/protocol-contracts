@@ -17,6 +17,7 @@ library ExceptionsLibrary {
     string public constant NOT_WHITELISTED = "NOT_WHITELISTED";
     string public constant NOT_SERVICE = "NOT_SERVICE";
     string public constant WRONG_STATE = "WRONG_STATE";
+    string public constant WRONG_POOL_STATE = "WRONG_POOL_STATE";
     string public constant TRANSFER_FAILED = "TRANSFER_FAILED";
     string public constant CLAIM_NOT_AVAILABLE = "CLAIM_NOT_AVAILABLE";
     string public constant NO_LOCKED_BALANCE = "NO_LOCKED_BALANCE";
