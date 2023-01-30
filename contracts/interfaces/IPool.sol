@@ -10,6 +10,7 @@ import "./governor/IGovernorProposals.sol";
 interface IPool is IGovernorProposals {
     
     enum PoolState {
+        None,
         Paused,
         Pool,
         PoolwithToken,
