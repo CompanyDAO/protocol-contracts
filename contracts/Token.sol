@@ -13,7 +13,8 @@ import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
-/// @dev Company (Pool) Token
+/// @title Company (Pool) Token
+/// @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
 contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /// @dev Service address
     IService public service;
@@ -41,7 +42,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     }
 
     /**
-     * @dev Constructor function, can only be called once
+     * @dev Token creation, can only be started once. At the same time, the TGE contract, which sells the created token, is necessarily simultaneously deployed and receives an entry in the Registry. For the Governance token, the Name field for the ERC20 standard is taken from the trademark of the Pool contract to which the deployed token belongs. For Preference tokens, you can set an arbitrary value of the Name field.
      * @param pool_ Pool
      * @param info Token info struct
      * @param primaryTGE_ Primary tge address
@@ -70,14 +71,15 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     // RESTRICTED FUNCTIONS
 
     /**
-     * @dev Mint token
+     * @dev Minting of new tokens. Only the TGE contract can mint tokens, there is no other way to get an additional issue. If the user who is being minted does not have tokens, they are sent to delegation on his behalf.
      * @param to Recipient
      * @param amount Amount of tokens
      */
     function mint(address to, uint256 amount) external onlyTGE {
         // Delegate to self if first mint andno delegatee set
-        if (balanceOf(to) == 0 && delegates(to) == address(0)) {
-            _delegate(to, to);
+        if (tokenType == IToken.TokenType.Governance) {
+            if (balanceOf(to) == 0 && delegates(to) == address(0))
+                _delegate(to, to);
         }
 
         // Mint tokens
@@ -156,7 +158,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     }
 
     /**
-     * @dev Returns unlocked balance of account
+     * @dev The given getter returns the total balance of the address that is not locked for transfer, taking into account all the TGEs with which this token was distributed. Is the difference.
      * @param account Account address
      * @return Unlocked balance of account
      */
@@ -201,7 +203,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     }
 
     /**
-     * @dev Return amount of tokens currently vested in TGE vesting contract(s)
+     * @dev Getter returns the sum of all tokens that belong to a specific address, but are in vesting in TGE contracts associated with this token
      * @return Total vesting tokens
      */
     function getTotalTGEVestedTokens() public view returns (uint256) {
@@ -233,6 +235,11 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
             amount <= unlockedBalanceOf(from),
             ExceptionsLibrary.LOW_UNLOCKED_BALANCE
         );
+
+        if (tokenType == IToken.TokenType.Governance) {
+            if (balanceOf(to) == 0 && delegates(to) == address(0))
+                _delegate(to, to);
+        }
 
         // Execute transfer
         super._transfer(from, to, amount);

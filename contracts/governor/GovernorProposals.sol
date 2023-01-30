@@ -117,7 +117,7 @@ abstract contract GovernorProposals is
     }
 
     /**
-     * @dev Propose new TGE
+     * @dev Proposal to launch a new token generation event (TGE), can be created only if the maximum supply threshold value for an existing token has not been reached or if a new token is being created, in which case, a new token contract will be deployed simultaneously with the TGE contract.
      * @param tgeInfo TGE parameters
      * @param tokenInfo Token parameters
      * @param metadataURI TGE metadata URI
@@ -191,7 +191,7 @@ abstract contract GovernorProposals is
     }
 
     /**
-     * @notice Propose new governance settings
+     * @notice A proposal that changes the governance settings. First of all, the percentage of the total number of free votes changes, the achievement of which within the framework of voting leads to the achievement of a quorum (the vote will be considered to have taken place, that is, one of the conditions for a positive decision on the propositional is fulfilled). Further, the Decision Threshold can be changed, which is set as a percentage of the sum of the votes "for" and "against" for a specific proposal, at which the sum of the votes "for" ensures a positive decision-making. In addition, a set of delays (measured in blocks) is set, used for certain features of transactions submitted to the proposal. The duration of all subsequent votes is also set (measured in blocks) and the number of Governance tokens required for the address to create a proposal. All parameters are set in one transaction. To change one of the parameters, it is necessary to send the old values of the other settings along with the changed value of one setting.
      * @param settings New governance settings
      * @param description Proposal description
      * @param metaHash Hash value of proposal metadata

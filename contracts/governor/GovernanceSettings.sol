@@ -13,27 +13,24 @@ abstract contract GovernanceSettings is IGovernanceSettings {
     /// @notice Denominator for shares (such as thresholds)
     uint256 private constant DENOM = 100 * 10**4;
 
-    /// @notice Max base execution delay (as blocks)
-    uint256 public constant MAX_BASE_EXECUTION_DELAY = 20;
-
     // STORAGE
 
-    /// @notice Threshold of votes required to propose
+    /// @notice The minimum amount of votes required to create a proposal
     uint256 public proposalThreshold;
 
-    /// @notice Threshold of votes required to reach quorum
+    /// @notice The minimum amount of votes which need to participate in the proposal in order for the proposal to be considered valid, given as a percentage of all existing votes
     uint256 public quorumThreshold;
 
-    /// @notice Threshold of for votes required for proposal to succeed
+    /// @notice The minimum amount of votes which are needed to approve the proposal, given as a percentage of all participating votes 
     uint256 public decisionThreshold;
 
-    /// @notice Duration of proposal voting (as blocks)
+    /// @notice The amount of time for which the proposal will remain active, given as the number of blocks which have elapsed since the creation of the proposal
     uint256 public votingDuration;
 
-    /// @notice Minimal transfer value to trigger delay
+    /// @notice The threshold value for a transaction which triggers the transaction execution delay
     uint256 public transferValueForDelay;
 
-    /// @notice Delays for proposal types
+    /// @notice Returns transaction execution delay values for different proposal types
     mapping(IRegistry.EventType => uint256) public executionDelays;
 
     /// @notice Storage gap (for future upgrades)
@@ -41,7 +38,7 @@ abstract contract GovernanceSettings is IGovernanceSettings {
 
     // EVENTS
 
-    /// @notice Event emitted when governance settings are set
+    /// @notice This event emitted only when the following values (governance settings) are set
     event GovernanceSettingsSet(
         uint256 proposalThreshold_,
         uint256 quorumThreshold_,
@@ -60,10 +57,10 @@ abstract contract GovernanceSettings is IGovernanceSettings {
     function setGovernanceSettings(NewGovernanceSettings memory settings)
         external
     {
-        // Can only be called by self
+        // The governance settings function can only be called by the pool contract
         require(msg.sender == address(this), ExceptionsLibrary.INVALID_USER);
 
-        // Update settings
+        // Internal function to update governance settings
         _setGovernanceSettings(settings);
     }
 
@@ -76,7 +73,7 @@ abstract contract GovernanceSettings is IGovernanceSettings {
     function _setGovernanceSettings(NewGovernanceSettings memory settings)
         internal
     {
-        // Validate settings
+        // Validates the values for governance settings
         _validateGovernanceSettings(settings);
 
         // Apply settings
@@ -113,7 +110,7 @@ abstract contract GovernanceSettings is IGovernanceSettings {
             ExceptionsLibrary.INVALID_VALUE
         );
         require(
-            settings.decisionThreshold < DENOM,
+            settings.decisionThreshold <= DENOM,
             ExceptionsLibrary.INVALID_VALUE
         );
         require(settings.votingDuration > 0, ExceptionsLibrary.INVALID_VALUE);
