@@ -199,9 +199,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     {
         uint256 count = proposalRecords.length;
         for (uint256 i = 1; i <= count; i++) {
-            address poolRecord = proposalRecords[i].pool;
-            uint256 proposalIdRecord = proposalRecords[i].proposalId;
-            if (poolRecord == pool && proposalIdRecord == proposalId) {
+            if (proposalRecords[i].pool == pool && proposalRecords[i].proposalId == proposalId) {
                 return i;
             }
         }
