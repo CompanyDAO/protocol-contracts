@@ -271,18 +271,10 @@ abstract contract Governor {
      * @param support Against or for
      */
     function _castVote(uint256 proposalId, bool support) internal {
-        // Check that voting exists, is started and not finished
+        // Check that proposal is Active
         require(
-            proposals[proposalId].vote.startBlock != 0,
-            ExceptionsLibrary.NOT_LAUNCHED
-        );
-        require(
-            proposals[proposalId].vote.startBlock <= block.number,
-            ExceptionsLibrary.NOT_LAUNCHED
-        );
-        require(
-            proposals[proposalId].vote.endBlock > block.number,
-            ExceptionsLibrary.VOTING_FINISHED
+            proposalState(proposalId) == ProposalState.Active,
+            ExceptionsLibrary.NOT_ACTIVE
         );
         require(
            ballots[msg.sender][proposalId] == Ballot.None,
