@@ -22,6 +22,7 @@ import { setup } from "./shared/setup";
 
 const { getContractAt, getContract, getSigners, provider } = ethers;
 const { parseUnits } = ethers.utils;
+const { AddressZero } = ethers.constants;
 
 describe("Test secondary TGE", function () {
     let owner: SignerWithAddress,
@@ -206,6 +207,7 @@ describe("Test secondary TGE", function () {
                 pool.connect(second).castVote(1, true)
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
+
         it("Recipient can't vote if proposal created in the same block with the governance token transfer", async function () {
             await mineBlock(51);
             await tge.setLockupTVLReached();
@@ -223,7 +225,7 @@ describe("Test secondary TGE", function () {
 
             await expect(
                 pool.connect(other).castVote(1, true)
-            ).to.be.revertedWith(Exceptions.VOTING_FINISHED);
+            ).to.be.revertedWith(Exceptions.WRONG_STATE);
         });
 
         it("Can't execute non-existent proposal", async function () {
@@ -289,6 +291,89 @@ describe("Test secondary TGE", function () {
             expect(info.duration).to.equal(20);
             expect(info.softcap).to.equal(parseUnits("1000"));
             expect(info.hardcap).to.equal(parseUnits("5000"));
+        });
+        
+        //re-check
+        it("Executed TGE proposal can't change token cap ", async function () {
+            
+            await mineBlock(2);
+            // new proposeTransfer
+           await pool.connect(other).proposeTransfer(
+                AddressZero,
+                [third.address, fourth.address],
+                [parseUnits("0.1"), parseUnits("0.1")],
+                "Let's give them money",
+                "#"
+            );
+            await mineBlock(2);
+            const startTokenCap = await token.cap();
+            const startTokenTotalSupply = await token.totalSupply();
+
+            await pool.connect(owner).castVote(1, true);
+            await pool.connect(other).castVote(1, true);
+            await mineBlock(2);
+
+            // success execute Proposal of TGE
+            await pool.executeProposal(1);
+            const tgeRecord = await registry.contractRecords(3);
+            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
+
+            // owner purchase new tokens from TGE
+            await tge2
+                .connect(owner)
+                .purchase(parseUnits("10"), { value: parseUnits("1") });
+
+            await mineBlock(10);
+
+            
+            expect(startTokenCap).to.equal(await token.cap());
+            
+            
+            // owner burn new tokens from TGE
+            await token
+            .connect(owner)
+            .burn(owner.address,parseUnits("10"));
+
+            expect(startTokenCap).to.equal(await token.cap());
+        });
+
+        it("Purchasing/Burning tokens from TGE can't affect new proposals", async function () {
+            
+            await pool.connect(owner).castVote(1, true);
+            await pool.connect(other).castVote(1, true);
+            await mineBlock(2);
+            const TGEproposal = await pool.proposals(1);
+            
+            // success execute Proposal of TGE
+            await pool.executeProposal(1);
+            const tgeRecord = await registry.contractRecords(3);
+            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
+
+            // owner purchase new tokens from TGE
+            await tge2
+                .connect(owner)
+                .purchase(parseUnits("10"), { value: parseUnits("1") });
+
+            await mineBlock(10);
+
+             // new transfer proposal
+            await pool.connect(other).proposeTransfer(
+                AddressZero,
+                [third.address, fourth.address],
+                [parseUnits("0.1"), parseUnits("0.1")],
+                "Let's give them money",
+                "#"
+            );
+            await mineBlock(1);
+            const TransferProposal = await pool.proposals(2);
+
+            // owner burn new tokens from TGE
+            await token
+            .connect(owner)
+            .burn(owner.address,parseUnits("10"));
+
+            
+            expect(TGEproposal.vote.availableVotes).to.equal(TransferProposal.vote.availableVotes);
         });
 
         it("Only pool can request creating TGEs and recording proposals on service", async function () {

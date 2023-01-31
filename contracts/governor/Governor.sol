@@ -4,6 +4,8 @@
 
 
 
+
+
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -277,17 +279,10 @@ abstract contract Governor {
     function _castVote(uint256 proposalId, bool support) internal {
         // Check that voting exists, is started and not finished
         require(
-            proposals[proposalId].vote.startBlock != 0,
-            ExceptionsLibrary.NOT_LAUNCHED
+            proposalState(proposalId) == ProposalState.Active,
+            ExceptionsLibrary.WRONG_STATE
         );
-        require(
-            proposals[proposalId].vote.startBlock <= block.number,
-            ExceptionsLibrary.NOT_LAUNCHED
-        );
-        require(
-            proposals[proposalId].vote.endBlock > block.number,
-            ExceptionsLibrary.VOTING_FINISHED
-        );
+
         require(
            ballots[msg.sender][proposalId] == Ballot.None,
            ExceptionsLibrary.ALREADY_VOTED
