@@ -76,7 +76,11 @@ contract Pool is
         }
         _;
     }
-
+    
+    modifier onlyState(PoolState state_) {
+        require(state() == state_, ExceptionsLibrary.WRONG_POOL_STATE);
+        _;
+    }
     // INITIALIZER AND CONFIGURATOR
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -117,6 +121,24 @@ contract Pool is
     // PUBLIC FUNCTIONS
 
     /**
+     * @dev Create token and primary TGE
+     * @param tokenCap Pool token cap
+     * @param tokenSymbol Pool token symbol
+     * @param tgeInfo TGE parameters
+     * @param metadataURI Metadata URI
+     */
+    function createPrimaryTGE(
+        uint256 tokenCap,
+        string memory tokenSymbol,
+        ITGE.TGEInfo memory tgeInfo,
+        string memory metadataURI
+    ) external override onlyOwner onlyState(PoolState.Pool) nonReentrant whenNotPaused {
+
+        service.createPrimaryTGE(tokenCap, tokenSymbol, tgeInfo, metadataURI);
+
+    }
+    /**
+     * @dev Cast proposal vote
      * @dev With this method, the owner of the Governance token of the pool can vote for one of the active propo-nodes, specifying its number and the value of the vote (for or against). One user can vote only once for one proposal with all the available balance that is in delegation at once.
      * @param proposalId Pool proposal ID
      * @param support Against or for
@@ -185,12 +207,35 @@ contract Pool is
      * @dev Getter showing whether this company has received the status of a DAO as a result of the successful completion of the primary TGE (that is, launched by the owner of the company and with the creation of a new Governance token). After receiving the true status, it is not transferred back. This getter is responsible for the basic logic of starting a contract as managed by token holders.
      * @return Is any governance TGE successful
      */
-    function isDAO() external view returns (bool) {
+    function isDAO() public view returns (bool) {
         return
             IToken(tokens[IToken.TokenType.Governance])
                 .isPrimaryTGESuccessful();
     }
-
+    
+    /**
+     * @dev Returns Pool's state.
+     * @return PoolState
+     */
+    function state() public view returns (PoolState) {
+        // Check if Pool is paused
+        if (paused()) {
+            // Return Paused state if true
+            return PoolState.Paused;
+        }
+        // Check if  Pool is Dao
+        if (isDAO()) {
+            // Return Dao state if true
+            return PoolState.Dao;
+        }
+        // Check if Pool has Governance Tokens
+        if (tokens[IToken.TokenType.Governance] != address(0)) {
+            // Return PoolwithToken state if true
+            return PoolState.PoolwithToken;
+        }
+        // Default PoolState
+        return PoolState.Pool;
+    }
     /**
      * @dev Return pool owner
      * @return Owner address

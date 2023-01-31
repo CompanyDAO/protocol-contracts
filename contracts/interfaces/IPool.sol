@@ -8,6 +8,15 @@ import "./governor/IGovernanceSettings.sol";
 import "./governor/IGovernorProposals.sol";
 
 interface IPool is IGovernorProposals {
+    
+    enum PoolState {
+        None,
+        Paused,
+        Pool,
+        PoolwithToken,
+        Dao
+    }
+    
     function initialize(
         address owner_,
         string memory trademark_,
@@ -15,6 +24,13 @@ interface IPool is IGovernorProposals {
         IRegistry.CompanyInfo memory companyInfo_
     ) external;
 
+    function createPrimaryTGE(
+        uint256 tokenCap,
+        string memory tokenSymbol,
+        ITGE.TGEInfo memory tgeInfo,
+        string memory metadataURI
+    ) external;
+    
     function setToken(address token_, IToken.TokenType tokenType_) external;
 
     function cancelProposal(uint256 proposalId) external;
@@ -22,6 +38,8 @@ interface IPool is IGovernorProposals {
     function owner() external view returns (address);
 
     function isDAO() external view returns (bool);
+
+    function state() external view returns (PoolState);
 
     function trademark() external view returns (string memory);
 

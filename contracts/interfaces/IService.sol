@@ -16,6 +16,13 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function EXECUTOR_ROLE() external view returns (bytes32);
 
+    function createPrimaryTGE(
+        uint256 tokenCap,
+        string memory tokenSymbol,
+        ITGE.TGEInfo memory tgeInfo,
+        string memory metadataURI
+    ) external;
+
     function createSecondaryTGE(
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,

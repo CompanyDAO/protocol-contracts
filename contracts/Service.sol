@@ -72,10 +72,22 @@ contract Service is
     /**
      * @dev Event emitted on pool creation.
      * @param pool Pool address
-     * @param token Pool token address
-     * @param tge Pool primary TGE address
      */
-    event PoolCreated(address pool, address token, address tge);
+    event PoolCreated(address pool);
+    
+    /**
+     * @dev Event emitted on pool creation.
+     * @param pool Pool address
+     */
+    event TokenCreated(address pool, address token);
+
+    /**
+     * @dev Event emitted on creation of token and primary TGE.
+     * @param pool Pool address
+     * @param tge TGE address
+     * @param token token address
+     */
+    event PrimaryTGECreated(address pool, address tge, address token);
 
     /**
      * @dev Event emitted on creation of secondary TGE.
@@ -120,6 +132,14 @@ contract Service is
         );
         _;
     }
+     modifier onlyPoolState(IPool.PoolState state_) {
+        require(
+            IPool(msg.sender).state() == state_,
+            ExceptionsLibrary.WRONG_POOL_STATE
+        );
+        _;
+    }
+    
 
     // INITIALIZER AND CONSTRUCTOR
 
@@ -172,6 +192,7 @@ contract Service is
     /**
      * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type, which are used as keys to, firstly, find out if there is a company available for acquisition with such parameters among the Registry records, and secondly, to get the data of such a company if it exists, save them to the deployed pool contract, while recording the company is removed from the Registry. This action is only available to users who are on the global white list of addresses allowed before the acquisition of companies. At the same time, the Governance token contract and the TGE contract are deployed for its implementation.
      * @param pool Pool address. If not address(0) - creates new token and new primary TGE for an existing pool.
+     * @param runPrimaryTGE Determines whether or not to create token and  primary TGE for the pool
      * @param tokenCap Pool token cap
      * @param tokenSymbol Pool token symbol
      * @param tgeInfo Pool TGE parameters
@@ -183,6 +204,7 @@ contract Service is
      */
     function createPool(
         IPool pool,
+        bool runPrimaryTGE,
         uint256 tokenCap,
         string memory tokenSymbol,
         ITGE.TGEInfo memory tgeInfo,
@@ -192,11 +214,7 @@ contract Service is
         string memory trademark,
         string memory metadataURI
     ) external payable nonReentrant whenNotPaused {
-        // Check token cap
-        require(tokenCap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
-
-        // Add protocol fee to token cap
-        tokenCap += getProtocolTokenFee(tokenCap);
+       
 
         if (address(pool) == address(0)) {
             // Check that user is whitelisted and remove him from whitelist
@@ -242,9 +260,39 @@ contract Service is
             // Check that pool is not active yet
             require(!pool.isDAO(), ExceptionsLibrary.IS_DAO);
         }
+        // Emit event
+        emit PoolCreated(address(pool));
+        // Check if the primary TGE should be created
+        if(runPrimaryTGE){
+            createPrimaryTGE( tokenCap,tokenSymbol,tgeInfo, metadataURI);
+        }
+    }
 
+    // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL)
+
+    /**
+     * @dev Create token and primary TGE
+     * @param tokenCap Pool token cap
+     * @param tokenSymbol Pool token symbol
+     * @param tgeInfo TGE parameters
+     * @param metadataURI Metadata URI
+     */
+    function createPrimaryTGE(
+        uint256 tokenCap,
+        string memory tokenSymbol,
+        ITGE.TGEInfo memory tgeInfo,
+        string memory metadataURI
+    ) public override onlyPool onlyPoolState(IPool.PoolState.Pool) nonReentrant whenNotPaused {
+        address pool = msg.sender;
+        // Check token cap
+        require(tokenCap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
+
+        // Add protocol fee to token cap
+        tokenCap += getProtocolTokenFee(tokenCap);
         // Create token contract
         IToken token = _createToken();
+
+        emit TokenCreated(msg.sender, address(token));
 
         // Create TGE contract
         ITGE tge = _createTGE(metadataURI, address(pool));
@@ -264,16 +312,13 @@ contract Service is
         );
 
         // Set token as pool token
-        pool.setToken(address(token), IToken.TokenType.Governance);
+        IPool(msg.sender).setToken(address(token), IToken.TokenType.Governance);
 
         // Initialize TGE
         tge.initialize(token, tgeInfo, protocolTokenFee);
 
-        // Emit event
-        emit PoolCreated(address(pool), address(token), address(tge));
+        emit PrimaryTGECreated(msg.sender, address(tge), address(token));
     }
-
-    // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL)
 
     /**
      * @dev Method for launching secondary TGE (i.e. without reissuing the token) for Governance tokens, as well as for creating and launching TGE for Preference tokens. It can be started only as a result of the execution of the proposal on behalf of the pool.

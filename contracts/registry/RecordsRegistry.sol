@@ -19,6 +19,9 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     /// @dev Mapping of contract addresses to their record indexes
     mapping(address => ContractIndex) public indexOfContract;
 
+    /// @dev Mapping of globalProposalId (address pool, uint256 proposalId)
+    mapping(address => mapping(uint256 => uint256) ) public globalProposalId;
+
     /// @dev List of proposal records
     ProposalInfo[] public proposalRecords;
 
@@ -110,7 +113,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
             ProposalInfo({pool: pool, proposalId: proposalId, description: ""})
         );
         index = proposalRecords.length - 1;
-
+        globalProposalId[pool][proposalId]++;
         // Emit event
         emit ProposalRecordAdded(index, pool, proposalId);
     }
@@ -197,14 +200,6 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         view
         returns (uint256)
     {
-        uint256 count = proposalRecords.length;
-        for (uint256 i = 1; i <= count; i++) {
-            address poolRecord = proposalRecords[i].pool;
-            uint256 proposalIdRecord = proposalRecords[i].proposalId;
-            if (poolRecord == pool && proposalIdRecord == proposalId) {
-                return i;
-            }
-        }
-        return 0;
+        return globalProposalId[pool][proposalId];
     }
 }
