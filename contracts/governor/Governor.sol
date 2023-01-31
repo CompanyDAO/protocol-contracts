@@ -294,6 +294,11 @@ abstract contract Governor {
             msg.sender,
             proposals[proposalId].vote.startBlock - 1
         );
+        
+        require(
+           votes>0,
+           ExceptionsLibrary.ZERO_VOTES
+        );
 
         // Account votes
         if (support) {

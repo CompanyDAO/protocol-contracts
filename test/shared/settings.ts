@@ -47,7 +47,7 @@ export async function makeCreateData(): Promise<CreateArgs> {
         proposalThreshold: 100000, // 10%
         quorumThreshold: 400000, // 40%
         decisionThreshold: 500000, // 50%
-        votingDuration: 10,
+        votingDuration: 55,
         transferValueForDelay: 0,
         executionDelays: [2, 0, 0, 0],
     };

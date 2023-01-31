@@ -19,7 +19,7 @@ import { setup } from "./shared/setup";
 const { getContract, getContractAt, getSigners, Wallet, provider } = ethers;
 const { parseUnits } = ethers.utils;
 
-describe.only("Test initial TGE", function () {
+describe("Test initial TGE", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress;
@@ -81,7 +81,7 @@ describe.only("Test initial TGE", function () {
         });
 
         it("Can't create pool with invalid governance settings", async function () {
-            createArgs[6].executionDelays[0] = 0;
+            createArgs[6].votingDuration = 0;
             await expect(
                 service.createPool(...createArgs, {
                     value: parseUnits("0.01"),

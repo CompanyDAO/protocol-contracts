@@ -39,4 +39,6 @@ export default class Exceptions {
     static readonly ACTIVE_TGE_EXISTS: string = "ACTIVE_TGE_EXISTS";
     static readonly INVALID_VALUE: string = "INVALID_VALUE";
     static readonly INVALID_USER: string = "INVALID_USER";
+    static readonly ALREADY_VOTED: string = "ALREADY_VOTED";
+    static readonly ZERO_VOTES: string = "ZERO_VOTES";    
 }
