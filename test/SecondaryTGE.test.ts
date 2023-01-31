@@ -141,7 +141,30 @@ describe("Test secondary TGE", function () {
             expect(proposal.vote.forVotes).to.equal(parseUnits("500"));
         });
 
-        it("Can't vote with no governance tokens", async function () {
+        it("Token delegation works", async function () {
+            await mineBlock(1);
+            const startVotes_donor = await token.getVotes(other.address);
+            const startVotes_rec = await token.getVotes(second.address);
+            expect(startVotes_rec).to.equal(parseUnits("0"));
+
+            await token.connect(other).delegate(second.address);
+            await mineBlock(2);
+            const finishVotes_donor = await token.getVotes(other.address);
+            const finishVotes_rec = await token.getVotes(second.address);
+           
+            expect(finishVotes_donor).to.equal(parseUnits("0"));
+            expect(startVotes_rec).to.equal(finishVotes_donor );
+           
+        });
+        
+        it("Can't vote with tokens delegated before start of voting", async function () {
+            await token.connect(other).delegate(second.address);
+            await expect(
+                pool.connect(second).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+        });
+
+        it("Can't vote with no delegated or governance tokens", async function () {
             expect(await token.balanceOf(second.address)).to.equal(
                 parseUnits("0")
             );
@@ -157,10 +180,21 @@ describe("Test secondary TGE", function () {
             ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
         });
 
-        it("Can't vote twice with the same tokens", async function () {
-            expect(await token.balanceOf(second.address)).to.equal(
-                parseUnits("0")
+        it("Ballot BEFORE token transfer eq Ballot AFTER token transfer", async function () {
+            await mineBlock(2);
+            const startBallot = await pool.getBallot(second.address, 1);
+            await mineBlock(51);
+            await tge.setLockupTVLReached();
+            expect(await tge.transferUnlocked()).to.equal(
+                true
             );
+            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
+            const finishBallot = await pool.getBallot(second.address, 1);
+            await mineBlock(2);
+            expect(startBallot[0]).to.equal(finishBallot[0]);
+        });
+
+        it("Can't vote twice with the same tokens", async function () {
             await pool.connect(other).castVote(1, true);
             await mineBlock(51);
             await tge.setLockupTVLReached();
