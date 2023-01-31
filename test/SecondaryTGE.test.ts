@@ -146,15 +146,15 @@ describe("Test secondary TGE", function () {
             const startVotes_donor = await token.getVotes(other.address);
             const startVotes_rec = await token.getVotes(second.address);
             expect(startVotes_rec).to.equal(parseUnits("0"));
-
             await token.connect(other).delegate(second.address);
             await mineBlock(2);
             const finishVotes_donor = await token.getVotes(other.address);
             const finishVotes_rec = await token.getVotes(second.address);
-           
             expect(finishVotes_donor).to.equal(parseUnits("0"));
             expect(startVotes_rec).to.equal(finishVotes_donor );
-           
+            await token.connect(other).delegate(other.address);
+            await mineBlock(2);
+            expect(await token.getVotes(other.address)).to.equal(startVotes_donor );
         });
         
         it("Can't vote with tokens delegated before start of voting", async function () {
@@ -204,6 +204,17 @@ describe("Test secondary TGE", function () {
             await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
             await expect(
                 pool.connect(second).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+        });
+        it("Recipient can't vote if proposal created in the same block with the governance token transfer", async function () {
+            await mineBlock(51);
+            await tge.setLockupTVLReached();
+            expect(await tge.transferUnlocked()).to.equal(true);
+            await pool.connect(other).proposeTGE(...tgeArgs);
+            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
+            await mineBlock(10);
+            await expect(
+                pool.connect(second).castVote(2, true)
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
