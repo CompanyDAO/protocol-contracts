@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+
+
+
+
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
@@ -293,6 +297,11 @@ abstract contract Governor {
         uint256 votes = _getPastVotes(
             msg.sender,
             proposals[proposalId].vote.startBlock - 1
+        );
+
+        require(
+           votes>0,
+           ExceptionsLibrary.ZERO_VOTES
         );
 
         // Account votes

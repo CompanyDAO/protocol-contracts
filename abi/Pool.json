@@ -250,19 +250,6 @@
         "type": "event"
     },
     {
-        "inputs": [],
-        "name": "MAX_BASE_EXECUTION_DELAY",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
         "inputs": [
             {
                 "internalType": "address",

@@ -26,6 +26,7 @@ const { parseUnits } = ethers.utils;
 describe("Test secondary TGE", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
+        second: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
     let service: Service, registry: Registry;
@@ -38,7 +39,7 @@ describe("Test secondary TGE", function () {
 
     before(async function () {
         // Get accounts
-        [owner, other, third, fourth] = await getSigners();
+        [owner, other,second, third, fourth] = await getSigners();
 
         // Fixture
         await deployments.fixture();
@@ -56,7 +57,8 @@ describe("Test secondary TGE", function () {
         createArgs[3].userWhitelist = [
             owner.address,
             other.address,
-            third.address,
+            second.address,
+            third.address
         ];
         await service.createPool(...createArgs, {
             value: parseUnits("0.01"),
@@ -139,8 +141,40 @@ describe("Test secondary TGE", function () {
             expect(proposal.vote.forVotes).to.equal(parseUnits("500"));
         });
 
+        it("Can't vote with no governance tokens", async function () {
+            expect(await token.balanceOf(second.address)).to.equal(
+                parseUnits("0")
+            );
+            await expect(
+                pool.connect(second).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+        });
+
+        it("Can't vote twice on the same proposal", async function () {
+            await pool.connect(other).castVote(1, true);
+            await expect(
+                pool.connect(other).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
+        });
+
+        it("Can't vote twice with the same tokens", async function () {
+            expect(await token.balanceOf(second.address)).to.equal(
+                parseUnits("0")
+            );
+            await pool.connect(other).castVote(1, true);
+            await mineBlock(51);
+            await tge.setLockupTVLReached();
+            expect(await tge.transferUnlocked()).to.equal(
+                true
+            );
+            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
+            await expect(
+                pool.connect(second).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+        });
+
         it("Can't vote after voting period is finished", async function () {
-            await mineBlock(25);
+            await mineBlock(100);
 
             await expect(
                 pool.connect(other).castVote(1, true)
@@ -154,7 +188,7 @@ describe("Test secondary TGE", function () {
         });
 
         it("Can't execute proposal if quorum is not reached", async function () {
-            await mineBlock(25);
+            await mineBlock(100);
 
             await expect(pool.executeProposal(1)).to.be.revertedWith(
                 Exceptions.WRONG_STATE
@@ -194,7 +228,7 @@ describe("Test secondary TGE", function () {
         it("Can execute successful proposal, creating secondary TGE", async function () {
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
-            await mineBlock(25);
+            await mineBlock(100);
 
             await expect(pool.executeProposal(1)).to.emit(
                 service,
@@ -257,7 +291,7 @@ describe("Test secondary TGE", function () {
             await tge2
                 .connect(owner)
                 .purchase(parseUnits("10"), { value: parseUnits("1") });
-            await mineBlock(25);
+            await mineBlock(100);
             expect(await tge2.state()).to.equal(2);
         });
 
@@ -282,7 +316,7 @@ describe("Test secondary TGE", function () {
         });
 
         it("Secondary TGE's hardcap can't overflow remaining (unminted) supply", async function () {
-            await mineBlock(25);
+            await mineBlock(100);
 
             createArgs[3].hardcap = parseUnits("9500");
 
@@ -334,7 +368,7 @@ describe("Test secondary TGE", function () {
             await pTGE.purchase(parseUnits("100", 6), {
                 value: parseUnits("1"),
             });
-            await mineBlock(25);
+            await mineBlock(100);
             expect(await pTGE.state()).to.equal(1);
         });
 
@@ -343,7 +377,7 @@ describe("Test secondary TGE", function () {
             await pTGE.purchase(parseUnits("1000", 6), {
                 value: parseUnits("10"),
             });
-            await mineBlock(25);
+            await mineBlock(100);
             expect(await pTGE.state()).to.equal(2);
 
             // Start new TGE
