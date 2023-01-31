@@ -338,12 +338,12 @@ describe("Test secondary TGE", function () {
         });
 
         it("Purchasing/Burning tokens from TGE can't affect new proposals", async function () {
-            
+           
+            const TGEproposal = await pool.proposals(1);
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-            const TGEproposal = await pool.proposals(1);
-            
+            await mineBlock(1);
             // success execute Proposal of TGE
             await pool.executeProposal(1);
             const tgeRecord = await registry.contractRecords(3);
@@ -353,8 +353,15 @@ describe("Test secondary TGE", function () {
             await tge2
                 .connect(owner)
                 .purchase(parseUnits("10"), { value: parseUnits("1") });
+            
+            await mineBlock(2);
+           
+           /* // owner burn new tokens from TGE
+             await token
+             .connect(owner)
+             .burn(owner.address,parseUnits("5"));
 
-            await mineBlock(10);
+            await mineBlock(2);*/
 
              // new transfer proposal
             await pool.connect(other).proposeTransfer(
@@ -366,12 +373,6 @@ describe("Test secondary TGE", function () {
             );
             await mineBlock(1);
             const TransferProposal = await pool.proposals(2);
-
-            // owner burn new tokens from TGE
-            await token
-            .connect(owner)
-            .burn(owner.address,parseUnits("10"));
-
             
             expect(TGEproposal.vote.availableVotes).to.equal(TransferProposal.vote.availableVotes);
         });

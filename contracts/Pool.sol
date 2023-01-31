@@ -2,6 +2,18 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -240,7 +252,7 @@ contract Pool is
      */
     function _getCurrentTotalVotes() internal view override returns (uint256) {
         IToken token = IToken(tokens[IToken.TokenType.Governance]);
-        return token.totalSupply() - token.getTotalTGEVestedTokens();
+        return token.totalSupply() - token.getTotalTGEVestedTokens() - (ITGE(token.lastTGE()).state() == ITGE.State.Active ? ITGE(token.lastTGE()).totalVested() : 0);
     }
 
     /**
