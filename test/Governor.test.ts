@@ -217,9 +217,24 @@ describe("Test Governor", function () {
             expect(await tge.transferUnlocked()).to.equal(
                 true
             );
+            await mineBlock(2);
+            // new proposeTransfer
+           await pool.connect(other).proposeTransfer(
+                AddressZero,
+                [third.address, fourth.address],
+                [parseUnits("0.1"), parseUnits("0.1")],
+                "Let's give them money",
+                "#"
+            );
+            await pool.connect(other).castVote(2, true);
             await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
+            
             await expect(
-                pool.connect(second).castVote(1, true)
+                pool.connect(other).castVote(2, true)
+            ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
+
+            await expect(
+                pool.connect(second).castVote(2, true)
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
