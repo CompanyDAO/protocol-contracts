@@ -174,6 +174,41 @@ describe("Test secondary TGE", function () {
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
+        it("Can't vote with governance tokens transferred after voting started", async function () {
+            await mineBlock(51);
+            await tge.setLockupTVLReached();
+            expect(await tge.transferUnlocked()).to.equal(
+                true
+            );
+            
+            await mineBlock(1);
+            const VotesDelegateDonor = await token.getVotes(third.address);
+            const VotesTransferDonor = await token.getVotes(other.address);
+            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
+            await token.connect(third).delegate(second.address);
+            
+            // new transfer proposal
+            await pool.connect(owner).proposeTransfer(
+                AddressZero,
+                [third.address, fourth.address],
+                [parseUnits("0.1"), parseUnits("0.1")],
+                "Let's give them money",
+                "#"
+            );
+            await mineBlock(1);
+            
+            await token.connect(second).transfer(other.address, await token.balanceOf(second.address));
+            await mineBlock(1);
+            await expect(
+                pool.connect(other).castVote(2, true)
+            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+            await pool.connect(second).castVote(2, true);
+            await mineBlock(1);
+            const TransferProposal = await pool.proposals(2);
+            
+            expect(TransferProposal.vote.forVotes).to.equal(VotesDelegateDonor.add(VotesTransferDonor));
+        });
+
         it("Can't vote twice on the same proposal", async function () {
             await pool.connect(other).castVote(1, true);
             await expect(
