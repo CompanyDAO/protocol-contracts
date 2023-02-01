@@ -337,7 +337,43 @@ describe("Test secondary TGE", function () {
             expect(startTokenCap).to.equal(await token.cap());
         });
 
-        it("Purchasing/Burning tokens from TGE can't affect new proposals", async function () {
+        it("Purchasing tokens from TGE can't affect new proposals", async function () {
+           
+            const TGEproposal = await pool.proposals(1);
+
+            await pool.connect(owner).castVote(1, true);
+            await pool.connect(other).castVote(1, true);
+            await mineBlock(1);
+            // success execute Proposal of TGE
+            await pool.executeProposal(1);
+            const tgeRecord = await registry.contractRecords(3);
+            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
+
+            // owner purchase new tokens from TGE
+            await tge2
+                .connect(second)
+                .purchase(parseUnits("10"), { value: parseUnits("1") });
+            
+            await mineBlock(2);
+
+             // new transfer proposal
+            await pool.connect(other).proposeTransfer(
+                AddressZero,
+                [third.address, fourth.address],
+                [parseUnits("0.1"), parseUnits("0.1")],
+                "Let's give them money",
+                "#"
+            );
+            await mineBlock(1);
+
+            await pool.connect(second).castVote(2, true);
+
+            const TransferProposal = await pool.proposals(2);
+            
+            expect(TGEproposal.vote.availableVotes).to.equal(TransferProposal.vote.availableVotes);
+        });
+
+        it("Burning tokens from TGE can't affect new proposals", async function () {
            
             const TGEproposal = await pool.proposals(1);
 
@@ -352,16 +388,16 @@ describe("Test secondary TGE", function () {
             // owner purchase new tokens from TGE
             await tge2
                 .connect(owner)
-                .purchase(parseUnits("10"), { value: parseUnits("1") });
+                .purchase(parseUnits("100"), { value: parseUnits("10") });
             
             await mineBlock(2);
            
-           /* // owner burn new tokens from TGE
+            // owner burn new tokens from TGE
              await token
              .connect(owner)
-             .burn(owner.address,parseUnits("5"));
+             .burn(owner.address,parseUnits("50"));
 
-            await mineBlock(2);*/
+            await mineBlock(2);
 
              // new transfer proposal
             await pool.connect(other).proposeTransfer(
