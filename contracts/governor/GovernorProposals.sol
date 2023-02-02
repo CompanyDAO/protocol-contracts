@@ -227,7 +227,7 @@ abstract contract GovernorProposals is
                     callDatas: callDatas,
                     quorumThreshold: quorumThreshold,
                     decisionThreshold: decisionThreshold,
-                    executionDelay: _getDelay(IRecordsRegistry.EventType.TGE)
+                    executionDelay: _getDelay(IRecordsRegistry.EventType.GovernanceSettings)
                 }),
                 ProposalMetaData({
                     proposalType: IRecordsRegistry.EventType.GovernanceSettings,
