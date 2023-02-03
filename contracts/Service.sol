@@ -241,6 +241,12 @@ contract Service is
 
             // Check that pool is not active yet
             require(!pool.isDAO(), ExceptionsLibrary.IS_DAO);
+
+            // Check that there is no active tge's
+            require(
+                ITGE(pool.getToken(IToken.TokenType.Governance).getTGEList()[0]).state() == ITGE.State.Failed,
+                ExceptionsLibrary.WRONG_STATE
+            );
         }
 
         // Create token contract
