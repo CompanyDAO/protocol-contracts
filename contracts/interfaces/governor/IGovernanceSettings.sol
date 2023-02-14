@@ -19,6 +19,7 @@ interface IGovernanceSettings {
         uint256 votingDuration;
         uint256 transferValueForDelay;
         uint256[4] executionDelays;
+        uint256 votingStartDelay;
     }
 
     function setGovernanceSettings(NewGovernanceSettings memory settings)

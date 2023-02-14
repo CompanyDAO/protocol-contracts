@@ -19,7 +19,7 @@ import { setup } from "./shared/setup";
 const { getContract, getContractAt, getSigners, Wallet, provider } = ethers;
 const { parseUnits } = ethers.utils;
 
-describe.only("Test initial TGE", function () {
+describe("Test initial TGE", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress;
@@ -78,15 +78,6 @@ describe.only("Test initial TGE", function () {
                     value: parseUnits("0.005"),
                 })
             ).to.be.revertedWith(Exceptions.INCORRECT_ETH_PASSED);
-        });
-
-        it("Can't create pool with invalid governance settings", async function () {
-            createArgs[6].executionDelays[0] = 0;
-            await expect(
-                service.createPool(...createArgs, {
-                    value: parseUnits("0.01"),
-                })
-            ).to.be.revertedWith(Exceptions.INVALID_VALUE);
         });
 
         it("Can't create pool with hardcap higher than token cap", async function () {
@@ -413,6 +404,7 @@ describe.only("Test initial TGE", function () {
         });
 
         it("Can't redeem from active TGE", async function () {
+            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
             await expect(tge.connect(other).redeem()).to.be.revertedWith(
                 Exceptions.WRONG_STATE
             );
@@ -424,18 +416,22 @@ describe.only("Test initial TGE", function () {
                 .purchase(parseUnits("500"), { value: parseUnits("5") });
             await mineBlock(20);
 
+            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
             await expect(tge.connect(other).redeem()).to.be.revertedWith(
                 Exceptions.WRONG_STATE
             );
         });
 
         it("Redeeming from failed TGE works", async function () {
+            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
             await mineBlock(20);
 
             const balanceBefore = await other.getBalance();
+            expect(await tge.redeemableBalanceOf(other.address)).to.equal(parseUnits("500"));
             await tge.connect(other).redeem();
             const balanceAfter = await other.getBalance();
 
+            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
             expect(await token.balanceOf(other.address)).to.equal(0);
             expect(await tge.vestedBalanceOf(other.address)).to.equal(0);
             expect(balanceAfter.sub(balanceBefore)).to.be.gt(

@@ -31,6 +31,9 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /// @dev List of all TGEs
     address[] public tgeList;
 
+    /// @dev List of all TGEs with locked tokens
+    address[] private tgeWithLockedTokensList;
+    
     /// @dev Token decimals
     uint8 private _decimals;
 
@@ -61,8 +64,8 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         } else {
             __ERC20_init(IPool(pool_).trademark(), info.symbol);
         }
-
         tgeList.push(primaryTGE_);
+        tgeWithLockedTokensList.push(primaryTGE_);
         tokenType = info.tokenType;
         service = IService(msg.sender);
         pool = pool_;
@@ -110,6 +113,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      */
     function addTGE(address tge) external onlyService {
         tgeList.push(tge);
+        tgeWithLockedTokensList.push(tge);
     }
 
     // PUBLIC VIEW FUNCTIONS
@@ -166,12 +170,11 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         // Get total account balance
         uint256 balance = balanceOf(account);
 
-        // Iterate through TGE list to get locked balance
-        address[] memory _tgeList = tgeList;
+        // Iterate through  TGE With Locked Tokens List to get locked balance
+        address[] memory _tgeWithLockedTokensList = tgeWithLockedTokensList;
         uint256 totalLocked = 0;
-        for (uint256 i; i < _tgeList.length; i++) {
-            if (ITGE(_tgeList[i]).state() != ITGE.State.Failed)
-                totalLocked += ITGE(tgeList[i]).lockedBalanceOf(account);
+        for (uint256 i; i < _tgeWithLockedTokensList.length; i++) {
+            totalLocked += ITGE(_tgeWithLockedTokensList[i]).lockedBalanceOf(account);
         }
 
         // Return difference
@@ -192,6 +195,15 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      */
     function getTGEList() external view returns (address[] memory) {
         return tgeList;
+    }
+
+    /**
+     * @dev Return list of pool's TGEs with locked tokens
+     * @return TGE list
+     */
+    
+    function getTgeWithLockedTokensList() external view returns (address[] memory) {
+        return tgeWithLockedTokensList;
     }
 
     /**
@@ -230,6 +242,9 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         address to,
         uint256 amount
     ) internal override whenPoolNotPaused {
+        //update list of TGEs with locked tokens
+        updateTgeWithLockedTokensList();
+
         // Check that locked tokens are not transferred
         require(
             amount <= unlockedBalanceOf(from),
@@ -276,6 +291,22 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         override(ERC20Upgradeable, ERC20VotesUpgradeable)
     {
         super._burn(account, amount);
+    }
+    // PRIVATE FUNCTIONS
+
+    /**
+     * @dev Updates tgeWithLockedTokensList. Removes TGE from list, if transfer is unlocked
+     */
+    function updateTgeWithLockedTokensList() private {
+        address[] memory _tgeWithLockedTokensList = tgeWithLockedTokensList;
+        for (uint256 i; i < _tgeWithLockedTokensList.length; i++) {
+            //check if transfer is unlocked
+            if (ITGE(_tgeWithLockedTokensList[i]).transferUnlocked()){
+                //remove tge from tgeWithLockedTokensList when transfer is unlocked
+                tgeWithLockedTokensList[i] = tgeWithLockedTokensList[tgeWithLockedTokensList.length - 1];
+                tgeWithLockedTokensList.pop();
+            }
+        }
     }
 
     // MODIFIERS

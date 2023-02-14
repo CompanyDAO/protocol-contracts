@@ -24,8 +24,6 @@ const networkConfig = (url: string | null | undefined) => ({
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
 });
 
-const defaultNetworkConfig = networkConfig(process.env.RPC_URL);
-
 const config: HardhatUserConfig = {
     solidity: {
         compilers: [

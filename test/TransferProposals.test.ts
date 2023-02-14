@@ -99,7 +99,25 @@ describe("Test transfer proposals", function () {
                 );
         });
 
+        it("Getting/Setting GlobalProposalId works", async function () {
+            await pool
+                .connect(other)
+                .proposeTransfer(
+                    AddressZero,
+                    [third.address, fourth.address],
+                    [parseUnits("0.1"), parseUnits("0.1")],
+                    "Let's give them money",
+                    "#"
+                );
+                
+            expect(await Registry.getGlobalProposalId(pool.address, 1)).to.equal(0);    
+            expect(await Registry.getGlobalProposalId(pool.address, 2)).to.equal(1);    
+        });
+
         it("Transfer proposals can only be executed by executor role holder", async function () {
+            //waiting for voting start
+            await mineBlock(10);
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
@@ -110,6 +128,9 @@ describe("Test transfer proposals", function () {
         });
 
         it("Can't execute transfer proposal if pool doesn't hold enough funds", async function () {
+            //waiting for voting start
+            await mineBlock(10);
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
@@ -120,6 +141,9 @@ describe("Test transfer proposals", function () {
         });
 
         it("Executing succeeded transfer proposals should work", async function () {
+            //waiting for voting start
+            await mineBlock(10);
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
@@ -155,6 +179,9 @@ describe("Test transfer proposals", function () {
         });
 
         it("Can't execute transfer proposal if pool doesn't hold enough funds", async function () {
+            //waiting for voting start
+            await mineBlock(10);
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
@@ -165,6 +192,9 @@ describe("Test transfer proposals", function () {
         });
 
         it("Executing succeeded transfer proposals should work", async function () {
+            //waiting for voting start
+            await mineBlock(10);
+            
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);

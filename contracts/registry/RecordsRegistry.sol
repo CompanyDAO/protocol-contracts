@@ -25,6 +25,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     /// @dev A list of existing events. An event can be either a contract or a specific action performed by a pool based on the results of voting for a promotion (for example, the transfer of funds from a pool contract is considered an event, but does not have a contract, and TGE has both the status of an event and its own separate contract).
     Event[] public events;
 
+
     // EVENTS
 
     /**
@@ -110,7 +111,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
             ProposalInfo({pool: pool, proposalId: proposalId, description: ""})
         );
         index = proposalRecords.length - 1;
-
+        setGlobalProposalId(pool,proposalId,index);
         // Emit event
         emit ProposalRecordAdded(index, pool, proposalId);
     }
@@ -146,6 +147,10 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         // Emit event
         emit EventRecordAdded(index, eventType, pool, proposalId);
     }
+
+    // VIRTUAL FUNCTIONS
+
+    function setGlobalProposalId(address pool, uint256 proposalId, uint256 globalProposalId) internal virtual;
 
     // PUBLIC VIEW FUNCTIONS
 
@@ -186,25 +191,5 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         return events.length;
     }
 
-    /**
-     * @dev Return global proposal ID
-     * @param pool Pool address
-     * @param proposalId Proposal ID
-     * @return Global proposal ID
-     */
-    function getGlobalProposalId(address pool, uint256 proposalId)
-        public
-        view
-        returns (uint256)
-    {
-        uint256 count = proposalRecords.length;
-        for (uint256 i = 1; i <= count; i++) {
-            address poolRecord = proposalRecords[i].pool;
-            uint256 proposalIdRecord = proposalRecords[i].proposalId;
-            if (poolRecord == pool && proposalIdRecord == proposalId) {
-                return i;
-            }
-        }
-        return 0;
-    }
+    
 }

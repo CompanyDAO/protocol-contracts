@@ -171,6 +171,7 @@ abstract contract Governor {
             return proposal.vote.executionState;
         }
 
+
         uint256 castVotes = proposal.vote.forVotes + proposal.vote.againstVotes;
 
         if (block.number >= proposal.vote.endBlock) {
@@ -207,6 +208,7 @@ abstract contract Governor {
             return ProposalState.Active;
         }
     }
+    
 
     /**
      * @dev Return voting result for a given account and proposal
@@ -220,11 +222,13 @@ abstract contract Governor {
         view
         returns (Ballot ballot, uint256 votes)
     {
+        
         return (
             ballots[account][proposalId],
-            _getPastVotes(account, proposals[proposalId].vote.startBlock)
+            _getPastVotes(account, _getProposalCreatedAt(proposalId) - 1)
         );
     }
+
 
     // INTERNAL FUNCTIONS
 
@@ -237,17 +241,19 @@ abstract contract Governor {
     function _propose(
         ProposalCoreData memory core,
         ProposalMetaData memory meta,
-        uint256 votingDuration
+        uint256 votingDuration,
+        uint256 votingStartDelay
     ) internal returns (uint256 proposalId) {
         // Increment ID counter
         proposalId = ++lastProposalId;
+
 
         // Create new proposal
         proposals[proposalId] = Proposal({
             core: core,
             vote: ProposalVotingData({
-                startBlock: block.number + 1,
-                endBlock: block.number + 1 + votingDuration,
+                startBlock: block.number + votingStartDelay,
+                endBlock: block.number + votingStartDelay + votingDuration,
                 availableVotes: _getCurrentTotalVotes(),
                 forVotes: 0,
                 againstVotes: 0,
@@ -255,6 +261,8 @@ abstract contract Governor {
             }),
             meta: meta
         });
+
+        _setProposalCreatedAt(proposalId,block.number);
 
         _setLastProposalIdForAddress(msg.sender, proposalId);
 
@@ -292,7 +300,12 @@ abstract contract Governor {
         // Get number of votes
         uint256 votes = _getPastVotes(
             msg.sender,
-            proposals[proposalId].vote.startBlock - 1
+            _getProposalCreatedAt(proposalId) - 1
+        );
+        
+        require(
+           votes>0,
+           ExceptionsLibrary.ZERO_VOTES
         );
 
         // Account votes
@@ -475,9 +488,28 @@ abstract contract Governor {
         returns (uint256);
 
     /**
-     * @dev Function that returns the amount of votes for a client address at any given block
+     * @dev Function that returns creation block of proposal
+     * @param proposalId proposal Id
+     * @return creation block
+     */
+    function _getProposalCreatedAt(uint256 proposalId)
+        internal
+        view
+        virtual
+        returns (uint256);
+
+    /**
+     * @dev Function that set last ProposalId for a client address
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
     function _setLastProposalIdForAddress(address proposer, uint256 proposalId) internal virtual;
+
+     /**
+     * @dev Function that set Proposal Created At block
+     * @param proposalId proposal Id
+     * @param blocknumber  block.number
+     */
+    function _setProposalCreatedAt(uint256 proposalId, uint256 blocknumber) internal virtual;
+
 }
