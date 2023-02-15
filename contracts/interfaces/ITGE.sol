@@ -43,5 +43,7 @@ interface ITGE {
 
     function vestedBalanceOf(address user) external view returns (uint256);
 
+    function redeemableBalanceOf(address user) external view returns (uint256);
+
     function lockedBalanceOf(address account) external view returns (uint256);
 }

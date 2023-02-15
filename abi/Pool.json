@@ -42,6 +42,12 @@
                 "internalType": "uint256[4]",
                 "name": "executionDelays_",
                 "type": "uint256[4]"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "votingStartDelay_",
+                "type": "uint256"
             }
         ],
         "name": "GovernanceSettingsSet",
@@ -248,19 +254,6 @@
         ],
         "name": "VoteCast",
         "type": "event"
-    },
-    {
-        "inputs": [],
-        "name": "MAX_BASE_EXECUTION_DELAY",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
     },
     {
         "inputs": [
@@ -486,6 +479,11 @@
                         "internalType": "uint256[4]",
                         "name": "executionDelays",
                         "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
                     }
                 ],
                 "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
@@ -603,6 +601,25 @@
                 "internalType": "bool",
                 "name": "",
                 "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "proposalCreatedAt",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -783,6 +800,11 @@
                         "internalType": "uint256[4]",
                         "name": "executionDelays",
                         "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
                     }
                 ],
                 "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
@@ -1054,6 +1076,11 @@
                         "internalType": "uint256[4]",
                         "name": "executionDelays",
                         "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
                     }
                 ],
                 "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
@@ -1152,6 +1179,19 @@
     {
         "inputs": [],
         "name": "votingDuration",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "votingStartDelay",
         "outputs": [
             {
                 "internalType": "uint256",

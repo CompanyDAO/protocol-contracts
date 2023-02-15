@@ -36,6 +36,9 @@ contract Pool is
     /// @dev last proposal id for address. This method returns the proposal Id for the last proposal created by the specified address. 
     mapping(address => uint256) public lastProposalIdForAddress;
 
+    /// @dev mapping for creation block
+    mapping(uint256 => uint256) public proposalCreatedAt;
+
     // EVENTS
 
     /**
@@ -233,6 +236,25 @@ contract Pool is
     }
 
     /**
+     * @dev Function that returns creation block of proposal
+     * @param proposalId proposal Id
+     * @return creation block
+     */
+    function _getProposalCreatedAt(uint256 proposalId)
+        internal
+        view
+        override
+        returns (uint256)
+    {
+        uint256 createdAt = proposalCreatedAt[proposalId];
+        
+        if(createdAt == 0){
+            return proposals[proposalId].vote.startBlock - 1;
+        }
+        return createdAt;    
+    }
+
+    /**
      * @dev This getter returns the maximum number of votes distributed among the holders of the Governance token of the pool, which is equal to the sum of the balances of all addresses, except TGE, holding tokens in vesting, where they cannot have voting power. The getter's answer is valid for the current block.
      * @return Amount of votes
      */
@@ -281,5 +303,14 @@ contract Pool is
      */
     function _setLastProposalIdForAddress(address proposer, uint256 proposalId) internal override {
         lastProposalIdForAddress[proposer] = proposalId;
+    }
+
+     /**
+     * @dev Function that set Proposal Created At block
+     * @param proposalId proposal Id
+     * @param blocknumber  block.number
+     */
+    function _setProposalCreatedAt(uint256 proposalId, uint256 blocknumber) internal override{
+        proposalCreatedAt[proposalId] = blocknumber;
     }
 }

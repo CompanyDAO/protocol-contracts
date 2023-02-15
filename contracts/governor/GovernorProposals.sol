@@ -112,7 +112,8 @@ abstract contract GovernorProposals is
                     description: description,
                     metaHash: metaHash
                 }),
-                votingDuration
+                votingDuration,
+                votingStartDelay
             );
     }
 
@@ -186,7 +187,8 @@ abstract contract GovernorProposals is
                     description: description,
                     metaHash: metaHash
                 }),
-                votingDuration
+                votingDuration,
+                votingStartDelay
             );
     }
 
@@ -234,7 +236,8 @@ abstract contract GovernorProposals is
                     description: description,
                     metaHash: metaHash
                 }),
-                votingDuration
+                votingDuration,
+                votingStartDelay
             );
     }
 

@@ -279,7 +279,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /// @dev Set the flag that the condition for achieving the pool balance set in the westing settings is met. The action is irreversible.
-    function setVestingTVLReached() external whenPoolNotPaused onlyManager {
+    function setVestingTVLReached() external whenPoolNotPaused onlyManager onlyState(State.Successful) {
         // Check that TVL has not been reached yet
         require(!vestingTVLReached, ExceptionsLibrary.VESTING_TVL_REACHED);
 
@@ -288,9 +288,10 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /// @dev Set the flag that the condition for achieving the pool balance of the value specified in the lockup settings is met. The action is irreversible.
-    function setLockupTVLReached() external whenPoolNotPaused onlyManager {
+    function setLockupTVLReached() external whenPoolNotPaused onlyManager onlyState(State.Successful) {
         // Check that TVL has not been reached yet
         require(!lockupTVLReached, ExceptionsLibrary.LOCKUP_TVL_REACHED);
+        
 
         // Mark as reached
         lockupTVLReached = true;
@@ -435,6 +436,34 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
                 ? 0
                 : (purchaseOf[account] - vestedBalanceOf[account]);
     }
+
+    /**
+     * @dev Shows the number of TGE tokens available for redeem for `account`
+     * @param account Account address
+     * @return Redeemable balance of the address
+     */
+    function redeemableBalanceOf(address account) external view returns (uint256) {
+        if (purchaseOf[account] == 0) return 0;
+        if (state() != State.Failed) return 0;
+
+        uint256 refundAmount = 0;
+        uint256 vestedBalance = vestedBalanceOf[account];
+        uint256 balanceToRedeem = MathUpgradeable.min(
+            token.balanceOf(account),
+            purchaseOf[account]
+        );
+
+        if (vestedBalance > 0) {
+            refundAmount += vestedBalance;
+        }
+
+        if (balanceToRedeem > 0) {
+            refundAmount += balanceToRedeem;
+        }
+
+        return refundAmount;
+    }
+
 
     /**
      * @dev The given getter shows how much info.unitofaccount was collected within this TGE. To do this, the amount of tokens purchased by all buyers is multiplied by info.price.

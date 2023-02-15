@@ -33,8 +33,11 @@ abstract contract GovernanceSettings is IGovernanceSettings {
     /// @notice Returns transaction execution delay values for different proposal types
     mapping(IRegistry.EventType => uint256) public executionDelays;
 
+    /// @notice Delay before voting starts. In blocks 
+    uint256 public votingStartDelay;
+
     /// @notice Storage gap (for future upgrades)
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 
     // EVENTS
 
@@ -45,7 +48,8 @@ abstract contract GovernanceSettings is IGovernanceSettings {
         uint256 decisionThreshold_,
         uint256 votingDuration_,
         uint256 transferValueForDelay_,
-        uint256[4] executionDelays_
+        uint256[4] executionDelays_,
+        uint256 votingStartDelay_
     );
 
     // PUBLIC FUNCTIONS
@@ -92,6 +96,8 @@ abstract contract GovernanceSettings is IGovernanceSettings {
         executionDelays[
             IRecordsRegistry.EventType.GovernanceSettings
         ] = settings.executionDelays[3];
+
+        votingStartDelay = settings.votingStartDelay;
     }
 
     // INTERNAL VIEW FUNCTIONS

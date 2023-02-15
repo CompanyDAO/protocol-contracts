@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+
+
+
+
 pragma solidity 0.8.17;
 
 library ExceptionsLibrary {
@@ -55,4 +59,5 @@ library ExceptionsLibrary {
     string public constant THRESHOLD_NOT_REACHED = "THRESHOLD_NOT_REACHED";
     string public constant UNSUPPORTED_TOKEN_TYPE = "UNSUPPORTED_TOKEN_TYPE";
     string public constant ALREADY_VOTED = "ALREADY_VOTED";
+    string public constant ZERO_VOTES = "ZERO_VOTES";
 }
