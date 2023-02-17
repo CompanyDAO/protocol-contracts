@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+
+
+
+
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -232,13 +236,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
             refundAmount += vestedBalance;
 
-            uint256 tokenFee = getProtocolTokenFee(refundAmount);
-
-            if(tokenFee>0){
-                totalProtocolFee -= tokenFee;
-                token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() - tokenFee);
-            }
-
             uint256 TGETokenBalance = IERC20Upgradeable(address(token)).balanceOf(address(this));
         
             if(TGETokenBalance>0){
@@ -274,6 +271,13 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
                 msg.sender,
                 refundValue
             );
+        }
+
+        uint256 tokenFee = getProtocolTokenFee(refundAmount);
+
+        if(tokenFee>0){
+            totalProtocolFee -= tokenFee;
+            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() - tokenFee);
         }
 
         // Emit event
