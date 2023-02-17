@@ -254,7 +254,7 @@ abstract contract Governor {
             vote: ProposalVotingData({
                 startBlock: block.number + votingStartDelay,
                 endBlock: block.number + votingStartDelay + votingDuration,
-                availableVotes: _getCurrentTotalVotes(),
+                availableVotes: _getPreviousBlockTotalVotes(),
                 forVotes: 0,
                 againstVotes: 0,
                 executionState: ProposalState.None
@@ -473,7 +473,7 @@ abstract contract Governor {
      * @dev Function that returns the total amount of votes in the pool
      * @return Total amount of votes
      */
-    function _getCurrentTotalVotes() internal view virtual returns (uint256);
+    function _getPreviousBlockTotalVotes() internal view virtual returns (uint256);
 
     /**
      * @dev Function that returns the amount of votes for a client adrress at any given block

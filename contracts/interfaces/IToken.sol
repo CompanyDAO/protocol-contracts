@@ -54,5 +54,14 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
 
     function addTGE(address tge) external;
 
+    function setTGEVestedTokens(uint256 amount) external;
+
+    function setProtocolFeeReserved(uint256 amount) external;
+
     function getTotalTGEVestedTokens() external view returns (uint256);
+
+    function getTotalProtocolFeeReserved() external view returns (uint256);
+
+    function totalSupplyWithReserves() external view returns (uint256);
+
 }

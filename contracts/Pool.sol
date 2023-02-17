@@ -255,12 +255,16 @@ contract Pool is
     }
 
     /**
-     * @dev This getter returns the maximum number of votes distributed among the holders of the Governance token of the pool, which is equal to the sum of the balances of all addresses, except TGE, holding tokens in vesting, where they cannot have voting power. The getter's answer is valid for the current block.
+     * @dev This getter returns the maximum number of votes distributed among the holders of the Governance token of the pool for the previous block. The getter's answer is valid for the current block.
      * @return Amount of votes
      */
-    function _getCurrentTotalVotes() internal view override returns (uint256) {
-        IToken token = IToken(tokens[IToken.TokenType.Governance]);
-        return token.totalSupply() - token.getTotalTGEVestedTokens();
+    function _getPreviousBlockTotalVotes() 
+        internal 
+        view 
+        override 
+        returns (uint256) 
+    {
+        return IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply( block.number - 1 );
     }
 
     /**

@@ -31,11 +31,17 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /// @dev List of all TGEs
     address[] public tgeList;
 
-    /// @dev List of all TGEs with locked tokens
-    address[] private tgeWithLockedTokensList;
-    
     /// @dev Token decimals
     uint8 private _decimals;
+
+    /// @dev List of all TGEs with locked tokens
+    address[] private tgeWithLockedTokensList;
+
+    /// @dev Total Vested tokens for all TGEs
+    uint256 private totalVested;
+
+    /// @dev Total amount of tokens reserved for the minting protocol fee
+    uint256 private totalProtocolFeeReserved;
 
     // INITIALIZER AND CONSTRUCTOR
 
@@ -114,6 +120,22 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     function addTGE(address tge) external onlyService {
         tgeList.push(tge);
         tgeWithLockedTokensList.push(tge);
+    }
+
+    /**
+     * @dev Set amount of tokens to  Total Vested tokens for all TGEs
+     * @param amount amount of tokens
+     */
+    function setTGEVestedTokens(uint256 amount) external onlyTGE {
+        totalVested = amount;
+    }
+
+    /**
+     * @dev Set amount of tokens to Total amount of tokens reserved for the minting protocol fee
+     * @param amount amount of tokens
+     */
+    function setProtocolFeeReserved(uint256 amount) external onlyTGE {
+        totalProtocolFeeReserved = amount;
     }
 
     // PUBLIC VIEW FUNCTIONS
@@ -219,12 +241,28 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @return Total vesting tokens
      */
     function getTotalTGEVestedTokens() public view returns (uint256) {
-        address[] memory _tgeList = tgeList;
-        uint256 totalVested = 0;
-        for (uint256 i; i < _tgeList.length; i++) {
-            totalVested += ITGE(_tgeList[i]).totalVested();
-        }
+        
         return totalVested;
+    }
+
+    /**
+     * @dev Getter returns the sum of all tokens reserved for the minting protocol fee
+     * @return Total vesting tokens
+     */
+    function getTotalProtocolFeeReserved() public view returns (uint256) {
+        
+        return totalProtocolFeeReserved;
+    }
+
+   /**
+     * @dev Getter returns the sum of all tokens that was minted or reserved for mint
+     * @return Total vesting tokens
+     */
+    function totalSupplyWithReserves() public view returns (uint256) {
+
+        uint256 _totalSupplyWithReserves = totalSupply() + getTotalTGEVestedTokens() + getTotalProtocolFeeReserved();
+
+        return _totalSupplyWithReserves;
     }
 
     // INTERNAL FUNCTIONS

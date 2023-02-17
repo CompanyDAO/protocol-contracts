@@ -1144,7 +1144,7 @@
             },
             {
                 "internalType": "uint256",
-                "name": "totalSupply",
+                "name": "totalSupplyWithReserves",
                 "type": "uint256"
             },
             {
