@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+
+
+
+
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -61,6 +65,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     /// @dev Protocol token fee is a percentage of tokens sold during TGE. Returns true if fee was claimed by the governing DAO.
     bool public isProtocolTokenFeeClaimed;
 
+    /// @dev Total amount of tokens reserved for protocolfee
+    uint256 public totalProtocolFee;
+
     // EVENTS
 
     /**
@@ -118,7 +125,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         IService(msg.sender).validateTGEInfo(
             _info,
             _token.cap(),
-            _token.totalSupply(),
+            _token.totalSupplyWithReserves(),
             _token.tokenType()
         );
 
@@ -187,11 +194,16 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             _token.mint(msg.sender, amount - vestedAmount);
         }
 
-        // Mint tokens to vesting
-        _token.mint(address(this), vestedAmount);
+        // Reserve token amount for vesting
         vestedBalanceOf[msg.sender] += vestedAmount;
         totalVested += vestedAmount;
+        token.setTGEVestedTokens(token.getTotalTGEVestedTokens() + vestedAmount);
 
+        uint256 tokenFee = getProtocolTokenFee(amount);
+        if(tokenFee>0){
+            totalProtocolFee += tokenFee;
+            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() + tokenFee);
+        }
         // Emit event
         emit Purchased(msg.sender, amount);
     }
@@ -219,8 +231,20 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             vestedBalanceOf[msg.sender] = 0;
             purchaseOf[msg.sender] -= vestedBalance;
             totalVested -= vestedBalance;
+
+            token.setTGEVestedTokens(token.getTotalTGEVestedTokens() - vestedBalance);
+
             refundAmount += vestedBalance;
-            token.burn(address(this), vestedBalance);
+
+            uint256 TGETokenBalance = IERC20Upgradeable(address(token)).balanceOf(address(this));
+        
+            if(TGETokenBalance>0){
+                uint256 amountToBurn = MathUpgradeable.min(
+                        vestedBalance,
+                        TGETokenBalance
+                    );
+                token.burn(address(this), amountToBurn);
+            }
         }
 
         // Calculate redeemed balance
@@ -249,6 +273,13 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             );
         }
 
+        uint256 tokenFee = getProtocolTokenFee(refundAmount);
+
+        if(tokenFee>0){
+            totalProtocolFee -= tokenFee;
+            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() - tokenFee);
+        }
+
         // Emit event
         emit Redeemed(msg.sender, refundValue);
     }
@@ -267,13 +298,20 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         // Set vested amount to zero
         vestedBalanceOf[msg.sender] = 0;
         totalVested -= amountToClaim;
-
+        token.setTGEVestedTokens(token.getTotalTGEVestedTokens() - amountToClaim);
         // Transfer vested tokens
-        IERC20Upgradeable(address(token)).safeTransfer(
-            msg.sender,
-            amountToClaim
-        );
 
+        
+        uint256 TGETokenBalance = IERC20Upgradeable(address(token)).balanceOf(address(this));
+        
+        if(TGETokenBalance>=amountToClaim){
+            IERC20Upgradeable(address(token)).safeTransfer(
+                msg.sender,
+                amountToClaim
+            );
+        }else{
+            IToken(token).mint(msg.sender, (amountToClaim-TGETokenBalance));
+        }
         // Emit event
         emit Claimed(msg.sender, amountToClaim);
     }
@@ -352,8 +390,13 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         isProtocolTokenFeeClaimed = true;
 
         // Mint fee to treasury
-        uint256 tokenFee = (totalPurchased * protocolFee + (DENOM - 1)) / DENOM;
-        _token.mint(_token.service().protocolTreasury(), tokenFee);
+        uint256 tokenFee = totalProtocolFee;
+        if(totalProtocolFee>0){
+            totalProtocolFee = 0;
+            _token.mint(_token.service().protocolTreasury(), tokenFee);
+            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() - tokenFee);
+            
+        }
 
         // Emit event
         emit ProtocolTokenFeeClaimed(address(_token), tokenFee);
@@ -498,6 +541,18 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         return info.userWhitelist.length == 0 || _isUserWhitelisted[account];
     }
 
+    /**
+     * @dev Сalculates protocol token fee for given token amount
+     * @param amount Token amount
+     * @return tokenFee
+     */
+    function getProtocolTokenFee(uint256 amount) public view returns (uint256) {
+
+        if (token.tokenType() == IToken.TokenType.Preference) {
+            return 0;
+        }
+        return (amount * protocolFee + (DENOM - 1)) / DENOM;
+    }
     // MODIFIER
 
     modifier onlyState(State state_) {

@@ -505,7 +505,7 @@ contract Service is
     function validateTGEInfo(
         ITGE.TGEInfo calldata info,
         uint256 cap,
-        uint256 totalSupply,
+        uint256 totalSupplyWithReserves,
         IToken.TokenType tokenType
     ) external view {
         // Check unit of account
@@ -522,7 +522,7 @@ contract Service is
         );
 
         // Check remaining supply
-        uint256 remainingSupply = cap - totalSupply;
+        uint256 remainingSupply = cap - totalSupplyWithReserves;
         require(
             info.hardcap <= remainingSupply,
             ExceptionsLibrary.HARDCAP_OVERFLOW_REMAINING_SUPPLY
@@ -604,11 +604,11 @@ contract Service is
     function _createToken() internal returns (IToken token) {
         // Create token contract
         token = IToken(address(new BeaconProxy(tokenBeacon, "")));
-
+        
         // Add token contract to registry
         registry.addContractRecord(
             address(token),
-            IRecordsRegistry.ContractType.GovernanceToken,
+            IToken(token).tokenType() == IToken.TokenType.Governance ? IRecordsRegistry.ContractType.GovernanceToken : IRecordsRegistry.ContractType.PreferenceToken ,
             ""
         );
     }

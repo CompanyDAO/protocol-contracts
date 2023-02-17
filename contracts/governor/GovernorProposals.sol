@@ -134,16 +134,16 @@ abstract contract GovernorProposals is
         string memory metaHash
     ) external onlyValidProposer returns (uint256 proposalId) {
         // Get cap and supply data
-        uint256 totalSupply = 0;
+        uint256 totalSupplyWithReserves = 0;
         IToken token = IPool(address(this)).getToken(tokenInfo.tokenType);
         if (tokenInfo.tokenType == IToken.TokenType.Governance) {
             tokenInfo.cap = token.cap();
-            totalSupply = token.totalSupply();
+            totalSupplyWithReserves = token.totalSupplyWithReserves();
         } else if (tokenInfo.tokenType == IToken.TokenType.Preference) {
             if (address(token) != address(0)) {
                 if (token.isPrimaryTGESuccessful()) {
                     tokenInfo.cap = token.cap();
-                    totalSupply = token.totalSupply();
+                    totalSupplyWithReserves = token.totalSupplyWithReserves();
                 }
             }
         }
@@ -152,7 +152,7 @@ abstract contract GovernorProposals is
         service.validateTGEInfo(
             tgeInfo,
             tokenInfo.cap,
-            totalSupply,
+            totalSupplyWithReserves,
             tokenInfo.tokenType
         );
 
