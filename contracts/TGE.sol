@@ -303,14 +303,23 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         
         uint256 TGETokenBalance = IERC20Upgradeable(address(token)).balanceOf(address(this));
-        
-        if(TGETokenBalance>=amountToClaim){
+       
+        uint256 amountToTransfer = MathUpgradeable.min(
+                    amountToClaim,
+                    TGETokenBalance
+                );
+
+        if(amountToTransfer>0){
             IERC20Upgradeable(address(token)).safeTransfer(
                 msg.sender,
-                amountToClaim
+                amountToTransfer
             );
-        }else{
-            IToken(token).mint(msg.sender, (amountToClaim-TGETokenBalance));
+        }
+        if((amountToClaim-amountToTransfer)>0){
+            IToken(token).mint(
+                msg.sender, 
+                (amountToClaim-amountToTransfer)
+            );
         }
         // Emit event
         emit Claimed(msg.sender, amountToClaim);
