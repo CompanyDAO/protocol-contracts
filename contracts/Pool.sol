@@ -255,16 +255,17 @@ contract Pool is
     }
 
     /**
-     * @dev This getter returns the maximum number of votes distributed among the holders of the Governance token of the pool for the previous block. The getter's answer is valid for the current block.
+     * @dev Function that returns the total amount of votes in the pool in block
+     * @param blocknumber blocknumber
      * @return Amount of votes
      */
-    function _getPreviousBlockTotalVotes() 
+    function _getBlockTotalVotes(uint256 blocknumber) 
         internal 
         view 
         override 
         returns (uint256) 
     {
-        return IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply( block.number - 1 );
+        return IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply( blocknumber);
     }
 
     /**

@@ -41,4 +41,5 @@ export default class Exceptions {
     static readonly INVALID_USER: string = "INVALID_USER";
     static readonly ALREADY_VOTED: string = "ALREADY_VOTED";
     static readonly ZERO_VOTES: string = "ZERO_VOTES";
+    static readonly HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY: string = "HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY";
 }
