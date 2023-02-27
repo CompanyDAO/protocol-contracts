@@ -231,7 +231,7 @@ abstract contract Governor {
         return (
             ballots[account][proposalId],
             _getPastVotes(
-            msg.sender,
+            account,
             proposals[proposalId].vote.startBlock - 1
              )
         );
