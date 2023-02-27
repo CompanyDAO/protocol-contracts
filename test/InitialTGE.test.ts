@@ -280,11 +280,22 @@ describe("Test initial TGE", function () {
                 .connect(other)
                 .purchase(parseUnits("1000"), { value: parseUnits("10") });
             await mineBlock(20);
+            
+            expect(await tge.totalProtocolFee()).to.equal(
+                await(await tge.totalPurchased()).div(100)
+            );
 
             await tge.transferFunds();
+
+            expect(await tge.totalProtocolFee()).to.equal( 0 );
+
             expect(await provider.getBalance(pool.address)).to.equal(
                 parseUnits("10")
             );
+            expect(await token.balanceOf(await service.protocolTreasury())).to.equal(
+                await(await tge.totalPurchased()).div(100)
+            );
+            await(await tge.totalPurchased()).div(100)
         });
 
         it("In successful TGE purchased funds are still locked until conditions are met", async function () {

@@ -165,12 +165,11 @@ describe("Test Governor", function () {
                 "#"
             );
             await mineBlock(1);
-
+            await mineBlock(10);
             await token.connect(recipient).transfer(donor.address, await token.balanceOf(recipient.address));
             await mineBlock(1);
             
             //waiting for voting start
-            await mineBlock(10);
 
             await expect(
                 pool.connect(donor).castVote(2, true)
@@ -276,8 +275,8 @@ describe("Test Governor", function () {
             await tge.setLockupTVLReached();
             expect(await tge.transferUnlocked()).to.equal(true);
             await pool.connect(donor).proposeTGE(...tgeArgs);
-            await token.connect(donor).transfer(recipient.address, await token.balanceOf(donor.address));
             await mineBlock(10);
+            await token.connect(donor).transfer(recipient.address, await token.balanceOf(donor.address));
             await expect(
                 pool.connect(recipient).castVote(2, true)
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
@@ -361,6 +360,8 @@ describe("Test Governor", function () {
                 "#"
             );
             await mineBlock(1);
+            //waiting for voting start
+            await mineBlock(10);
             // owner purchase new tokens from TGE
             await tge2
                 .connect(recipient)
@@ -368,8 +369,6 @@ describe("Test Governor", function () {
 
             await mineBlock(2);
 
-            //waiting for voting start
-            await mineBlock(10);
 
             await expect(
                 pool.connect(recipient).castVote(2, true)

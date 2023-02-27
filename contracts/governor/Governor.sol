@@ -159,19 +159,24 @@ abstract contract Governor {
         public
         view
         returns (ProposalState)
-    {
+    {   
         Proposal memory proposal = proposals[proposalId];
+
+        if (
+            proposal.vote.startBlock == 0
+        ) {
+            return ProposalState.None;
+        }
 
         // If proposal executed, cancelled or simply not started, return immediately
         if (
             proposal.vote.executionState == ProposalState.Executed ||
-            proposal.vote.executionState == ProposalState.Cancelled ||
-            proposal.vote.startBlock == 0
+            proposal.vote.executionState == ProposalState.Cancelled
         ) {
             return proposal.vote.executionState;
         }
 
-
+        uint256 availableVotesForStartBlock = _getBlockTotalVotes(proposal.vote.startBlock - 1);
         uint256 castVotes = proposal.vote.forVotes + proposal.vote.againstVotes;
 
         if (block.number >= proposal.vote.endBlock) {
@@ -179,7 +184,7 @@ abstract contract Governor {
             if (
                 !shareReached(
                     castVotes,
-                    proposal.vote.availableVotes,
+                    availableVotesForStartBlock,
                     proposal.core.quorumThreshold
                 )
             ) {
@@ -225,7 +230,10 @@ abstract contract Governor {
         
         return (
             ballots[account][proposalId],
-            _getPastVotes(account, _getProposalCreatedAt(proposalId) - 1)
+            _getPastVotes(
+            msg.sender,
+            proposals[proposalId].vote.startBlock - 1
+             )
         );
     }
 
@@ -254,7 +262,7 @@ abstract contract Governor {
             vote: ProposalVotingData({
                 startBlock: block.number + votingStartDelay,
                 endBlock: block.number + votingStartDelay + votingDuration,
-                availableVotes: _getPreviousBlockTotalVotes(),
+                availableVotes: 0,
                 forVotes: 0,
                 againstVotes: 0,
                 executionState: ProposalState.None
@@ -300,7 +308,7 @@ abstract contract Governor {
         // Get number of votes
         uint256 votes = _getPastVotes(
             msg.sender,
-            _getProposalCreatedAt(proposalId) - 1
+            proposals[proposalId].vote.startBlock - 1
         );
         
         require(
@@ -398,14 +406,15 @@ abstract contract Governor {
     function _checkProposalVotingEarlyEnd(uint256 proposalId) internal {
         // Get values
         Proposal memory proposal = proposals[proposalId];
+        uint256 availableVotesForStartBlock = _getBlockTotalVotes(proposal.vote.startBlock - 1);
         uint256 castVotes = proposal.vote.forVotes + proposal.vote.againstVotes;
-        uint256 extraVotes = proposal.vote.availableVotes - castVotes;
+        uint256 extraVotes = availableVotesForStartBlock - castVotes;
 
         // Check if quorum is reached
         if (
             !shareReached(
                 castVotes,
-                proposal.vote.availableVotes,
+                availableVotesForStartBlock,
                 proposal.core.quorumThreshold
             )
         ) {
@@ -416,12 +425,12 @@ abstract contract Governor {
         if (
             !shareOvercome(
                 proposal.vote.forVotes + extraVotes,
-                proposal.vote.availableVotes,
+                availableVotesForStartBlock,
                 proposal.core.decisionThreshold
             ) ||
             shareReached(
                 proposal.vote.forVotes,
-                proposal.vote.availableVotes,
+                availableVotesForStartBlock,
                 proposal.core.decisionThreshold
             )
         ) {
@@ -470,10 +479,11 @@ abstract contract Governor {
     function _afterProposalCreated(uint256 proposalId) internal virtual;
 
     /**
-     * @dev Function that returns the total amount of votes in the pool
+     * @dev Function that returns the total amount of votes in the pool in block
+     * @param blocknumber block number
      * @return Total amount of votes
      */
-    function _getPreviousBlockTotalVotes() internal view virtual returns (uint256);
+    function _getBlockTotalVotes(uint256 blocknumber) internal view virtual returns (uint256);
 
     /**
      * @dev Function that returns the amount of votes for a client adrress at any given block

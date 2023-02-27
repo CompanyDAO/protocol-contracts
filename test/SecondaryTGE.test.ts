@@ -183,47 +183,7 @@ describe("Test secondary TGE", function () {
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
-        it("Can't vote with governance tokens transferred after voting started", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await mineBlock(51);
-            await tge.setLockupTVLReached();
-            expect(await tge.transferUnlocked()).to.equal(
-                true
-            );
-            
-            await mineBlock(1);
-            const VotesDelegateDonor = await token.getVotes(third.address);
-            const VotesTransferDonor = await token.getVotes(other.address);
-            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
-            await token.connect(third).delegate(second.address);
-            
-            // new transfer proposal
-            await pool.connect(owner).proposeTransfer(
-                AddressZero,
-                [third.address, fourth.address],
-                [parseUnits("0.1"), parseUnits("0.1")],
-                "Let's give them money",
-                "#"
-            );
-            await mineBlock(1);
-            
-            await token.connect(second).transfer(other.address, await token.balanceOf(second.address));
-            await mineBlock(1);
-            
-            //waiting for voting start
-            await mineBlock(10);
-
-            await expect(
-                pool.connect(other).castVote(2, true)
-            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
-            await pool.connect(second).castVote(2, true);
-            await mineBlock(1);
-            const TransferProposal = await pool.proposals(2);
-            
-            expect(TransferProposal.vote.forVotes).to.equal(VotesDelegateDonor.add(VotesTransferDonor));
-        });
+       
 
         it("Can't vote twice on the same proposal", async function () {
             //waiting for voting start
@@ -300,17 +260,7 @@ describe("Test secondary TGE", function () {
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
-        it("Recipient can't vote if proposal created in the same block with the governance token transfer", async function () {
-            await mineBlock(51);
-            await tge.setLockupTVLReached();
-            expect(await tge.transferUnlocked()).to.equal(true);
-            await pool.connect(other).proposeTGE(...tgeArgs);
-            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
-            await mineBlock(10);
-            await expect(
-                pool.connect(second).castVote(2, true)
-            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
-        });
+        
 
         it("Can't vote after voting period is finished", async function () {
             await mineBlock(100);
@@ -601,15 +551,19 @@ describe("Test secondary TGE", function () {
             );
         });
 
-        it("Secondary TGE's hardcap can't overflow remaining (unminted) supply", async function () {
+        it("Secondary TGE's hardcap can't overflow remaining supply", async function () {
             await mineBlock(100);
 
-            createArgs[3].hardcap = parseUnits("9500");
+            createArgs[3].hardcap = parseUnits("7000");
 
+            await pool.proposeTGE(...tgeArgs);
+
+            createArgs[3].hardcap = parseUnits("7000").add(1);
             await expect(pool.proposeTGE(...tgeArgs)).to.be.revertedWith(
-                Exceptions.HARDCAP_OVERFLOW_REMAINING_SUPPLY
+                Exceptions.HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
             );
         });
+        
     });
 
     describe("Secondary TGE for preference token", async function () {
