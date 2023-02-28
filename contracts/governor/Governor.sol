@@ -175,7 +175,11 @@ abstract contract Governor {
         ) {
             return proposal.vote.executionState;
         }
-
+        if (
+            proposal.vote.startBlock > 0 && block.number < proposal.vote.startBlock
+        ) {
+            return ProposalState.Active;
+        }
         uint256 availableVotesForStartBlock = _getBlockTotalVotes(proposal.vote.startBlock - 1);
         uint256 castVotes = proposal.vote.forVotes + proposal.vote.againstVotes;
 
