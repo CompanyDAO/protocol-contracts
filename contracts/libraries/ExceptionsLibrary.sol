@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-
-
-
-
 pragma solidity 0.8.17;
 
 library ExceptionsLibrary {
@@ -55,9 +51,16 @@ library ExceptionsLibrary {
     string public constant NOT_LAUNCHED = "NOT_LAUNCHED";
     string public constant LAUNCHED = "LAUNCHED";
     string public constant VESTING_TVL_REACHED = "VESTING_TVL_REACHED";
-    string public constant PREFERENCE_TOKEN_EXISTS = "PREFERENCE_TOKEN_EXISTS";
+    string public constant WRONG_TOKEN_ADDRESS = "WRONG_TOKEN_ADDRESS";
+    string public constant GOVERNANCE_TOKEN_EXISTS = "GOVERNANCE_TOKEN_EXISTS";
     string public constant THRESHOLD_NOT_REACHED = "THRESHOLD_NOT_REACHED";
     string public constant UNSUPPORTED_TOKEN_TYPE = "UNSUPPORTED_TOKEN_TYPE";
     string public constant ALREADY_VOTED = "ALREADY_VOTED";
     string public constant ZERO_VOTES = "ZERO_VOTES";
+    string public constant ACTIVE_GOVERNANCE_SETTINGS_PROPOSAL_EXISTS =
+        "ACTIVE_GOVERNANCE_SETTINGS_PROPOSAL_EXISTS";
+    string public constant EMPTY_ADDRESS = "EMPTY_ADDRESS";
+    string public constant NOT_VALID_PROPOSER = "NOT_VALID_PROPOSER";
+    string public constant SHARES_SUM_EXCEEDS_ONE = "SHARES_SUM_EXCEEDS_ONE";
+    string public constant NOT_RESOLVER = "NOT_RESOLVER";
 }

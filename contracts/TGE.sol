@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-
-
-
-
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -15,6 +11,7 @@ import "./interfaces/IToken.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IPool.sol";
+import "./interfaces/IVesting.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
 /// @title Token Generation Event
@@ -28,6 +25,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     /// @notice Denominator for shares (such as thresholds)
     uint256 private constant DENOM = 100 * 10**4;
+
 
     /// @dev Pool's ERC20 token
     IToken public token;
@@ -68,6 +66,11 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     /// @dev Total amount of tokens reserved for protocolfee
     uint256 public totalProtocolFee;
 
+    /// @dev TGE info struct
+    TGEInfoV2 public infoV2;
+
+    /// @dev Vesting contract
+    IVesting public vesting;
     // EVENTS
 
     /**
@@ -92,13 +95,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     event Redeemed(address account, uint256 refundValue);
 
     /**
-     * @dev Event emitted on token claim.
-     * @param account Claimer address
-     * @param amount Amount of claimed tokens
-     */
-    event Claimed(address account, uint256 amount);
-
-    /**
      * @dev Event emitted on transfer funds to pool.
      * @param amount Amount of transferred tokens/ETH
      */
@@ -112,13 +108,13 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Constructor function, can only be called once. In this method, settings for the TGE event are assigned, such as the contract of the token implemented using TGE, as well as the TGEInfo structure, which includes the parameters of purchase, vesting and lockup. If no lockup or westing conditions were set for the TVL value when creating the TGE, then the TVL achievement flag is set to true from the very beginning.
+     * @dev Constructor function, can only be called once. In this method, settings for the TGE event are assigned, such as the contract of the token implemented using TGE, as well as the TGEInfoV2 structure, which includes the parameters of purchase, vesting and lockup. If no lockup or westing conditions were set for the TVL value when creating the TGE, then the TVL achievement flag is set to true from the very beginning.
      * @param _token pool's token
      * @param _info TGE parameters
      */
     function initialize(
         IToken _token,
-        TGEInfo calldata _info,
+        TGEInfoV2 calldata _info,
         uint256 protocolFee_
     ) external initializer {
         __ReentrancyGuard_init();
@@ -129,10 +125,11 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             _token.tokenType()
         );
 
+        vesting = IService(msg.sender).vesting();
+
         token = _token;
-        info = _info;
+        infoV2 = _info;
         protocolFee = protocolFee_;
-        vestingTVLReached = (_info.vestingTVL == 0);
         lockupTVLReached = (_info.lockupTVL == 0);
 
         for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
@@ -145,7 +142,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     // PUBLIC FUNCTIONS
 
     /**
-     * @dev Purchase pool's tokens during TGE. The method for users from the TGE whitelist (set in TGEInfo when initializing the TGE contract), if the list is not set, then the sale is carried out for any address. The contract, when using this method, exchanges info.unitofaccount tokens available to buyers (if the address of the info.unitofaccount contract is set as zero, then the native ETH is considered unitofaccount) at the info.price rate of info.unitofaccount tokens for one pool token being sold. The buyer specifies the purchase amount in pool tokens, not in Unitofaccount. After receiving the user's funds by the contract, part of the tokens are minted to the buyer's balance, part of the tokens are minted to the address of the TGE contract in vesting. The percentage of vesting is specified in info.vestingPercent, if it is equal to 0, then all tokens are transferred to the buyer's balance.
+     * @dev Purchase pool's tokens during TGE. The method for users from the TGE whitelist (set in TGEInfoV2 when initializing the TGE contract), if the list is not set, then the sale is carried out for any address. The contract, when using this method, exchanges info.unitofaccount tokens available to buyers (if the address of the info.unitofaccount contract is set as zero, then the native ETH is considered unitofaccount) at the info.price rate of info.unitofaccount tokens for one pool token being sold. The buyer specifies the purchase amount in pool tokens, not in Unitofaccount. After receiving the user's funds by the contract, part of the tokens are minted to the buyer's balance, part of the tokens are minted to the address of the TGE contract in vesting. The percentage of vesting is specified in info.vestingPercent, if it is equal to 0, then all tokens are transferred to the buyer's balance.
      * @param amount amount of tokens in wei (10**18 = 1 token)
      */
     function purchase(uint256 amount)
@@ -157,8 +154,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         whenPoolNotPaused
     {
         // Check purchase price transfer depending on unit of account
-        address unitOfAccount = info.unitOfAccount;
-        uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
+        address unitOfAccount = infoV2.unitOfAccount;
+        uint256 purchasePrice = (amount * infoV2.price + (1 ether - 1)) / 1 ether;
         if (unitOfAccount == address(0)) {
             require(
                 msg.value >= purchasePrice,
@@ -174,7 +171,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Check purchase size
         require(
-            amount >= info.minPurchase,
+            amount >= infoV2.minPurchase,
             ExceptionsLibrary.MIN_PURCHASE_UNDERFLOW
         );
         require(
@@ -187,23 +184,31 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         purchaseOf[msg.sender] += amount;
 
         // Mint tokens directly to user
-        uint256 vestedAmount = (amount * info.vestingPercent + (DENOM - 1)) /
-            DENOM;
+        uint256 vestedAmount = (amount *
+            infoV2.vestingParams.vestedShare +
+            (DENOM - 1)) / DENOM;
         IToken _token = token;
         if (amount - vestedAmount > 0) {
             _token.mint(msg.sender, amount - vestedAmount);
         }
 
-        // Reserve token amount for vesting
-        vestedBalanceOf[msg.sender] += vestedAmount;
-        totalVested += vestedAmount;
-        token.setTGEVestedTokens(token.getTotalTGEVestedTokens() + vestedAmount);
-
-        uint256 tokenFee = getProtocolTokenFee(amount);
-        if(tokenFee>0){
-            totalProtocolFee += tokenFee;
-            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() + tokenFee);
+        // Vest tokens
+        if (vestedAmount > 0) {
+            token.setTGEVestedTokens(
+                token.getTotalTGEVestedTokens() + vestedAmount
+            );
+            vesting.vest(msg.sender, vestedAmount);
         }
+
+        // Increase reserved protocol fee
+        uint256 tokenFee = getProtocolTokenFee(amount);
+        if (tokenFee > 0) {
+            totalProtocolFee += tokenFee;
+            token.setProtocolFeeReserved(
+                token.getTotalProtocolFeeReserved() + tokenFee
+            );
+        }
+
         // Emit event
         emit Purchased(msg.sender, amount);
     }
@@ -226,25 +231,19 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 refundAmount = 0;
 
         // Calculate redeem from vesting
-        uint256 vestedBalance = vestedBalanceOf[msg.sender];
+        uint256 vestedBalance = vesting.vested(address(this), msg.sender);
         if (vestedBalance > 0) {
-            vestedBalanceOf[msg.sender] = 0;
+            // Account vested tokens
             purchaseOf[msg.sender] -= vestedBalance;
-            totalVested -= vestedBalance;
-
-            token.setTGEVestedTokens(token.getTotalTGEVestedTokens() - vestedBalance);
-
             refundAmount += vestedBalance;
 
-            uint256 TGETokenBalance = IERC20Upgradeable(address(token)).balanceOf(address(this));
-        
-            if(TGETokenBalance>0){
-                uint256 amountToBurn = MathUpgradeable.min(
-                        vestedBalance,
-                        TGETokenBalance
-                    );
-                token.burn(address(this), amountToBurn);
-            }
+            // Cancel vesting
+            vesting.cancel(address(this), msg.sender);
+
+            // Decrease reserved tokens
+            token.setTGEVestedTokens(
+                token.getTotalTGEVestedTokens() - vestedBalance
+            );
         }
 
         // Calculate redeemed balance
@@ -262,83 +261,39 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         require(refundAmount > 0, ExceptionsLibrary.NOTHING_TO_REDEEM);
 
         // Transfer refund value
-        uint256 refundValue = (refundAmount * info.price + (1 ether - 1)) /
+        uint256 refundValue = (refundAmount * infoV2.price + (1 ether - 1)) /
             1 ether;
-        if (info.unitOfAccount == address(0)) {
+        if (infoV2.unitOfAccount == address(0)) {
             payable(msg.sender).sendValue(refundValue);
         } else {
-            IERC20Upgradeable(info.unitOfAccount).safeTransfer(
+            IERC20Upgradeable(infoV2.unitOfAccount).safeTransfer(
                 msg.sender,
                 refundValue
             );
         }
 
+        // Decrease reserved protocol fee
         uint256 tokenFee = getProtocolTokenFee(refundAmount);
-
-        if(tokenFee>0){
+        if (tokenFee > 0) {
             totalProtocolFee -= tokenFee;
-            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() - tokenFee);
+            token.setProtocolFeeReserved(
+                token.getTotalProtocolFeeReserved() - tokenFee
+            );
         }
 
         // Emit event
         emit Redeemed(msg.sender, refundValue);
     }
 
-    /**
-     * @dev The method allows you to return the tokens in the vesting from the TGE contract to the balance of the user's address, provided that the vesting within a specific TGE has been assigned, and the conditions necessary for its completion have been met. In TGE that ended in failure (softcap was not built), working with the method is impossible.
-     */
-    function claim() external whenPoolNotPaused {
-        // Check that vested tokens can be claim
-        require(claimAvailable(), ExceptionsLibrary.CLAIM_NOT_AVAILABLE);
-
-        // Check that there is anything to claim
-        uint256 amountToClaim = vestedBalanceOf[msg.sender];
-        require(amountToClaim > 0, ExceptionsLibrary.NO_LOCKED_BALANCE);
-
-        // Set vested amount to zero
-        vestedBalanceOf[msg.sender] = 0;
-        totalVested -= amountToClaim;
-        token.setTGEVestedTokens(token.getTotalTGEVestedTokens() - amountToClaim);
-        // Transfer vested tokens
-
-        
-        uint256 TGETokenBalance = IERC20Upgradeable(address(token)).balanceOf(address(this));
-       
-        uint256 amountToTransfer = MathUpgradeable.min(
-                    amountToClaim,
-                    TGETokenBalance
-                );
-
-        if(amountToTransfer>0){
-            IERC20Upgradeable(address(token)).safeTransfer(
-                msg.sender,
-                amountToTransfer
-            );
-        }
-        if((amountToClaim-amountToTransfer)>0){
-            IToken(token).mint(
-                msg.sender, 
-                (amountToClaim-amountToTransfer)
-            );
-        }
-        // Emit event
-        emit Claimed(msg.sender, amountToClaim);
-    }
-
-    /// @dev Set the flag that the condition for achieving the pool balance set in the westing settings is met. The action is irreversible.
-    function setVestingTVLReached() external whenPoolNotPaused onlyManager onlyState(State.Successful) {
-        // Check that TVL has not been reached yet
-        require(!vestingTVLReached, ExceptionsLibrary.VESTING_TVL_REACHED);
-
-        // Mark as reached
-        vestingTVLReached = true;
-    }
-
     /// @dev Set the flag that the condition for achieving the pool balance of the value specified in the lockup settings is met. The action is irreversible.
-    function setLockupTVLReached() external whenPoolNotPaused onlyManager onlyState(State.Successful) {
+    function setLockupTVLReached()
+        external
+        whenPoolNotPaused
+        onlyManager
+        onlyState(State.Successful)
+    {
         // Check that TVL has not been reached yet
         require(!lockupTVLReached, ExceptionsLibrary.LOCKUP_TVL_REACHED);
-        
 
         // Mark as reached
         lockupTVLReached = true;
@@ -363,10 +318,10 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         _claimProtocolTokenFee();
 
         // Transfer remaining funds to pool
-        address unitOfAccount = info.unitOfAccount;
+        address unitOfAccount = infoV2.unitOfAccount;
         address pool = token.pool();
         uint256 balance = 0;
-        if (info.price != 0) {
+        if (infoV2.price != 0) {
             if (unitOfAccount == address(0)) {
                 balance = address(this).balance;
                 payable(pool).sendValue(balance);
@@ -400,11 +355,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Mint fee to treasury
         uint256 tokenFee = totalProtocolFee;
-        if(totalProtocolFee>0){
+        if (totalProtocolFee > 0) {
             totalProtocolFee = 0;
             _token.mint(_token.service().protocolTreasury(), tokenFee);
-            token.setProtocolFeeReserved(token.getTotalProtocolFeeReserved() - tokenFee);
-            
+            token.setProtocolFeeReserved(
+                token.getTotalProtocolFeeReserved() - tokenFee
+            );
         }
 
         // Emit event
@@ -423,8 +379,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         }
         return
             MathUpgradeable.min(
-                info.maxPurchase - purchaseOf[account],
-                info.hardcap - totalPurchased
+                infoV2.maxPurchase - purchaseOf[account],
+                infoV2.hardcap - totalPurchased
             );
     }
 
@@ -434,12 +390,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      */
     function state() public view returns (State) {
         // If hardcap is reached TGE is successfull
-        if (totalPurchased == info.hardcap) {
+        if (totalPurchased == infoV2.hardcap) {
             return State.Successful;
         }
 
         // If deadline not reached TGE is active
-        if (block.number < createdAt + info.duration) {
+        if (block.number < createdAt + infoV2.duration) {
             return State.Active;
         }
 
@@ -449,7 +405,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         }
 
         // If softcap is reached TGE is successfull
-        if (totalPurchased >= info.softcap && totalPurchased > 0) {
+        if (totalPurchased >= infoV2.softcap && totalPurchased > 0) {
             return State.Successful;
         }
 
@@ -458,23 +414,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev The given getter shows whether users have the opportunity to withdraw their tokens from vesting. To do this, a flag must be set that the TVL provided for unlocking tokens by vesting has been reached at least once by the pool, and also that the time allotted for blocking tokens within vesting has ended. For TGE without a lead program, this method always returns true.
-     * @return Is claim available
-     */
-    function claimAvailable() public view returns (bool) {
-        return
-            vestingTVLReached &&
-            block.number >= createdAt + info.vestingDuration &&
-            (state()) != State.Failed;
-    }
-
-    /**
      * @dev The given getter shows whether the transfer method is available for tokens that were distributed using a specific TGE contract. If the lockup period is over or if the lockup was not provided for this TGE, the getter always returns true.
      * @return Is transfer available
      */
     function transferUnlocked() public view returns (bool) {
         return
-            lockupTVLReached && block.number >= createdAt + info.lockupDuration;
+            lockupTVLReached && block.number >= createdAt + infoV2.lockupDuration;
     }
 
     /**
@@ -486,7 +431,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         return
             transferUnlocked()
                 ? 0
-                : (purchaseOf[account] - vestedBalanceOf[account]);
+                : (purchaseOf[account] -
+                    vesting.vestedBalanceOf(address(this), account));
     }
 
     /**
@@ -494,35 +440,28 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @param account Account address
      * @return Redeemable balance of the address
      */
-    function redeemableBalanceOf(address account) external view returns (uint256) {
+    function redeemableBalanceOf(address account)
+        external
+        view
+        returns (uint256)
+    {
         if (purchaseOf[account] == 0) return 0;
         if (state() != State.Failed) return 0;
 
-        uint256 refundAmount = 0;
-        uint256 vestedBalance = vestedBalanceOf[account];
-        uint256 balanceToRedeem = MathUpgradeable.min(
-            token.balanceOf(account),
-            purchaseOf[account]
-        );
-
-        if (vestedBalance > 0) {
-            refundAmount += vestedBalance;
-        }
-
-        if (balanceToRedeem > 0) {
-            refundAmount += balanceToRedeem;
-        }
-
-        return refundAmount;
+        return
+            MathUpgradeable.min(
+                token.balanceOf(account) +
+                    vesting.vestedBalanceOf(address(this), account),
+                purchaseOf[account]
+            );
     }
 
-
     /**
-     * @dev The given getter shows how much info.unitofaccount was collected within this TGE. To do this, the amount of tokens purchased by all buyers is multiplied by info.price.
+     * @dev The given getter shows how much infoV2.unitofaccount was collected within this TGE. To do this, the amount of tokens purchased by all buyers is multiplied by info.price.
      * @return Total value
      */
     function getTotalPurchasedValue() public view returns (uint256) {
-        return (totalPurchased * info.price) / 10**18;
+        return (totalPurchased * infoV2.price) / 10**18;
     }
 
     /**
@@ -530,7 +469,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return Total value
      */
     function getTotalVestedValue() public view returns (uint256) {
-        return (totalVested * info.price) / 10**18;
+        return (vesting.totalVested(address(this)) * infoV2.price) / 10**18;
     }
 
     /**
@@ -538,7 +477,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return User whitelist
      */
     function getUserWhitelist() external view returns (address[] memory) {
-        return info.userWhitelist;
+        return infoV2.userWhitelist;
     }
 
     /**
@@ -547,21 +486,45 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return Flag if user if whitelisted
      */
     function isUserWhitelisted(address account) public view returns (bool) {
-        return info.userWhitelist.length == 0 || _isUserWhitelisted[account];
+        return infoV2.userWhitelist.length == 0 || _isUserWhitelisted[account];
     }
 
     /**
+     * @dev Get TGE end block
+     * @return TGE end block
+     */
+    function getEnd() external view returns (uint256) {
+        return createdAt + infoV2.duration;
+    }
+
+    /**
+     * @dev Get TGE info
+     * @return TGE info
+     */
+    function getInfo() external view returns (TGEInfoV2 memory) {
+        return infoV2;
+    }
+
+    /**
+     * @dev Get TGE info
+     * @return TGE info
+     */
+    function getInfoV1() external view returns (TGEInfo memory) {
+        return info;
+    }
+
+    /*
      * @dev Сalculates protocol token fee for given token amount
      * @param amount Token amount
      * @return tokenFee
      */
     function getProtocolTokenFee(uint256 amount) public view returns (uint256) {
-
         if (token.tokenType() == IToken.TokenType.Preference) {
             return 0;
         }
         return (amount * protocolFee + (DENOM - 1)) / DENOM;
     }
+
     // MODIFIER
 
     modifier onlyState(State state_) {

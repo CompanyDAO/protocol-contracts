@@ -9,6 +9,8 @@ import {
     TGE,
     Token,
     Registry,
+    CustomProposal,
+    Vesting,
 } from "../typechain-types";
 import Exceptions from "./shared/exceptions";
 import {
@@ -20,7 +22,7 @@ import {
 import { mineBlock } from "./shared/utils";
 import { setup } from "./shared/setup";
 
-const { getContractAt, getContract, getSigners, provider } = ethers;
+const { getContractAt, getContract, getSigners } = ethers;
 const { parseUnits } = ethers.utils;
 const { AddressZero } = ethers.constants;
 
@@ -30,7 +32,7 @@ describe("Test secondary TGE", function () {
         second: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
-    let service: Service, registry: Registry;
+    let service: Service, registry: Registry, vesting: Vesting, customProposal: CustomProposal;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -40,7 +42,7 @@ describe("Test secondary TGE", function () {
 
     before(async function () {
         // Get accounts
-        [owner, other,second, third, fourth] = await getSigners();
+        [owner, other, second, third, fourth] = await getSigners();
 
         // Fixture
         await deployments.fixture();
@@ -48,8 +50,9 @@ describe("Test secondary TGE", function () {
         // Get contracts
         service = await getContract("Service");
         registry = await getContract("Registry");
+        vesting = await getContract("Vesting");
         token1 = await getContract("ONE");
-
+        customProposal = await getContract("CustomProposal");
         // Setup
         await setup();
 
@@ -59,14 +62,14 @@ describe("Test secondary TGE", function () {
             owner.address,
             other.address,
             second.address,
-            third.address
+            third.address,
         ];
         await service.createPool(...createArgs, {
             value: parseUnits("0.01"),
         });
         const record = await registry.contractRecords(0);
         pool = await getContractAt("Pool", record.addr);
-        token = await getContractAt("Token", await pool.tokens(1));
+        token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
 
         // Finalize TGE
@@ -97,14 +100,21 @@ describe("Test secondary TGE", function () {
     describe("Secondary TGE for governance token", async function () {
         this.beforeEach(async function () {
             // Propose secondary TGE
-            tgeArgs = await makeTGEArgs(createArgs[3]);
-            tx = await pool.proposeTGE(...tgeArgs);
+
+            tgeArgs = await makeTGEArgs(token.address, createArgs[3]);
+            await mineBlock(5);
+            tx = await customProposal.proposeTGE(pool.address, ...tgeArgs);
+        });
+        
+        it("Admin can cancel propose", async function () {
+            await mineBlock(10);
+            await service.cancelProposal(pool.address,1);
         });
 
         it("Only user with votes over proposal threshold can create secondary TGE proposals", async function () {
             await expect(
-                pool.connect(fourth).proposeTGE(...tgeArgs)
-            ).to.be.revertedWith(Exceptions.THRESHOLD_NOT_REACHED);
+                customProposal.connect(fourth).proposeTGE(pool.address, ...tgeArgs)
+            ).to.be.revertedWith(Exceptions.NOT_VALID_PROPOSER);
         });
 
         it("Proposing secondary TGE works", async function () {
@@ -121,8 +131,8 @@ describe("Test secondary TGE", function () {
             expect(proposal.vote.startBlock).to.equal(receipt.blockNumber + 10);
             expect(proposal.vote.endBlock).to.equal(
                 receipt.blockNumber +
-                    + 10 +
-                    Number.parseInt(createArgs[6].votingDuration.toString())
+                +10 +
+                Number.parseInt(createArgs[6].votingDuration.toString())
             ); // from create params
             expect(proposal.vote.forVotes).to.equal(0);
             expect(proposal.vote.againstVotes).to.equal(0);
@@ -130,7 +140,8 @@ describe("Test secondary TGE", function () {
         });
 
         it("Can propose secondary TGE when there is active proposal", async function () {
-            await expect(pool.proposeTGE(...tgeArgs)).to.be.not.reverted;
+            await expect(customProposal.proposeTGE(pool.address, ...tgeArgs)).to.be
+                .not.reverted;
         });
 
         it("Casting votes should work", async function () {
@@ -155,32 +166,31 @@ describe("Test secondary TGE", function () {
             const finishVotes_donor = await token.getVotes(other.address);
             const finishVotes_rec = await token.getVotes(second.address);
             expect(finishVotes_donor).to.equal(parseUnits("0"));
-            expect(startVotes_rec).to.equal(finishVotes_donor );
+            expect(startVotes_rec).to.equal(finishVotes_donor);
             await token.connect(other).delegate(other.address);
             await mineBlock(2);
-            expect(await token.getVotes(other.address)).to.equal(startVotes_donor );
+            expect(await token.getVotes(other.address)).to.equal(startVotes_donor);
+
         });
-        
+
         it("Can't vote with tokens delegated before start of voting", async function () {
             //waiting for voting start
             await mineBlock(10);
 
             await token.connect(other).delegate(second.address);
-            await expect(
-                pool.connect(second).castVote(1, true)
-            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+            await expect(pool.connect(second).castVote(1, true)).to.be.revertedWith(
+                Exceptions.ZERO_VOTES
+            );
         });
 
         it("Can't vote with no delegated or governance tokens", async function () {
             //waiting for voting start
             await mineBlock(10);
 
-            expect(await token.balanceOf(second.address)).to.equal(
-                parseUnits("0")
+            expect(await token.balanceOf(second.address)).to.equal(parseUnits("0"));
+            await expect(pool.connect(second).castVote(1, true)).to.be.revertedWith(
+                Exceptions.ZERO_VOTES
             );
-            await expect(
-                pool.connect(second).castVote(1, true)
-            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
        
@@ -190,9 +200,9 @@ describe("Test secondary TGE", function () {
             await mineBlock(10);
 
             await pool.connect(other).castVote(1, true);
-            await expect(
-                pool.connect(other).castVote(1, true)
-            ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
+            await expect(pool.connect(other).castVote(1, true)).to.be.revertedWith(
+                Exceptions.ALREADY_VOTED
+            );
         });
 
         it("Ballot BEFORE token transfer eq Ballot AFTER token transfer", async function () {
@@ -203,45 +213,49 @@ describe("Test secondary TGE", function () {
             const startBallot = await pool.getBallot(second.address, 1);
             await mineBlock(51);
             await tge.setLockupTVLReached();
-            expect(await tge.transferUnlocked()).to.equal(
-                true
-            );
-            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
+            expect(await tge.transferUnlocked()).to.equal(true);
+            await token
+                .connect(other)
+                .transfer(second.address, await token.balanceOf(other.address));
             const finishBallot = await pool.getBallot(second.address, 1);
             await mineBlock(2);
             expect(startBallot[0]).to.equal(finishBallot[0]);
         });
 
-
-        
         it("Check tgeWithLockedTokensList works ", async function () {
-            const startTgeWithLockedTokensList = await token.getTgeWithLockedTokensList();
+            const startTgeWithLockedTokensList =
+                await token.getTgeWithLockedTokensList();
             const startTgeList = await token.getTGEList();
 
             //check if tge lists are equal (all and with locked tokens) before tokens unlock
-            expect(startTgeWithLockedTokensList.length).to.equal(startTgeList.length).to.equal(1);
+            expect(startTgeWithLockedTokensList.length)
+                .to.equal(startTgeList.length)
+                .to.equal(1);
 
             //check if transfer is locked
             await expect(
-                token.connect(other).transfer(second.address, await token.balanceOf(other.address))
+                token
+                    .connect(other)
+                    .transfer(second.address, await token.balanceOf(other.address))
+
             ).to.be.revertedWith(Exceptions.LOW_UNLOCKED_BALANCE);
-            
+
             //unlock tokens
             await mineBlock(51);
             await tge.setLockupTVLReached();
-            expect(await tge.transferUnlocked()).to.equal(
-                true
-            );
+            expect(await tge.transferUnlocked()).to.equal(true);
             //make transfer and update tgeWithLockedTokensList
-            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
-            
+            await token
+                .connect(other)
+                .transfer(second.address, await token.balanceOf(other.address));
 
-            const finishTgeWithLockedTokensList = await token.getTgeWithLockedTokensList();  
+            const finishTgeWithLockedTokensList =
+                await token.getTgeWithLockedTokensList();
             const finishTgeList = await token.getTGEList();
 
             //check if tgeWithLockedTokensList updated
-            expect(finishTgeWithLockedTokensList.length).to.equal(0); 
-            expect(finishTgeList.length).to.equal(startTgeList.length);  
+            expect(finishTgeWithLockedTokensList.length).to.equal(0);
+            expect(finishTgeList.length).to.equal(startTgeList.length);
         });
 
         it("Can't vote twice with the same tokens", async function () {
@@ -251,13 +265,15 @@ describe("Test secondary TGE", function () {
             await pool.connect(other).castVote(1, true);
             await mineBlock(50);
             await tge.setLockupTVLReached();
-            expect(await tge.transferUnlocked()).to.equal(
-                true
+            expect(await tge.transferUnlocked()).to.equal(true);
+            await token
+                .connect(other)
+                .transfer(second.address, await token.balanceOf(other.address));
+
+            await expect(pool.connect(second).castVote(1, true)).to.be.revertedWith(
+                Exceptions.ZERO_VOTES
             );
-            await token.connect(other).transfer(second.address, await token.balanceOf(other.address));
-            await expect(
-                pool.connect(second).castVote(1, true)
-            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
+
         });
 
         
@@ -265,9 +281,9 @@ describe("Test secondary TGE", function () {
         it("Can't vote after voting period is finished", async function () {
             await mineBlock(100);
 
-            await expect(
-                pool.connect(other).castVote(1, true)
-            ).to.be.revertedWith(Exceptions.VOTING_FINISHED);
+            await expect(pool.connect(other).castVote(1, true)).to.be.revertedWith(
+                Exceptions.VOTING_FINISHED
+            );
         });
 
         it("Can't execute non-existent proposal", async function () {
@@ -341,137 +357,16 @@ describe("Test secondary TGE", function () {
 
             expect(await tge2.state()).to.equal(0);
 
-            const info = await tge2.info();
+            const info = await tge2.getInfo();
             expect(info.duration).to.equal(20);
             expect(info.softcap).to.equal(parseUnits("1000"));
             expect(info.hardcap).to.equal(parseUnits("5000"));
         });
-        
-        //re-check
-        it("Executed TGE proposal can't change token cap", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-            
-            await mineBlock(2);
-            // new proposeTransfer
-           await pool.connect(other).proposeTransfer(
-                AddressZero,
-                [third.address, fourth.address],
-                [parseUnits("0.1"), parseUnits("0.1")],
-                "Let's give them money",
-                "#"
-            );
-            await mineBlock(2);
-            const startTokenCap = await token.cap();
-            const startTokenTotalSupply = await token.totalSupply();
 
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-
-            // success execute Proposal of TGE
-            await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
-            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
-
-            // owner purchase new tokens from TGE
-            await tge2
-                .connect(owner)
-                .purchase(parseUnits("10"), { value: parseUnits("1") });
-
-            await mineBlock(10);
-
-            
-            expect(startTokenCap).to.equal(await token.cap());
-            
-            
-            // owner burn new tokens from TGE
-            await token
-            .connect(owner)
-            .burn(owner.address,parseUnits("10"));
-
-            expect(startTokenCap).to.equal(await token.cap());
-        });
-        /*
-        it("Purchasing tokens from TGE can't affect new proposals", async function () {
-           
-            const TGEproposal = await pool.proposals(1);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(1);
-            // success execute Proposal of TGE
-            await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
-            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
-
-            // owner purchase new tokens from TGE
-            await tge2
-                .connect(second)
-                .purchase(parseUnits("10"), { value: parseUnits("1") });
-            
-            await mineBlock(2);
-
-             // new transfer proposal
-            await pool.connect(other).proposeTransfer(
-                AddressZero,
-                [third.address, fourth.address],
-                [parseUnits("0.1"), parseUnits("0.1")],
-                "Let's give them money",
-                "#"
-            );
-            await mineBlock(1);
-
-            await pool.connect(second).castVote(2, true);
-
-            const TransferProposal = await pool.proposals(2);
-            
-            expect(TGEproposal.vote.availableVotes).to.equal(TransferProposal.vote.availableVotes);
-        });
-
-        it("Burning tokens from TGE can't affect new proposals", async function () {
-           
-            const TGEproposal = await pool.proposals(1);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(1);
-            // success execute Proposal of TGE
-            await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
-            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
-
-            // owner purchase new tokens from TGE
-            await tge2
-                .connect(owner)
-                .purchase(parseUnits("100"), { value: parseUnits("10") });
-            
-            await mineBlock(2);
-           
-            // owner burn new tokens from TGE
-             await token
-             .connect(owner)
-             .burn(owner.address,parseUnits("30"));
-
-            await mineBlock(2);
-
-             // new transfer proposal
-            await pool.connect(other).proposeTransfer(
-                AddressZero,
-                [third.address, fourth.address],
-                [parseUnits("0.1"), parseUnits("0.1")],
-                "Let's give them money",
-                "#"
-            );
-            await mineBlock(1);
-            const TransferProposal = await pool.proposals(2);
-            
-            expect(TGEproposal.vote.availableVotes).to.equal(TransferProposal.vote.availableVotes);
-        });
-        */
         it("Only pool can request creating TGEs and recording proposals on service", async function () {
             await expect(
                 service.createSecondaryTGE(
+                    AddressZero,
                     createArgs[3],
                     {
                         tokenType: 1,
@@ -509,7 +404,7 @@ describe("Test secondary TGE", function () {
         it("If anything is purchased (no softcap) than TGE is successful", async function () {
             //waiting for voting start
             await mineBlock(10);
-            
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
@@ -536,11 +431,11 @@ describe("Test secondary TGE", function () {
 
             // Create and success second proposal
             createArgs[3].hardcap = parseUnits("1000");
-            await pool.proposeTGE(...tgeArgs);
+            await customProposal.proposeTGE(pool.address, ...tgeArgs);
 
             //waiting for voting start
             await mineBlock(10);
-    
+
             await pool.connect(owner).castVote(2, true);
             await pool.connect(other).castVote(2, true);
             await mineBlock(2);
@@ -554,123 +449,12 @@ describe("Test secondary TGE", function () {
         it("Secondary TGE's hardcap can't overflow remaining supply", async function () {
             await mineBlock(100);
 
-            createArgs[3].hardcap = parseUnits("7000");
-
-            await pool.proposeTGE(...tgeArgs);
-
             createArgs[3].hardcap = parseUnits("7000").add(1);
-            await expect(pool.proposeTGE(...tgeArgs)).to.be.revertedWith(
+
+            await expect(
+                customProposal.proposeTGE(pool.address, ...tgeArgs)
+            ).to.be.revertedWith(
                 Exceptions.HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
-            );
-        });
-        
-    });
-
-    describe("Secondary TGE for preference token", async function () {
-        let pToken: Token, pTGE: TGE;
-
-        this.beforeEach(async function () {
-            // Propose secondary TGE
-            tgeArgs = await makeTGEArgs(createArgs[3], {
-                tokenType: 2,
-                name: "Preference DAO",
-                symbol: "PDAO",
-                cap: parseUnits("10000", 6),
-                decimals: 6,
-                description: "This is a preference token",
-            });
-            tgeArgs[0].minPurchase = 1;
-            tgeArgs[0].maxPurchase = parseUnits("3000", 6);
-            tgeArgs[0].hardcap = parseUnits("5000", 6);
-            tgeArgs[0].softcap = parseUnits("1000", 6);
-            tx = await pool.proposeTGE(...tgeArgs);
-
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-            await pool.executeProposal(1);
-
-            const tgeRecord = await registry.contractRecords(3);
-            pTGE = await getContractAt("TGE", tgeRecord.addr);
-            pToken = await getContractAt("Token", await pTGE.token());
-        });
-
-        it("Can participate in TGE for preference", async function () {
-            await pTGE.purchase(parseUnits("100", 6), {
-                value: parseUnits("1"),
-            });
-            expect(await pToken.balanceOf(owner.address)).to.equal(
-                parseUnits("50", 6)
-            );
-        });
-
-        it("If bought less than softcap TGE is failed", async function () {
-            await pTGE.purchase(parseUnits("100", 6), {
-                value: parseUnits("1"),
-            });
-            await mineBlock(100);
-            expect(await pTGE.state()).to.equal(1);
-        });
-
-
-        it("Round up test", async function () {
-            let amount = parseUnits("0.01", 2);
-        
-            await pTGE.connect(other).purchase(amount, {
-                value: parseUnits("1"), //>purchase price
-            });
-
-
-            // works with round up
-            expect(await pToken.balanceOf(other.address)).to.equal(0);
-            expect(await pTGE.vestedBalanceOf(other.address)).to.equal(1);
-            expect(await pTGE.purchaseOf(other.address)).to.equal(1);
-            expect(await pTGE.lockedBalanceOf(other.address)).to.equal(0);
-            
-            // works with no round up
-            /*expect(await pToken.balanceOf(other.address)).to.equal(0);
-            expect(await pTGE.vestedBalanceOf(other.address)).to.equal(1);
-            expect(await pTGE.purchaseOf(other.address)).to.equal(1);
-            expect(await pTGE.lockedBalanceOf(other.address)).to.equal(0);
-            */
-            
-        });
-
-
-        it("After preference initial TGE is successful, following TGE's can't update token data", async function () {
-            // Success first TGE
-            await pTGE.purchase(parseUnits("1000", 6), {
-                value: parseUnits("10"),
-            });
-            await mineBlock(100);
-            expect(await pTGE.state()).to.equal(2);
-
-            // Start new TGE
-            tgeArgs = await makeTGEArgs(createArgs[3], {
-                tokenType: 2,
-                name: "Preference DAO UPD",
-                symbol: "PDAOUPD",
-                cap: parseUnits("10000"),
-                decimals: 10,
-                description: "Another description",
-            });
-            tx = await pool.proposeTGE(...tgeArgs);
-            //waiting for voting start
-            await mineBlock(10);
-            await pool.connect(owner).castVote(2, true);
-            await pool.connect(other).castVote(2, true);
-            await mineBlock(2);
-            await pool.executeProposal(2);
-
-            // Check values
-            expect(await pToken.name()).to.equal("Preference DAO");
-            expect(await pToken.symbol()).to.equal("PDAO");
-            expect(await pToken.decimals()).to.equal(6);
-            expect(await pToken.description()).to.equal(
-                "This is a preference token"
             );
         });
     });

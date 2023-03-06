@@ -1,5 +1,5 @@
 import { task } from "hardhat/config";
-import { Registry } from "../../typechain-types";
+import { Registry, CustomProposal } from "../../typechain-types";
 
 task("deploy:service", "Deploy Service").setAction(async function (
     { _ },
@@ -27,6 +27,13 @@ task("deploy:service", "Deploy Service").setAction(async function (
     // Deploy Registry
     const registry = await deployProxy("Registry", []);
 
+    //Deploy customProposal
+    const customProposal = await deployProxy("CustomProposal", []);
+
+    // Deploy Vesting
+    const vesting = await deployProxy("Vesting", [registry.address]);
+
+
     // Get Beacons
     const poolBeacon = await getContract("PoolBeacon");
     const tokenBeacon = await getContract("TokenBeacon");
@@ -35,6 +42,8 @@ task("deploy:service", "Deploy Service").setAction(async function (
     // Deploy Service
     const service = await deployProxy("Service", [
         registry.address,
+        customProposal.address,
+        vesting.address,
         poolBeacon.address,
         tokenBeacon.address,
         tgeBeacon.address,
@@ -44,6 +53,12 @@ task("deploy:service", "Deploy Service").setAction(async function (
     // Set Service in Registry
     const registryContract = await getContract<Registry>("Registry");
     await registryContract.setService(service.address);
+
+    // Set Service in Registry
+    const customProposalContract = await getContract<CustomProposal>(
+        "CustomProposal"
+    );
+    await customProposalContract.setService(service.address);
 
     return service;
 });

@@ -1,3 +1,4 @@
+import { Address } from "@nomicfoundation/ethereumjs-util";
 import { BigNumberish } from "ethers";
 import { ethers } from "hardhat";
 
@@ -20,7 +21,7 @@ export type CreateArgs = [
     string
 ];
 
-export type TGEArgs = [TGEInfoStruct, TokenInfoStruct, string, string, string];
+export type TGEArgs = [string,TGEInfoStruct, TokenInfoStruct, string, string, string];
 
 export const BASE_JURISDICTION = 1;
 export const BASE_ENTITY_TYPE = 1;
@@ -34,9 +35,16 @@ export async function makeCreateData(): Promise<CreateArgs> {
         softcap: parseUnits("1000"),
         minPurchase: parseUnits("10"),
         maxPurchase: parseUnits("3000"),
-        vestingPercent: 500000,
-        vestingDuration: 100,
-        vestingTVL: parseUnits("100"),
+        vestingParams: {
+            vestedShare: 500000,
+            cliff: 100,
+            cliffShare: 100000,
+            spans: 4,
+            spanDuration: 50,
+            spanShare: 200000,
+            claimTVL: parseUnits("100"),
+            resolvers: [owner.address],
+        },
         lockupDuration: 50,
         lockupTVL: parseUnits("20"),
         duration: 20,
@@ -49,7 +57,7 @@ export async function makeCreateData(): Promise<CreateArgs> {
         decisionThreshold: 500000, // 50%
         votingDuration: 55,
         transferValueForDelay: 0,
-        executionDelays: [2, 0, 0, 0],
+        executionDelays: [2, 2, 2, 2],
         votingStartDelay: 10
     };
 
@@ -67,10 +75,12 @@ export async function makeCreateData(): Promise<CreateArgs> {
 }
 
 export async function makeTGEArgs(
+    token: string,
     tgeInfo: TGEInfoStruct,
     tokenInfo?: TokenInfoStruct
 ): Promise<TGEArgs> {
     return [
+        token,
         tgeInfo,
         tokenInfo ?? {
             tokenType: 1,

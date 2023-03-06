@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "../libraries/ExceptionsLibrary.sol";
 import "../interfaces/IService.sol";
 import "../interfaces/IPool.sol";
+import "../interfaces/governor/IGovernor.sol";
 import "../interfaces/registry/IRegistry.sol";
 
 /// @dev Proposal module for Pool's Governance Token
@@ -18,7 +19,7 @@ abstract contract Governor {
     // CONSTANTS
 
     /// @notice Denominator for shares (such as thresholds)
-    uint256 private constant DENOM = 100 * 10**4;
+    uint256 private constant DENOM = 100 * 10 ** 4;
 
     // STORAGE
 
@@ -31,24 +32,6 @@ abstract contract Governor {
         AwaitingExecution,
         Executed,
         Cancelled
-    }
-
-    /**
-     * @dev Struct with proposal core data
-     * @param targets Targets
-     * @param values ETH values
-     * @param callDatas Call datas to pass in .call() to target
-     * @param quorumThreshold Quorum threshold (as percents)
-     * @param decisionThreshold Decision threshold (as percents)
-     * @param executionDelay Execution delay after successful voting (blocks)
-     */
-    struct ProposalCoreData {
-        address[] targets;
-        uint256[] values;
-        bytes[] callDatas;
-        uint256 quorumThreshold;
-        uint256 decisionThreshold;
-        uint256 executionDelay;
     }
 
     /**
@@ -70,27 +53,15 @@ abstract contract Governor {
     }
 
     /**
-     * @dev Struct with proposal metadata
-     * @param proposalType Proposal type
-     * @param description Description
-     * @param metaHash Metadata hash
-     */
-    struct ProposalMetaData {
-        IRegistry.EventType proposalType;
-        string description;
-        string metaHash;
-    }
-
-    /**
      * @dev Struct with proposal data
      * @param core Proposal core data
      * @param vote Proposal voting data
      * @param meta Proposal meta data
      */
     struct Proposal {
-        ProposalCoreData core;
+        IGovernor.ProposalCoreData core;
         ProposalVotingData vote;
-        ProposalMetaData meta;
+        IGovernor.ProposalMetaData meta;
     }
 
     /// @dev Proposals
@@ -118,8 +89,8 @@ abstract contract Governor {
      */
     event ProposalCreated(
         uint256 proposalId,
-        ProposalCoreData core,
-        ProposalMetaData meta
+        IGovernor.ProposalCoreData core,
+        IGovernor.ProposalMetaData meta
     );
 
     /**
@@ -155,16 +126,12 @@ abstract contract Governor {
      * @param proposalId Proposal ID
      * @return ProposalState
      */
-    function proposalState(uint256 proposalId)
-        public
-        view
-        returns (ProposalState)
-    {   
+    function proposalState(
+        uint256 proposalId
+    ) public view returns (ProposalState) {
         Proposal memory proposal = proposals[proposalId];
 
-        if (
-            proposal.vote.startBlock == 0
-        ) {
+        if (proposal.vote.startBlock == 0) {
             return ProposalState.None;
         }
 
@@ -176,11 +143,14 @@ abstract contract Governor {
             return proposal.vote.executionState;
         }
         if (
-            proposal.vote.startBlock > 0 && block.number < proposal.vote.startBlock
+            proposal.vote.startBlock > 0 &&
+            block.number < proposal.vote.startBlock
         ) {
             return ProposalState.Active;
         }
-        uint256 availableVotesForStartBlock = _getBlockTotalVotes(proposal.vote.startBlock - 1);
+        uint256 availableVotesForStartBlock = _getBlockTotalVotes(
+            proposal.vote.startBlock - 1
+        );
         uint256 castVotes = proposal.vote.forVotes + proposal.vote.againstVotes;
 
         if (block.number >= proposal.vote.endBlock) {
@@ -217,7 +187,6 @@ abstract contract Governor {
             return ProposalState.Active;
         }
     }
-    
 
     /**
      * @dev Return voting result for a given account and proposal
@@ -226,21 +195,15 @@ abstract contract Governor {
      * @return ballot Vote type
      * @return votes Number of votes cast
      */
-    function getBallot(address account, uint256 proposalId)
-        public
-        view
-        returns (Ballot ballot, uint256 votes)
-    {
-        
+    function getBallot(
+        address account,
+        uint256 proposalId
+    ) public view returns (Ballot ballot, uint256 votes) {
         return (
             ballots[account][proposalId],
-            _getPastVotes(
-            account,
-            proposals[proposalId].vote.startBlock - 1
-             )
+            _getPastVotes(account, proposals[proposalId].vote.startBlock - 1)
         );
     }
-
 
     // INTERNAL FUNCTIONS
 
@@ -251,14 +214,13 @@ abstract contract Governor {
      * @param votingDuration Voting duration in blocks
      */
     function _propose(
-        ProposalCoreData memory core,
-        ProposalMetaData memory meta,
+        IGovernor.ProposalCoreData memory core,
+        IGovernor.ProposalMetaData memory meta,
         uint256 votingDuration,
         uint256 votingStartDelay
     ) internal returns (uint256 proposalId) {
         // Increment ID counter
         proposalId = ++lastProposalId;
-
 
         // Create new proposal
         proposals[proposalId] = Proposal({
@@ -274,9 +236,6 @@ abstract contract Governor {
             meta: meta
         });
 
-        _setProposalCreatedAt(proposalId,block.number);
-
-        _setLastProposalIdForAddress(msg.sender, proposalId);
 
         // Call creation hook
         _afterProposalCreated(proposalId);
@@ -305,8 +264,8 @@ abstract contract Governor {
             ExceptionsLibrary.VOTING_FINISHED
         );
         require(
-           ballots[msg.sender][proposalId] == Ballot.None,
-           ExceptionsLibrary.ALREADY_VOTED
+            ballots[msg.sender][proposalId] == Ballot.None,
+            ExceptionsLibrary.ALREADY_VOTED
         );
 
         // Get number of votes
@@ -314,11 +273,8 @@ abstract contract Governor {
             msg.sender,
             proposals[proposalId].vote.startBlock - 1
         );
-        
-        require(
-           votes>0,
-           ExceptionsLibrary.ZERO_VOTES
-        );
+
+        require(votes > 0, ExceptionsLibrary.ZERO_VOTES);
 
         // Account votes
         if (support) {
@@ -404,13 +360,15 @@ abstract contract Governor {
     }
 
     /**
-     * @dev The method checks whether it is possible to end the voting early with the result fixed. If a quorum was reached and so many votes were cast in favor that even if all other available votes were cast against, or if so many votes were cast against that it could not affect the result of the vote, this function will change set the end block of the proposal to the current block  
+     * @dev The method checks whether it is possible to end the voting early with the result fixed. If a quorum was reached and so many votes were cast in favor that even if all other available votes were cast against, or if so many votes were cast against that it could not affect the result of the vote, this function will change set the end block of the proposal to the current block
      * @param proposalId Proposal ID
      */
     function _checkProposalVotingEarlyEnd(uint256 proposalId) internal {
         // Get values
         Proposal memory proposal = proposals[proposalId];
-        uint256 availableVotesForStartBlock = _getBlockTotalVotes(proposal.vote.startBlock - 1);
+        uint256 availableVotesForStartBlock = _getBlockTotalVotes(
+            proposal.vote.startBlock - 1
+        );
         uint256 castVotes = proposal.vote.forVotes + proposal.vote.againstVotes;
         uint256 extraVotes = availableVotesForStartBlock - castVotes;
 
@@ -473,7 +431,6 @@ abstract contract Governor {
         return amount * DENOM > share * total;
     }
 
-
     // ABSTRACT FUNCTIONS
 
     /**
@@ -487,7 +444,9 @@ abstract contract Governor {
      * @param blocknumber block number
      * @return Total amount of votes
      */
-    function _getBlockTotalVotes(uint256 blocknumber) internal view virtual returns (uint256);
+    function _getBlockTotalVotes(
+        uint256 blocknumber
+    ) internal view virtual returns (uint256);
 
     /**
      * @dev Function that returns the amount of votes for a client adrress at any given block
@@ -495,35 +454,18 @@ abstract contract Governor {
      * @param blockNumber Block number
      * @return Account's votes at given block
      */
-    function _getPastVotes(address account, uint256 blockNumber)
-        internal
-        view
-        virtual
-        returns (uint256);
-
-    /**
-     * @dev Function that returns creation block of proposal
-     * @param proposalId proposal Id
-     * @return creation block
-     */
-    function _getProposalCreatedAt(uint256 proposalId)
-        internal
-        view
-        virtual
-        returns (uint256);
+    function _getPastVotes(
+        address account,
+        uint256 blockNumber
+    ) internal view virtual returns (uint256);
 
     /**
      * @dev Function that set last ProposalId for a client address
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
-    function _setLastProposalIdForAddress(address proposer, uint256 proposalId) internal virtual;
-
-     /**
-     * @dev Function that set Proposal Created At block
-     * @param proposalId proposal Id
-     * @param blocknumber  block.number
-     */
-    function _setProposalCreatedAt(uint256 proposalId, uint256 blocknumber) internal virtual;
-
+    function _setLastProposalIdForAddress(
+        address proposer,
+        uint256 proposalId
+    ) internal virtual;
 }
