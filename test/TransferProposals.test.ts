@@ -9,6 +9,7 @@ import {
     TGE,
     Token,
     Registry,
+    CustomProposal,
 } from "../typechain-types";
 import Exceptions from "./shared/exceptions";
 import { CreateArgs, makeCreateData } from "./shared/settings";
@@ -24,7 +25,7 @@ describe("Test transfer proposals", function () {
         other: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
-    let service: Service, Registry: Registry;
+    let service: Service, Registry: Registry, customProposal: CustomProposal;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -42,23 +43,19 @@ describe("Test transfer proposals", function () {
         service = await getContract("Service");
         Registry = await getContract("Registry");
         token1 = await getContract("ONE");
-
+        customProposal = await getContract("CustomProposal");
         // Setup
         await setup();
 
         // Create TGE
         createArgs = await makeCreateData();
-        createArgs[3].userWhitelist = [
-            owner.address,
-            other.address,
-            third.address,
-        ];
+        createArgs[3].userWhitelist = [owner.address, other.address, third.address];
         await service.createPool(...createArgs, {
             value: parseUnits("0.01"),
         });
         const record = await Registry.contractRecords(0);
         pool = await getContractAt("Pool", record.addr);
-        token = await getContractAt("Token", await pool.tokens(1));
+        token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
 
         // Finalize TGE
@@ -88,9 +85,10 @@ describe("Test transfer proposals", function () {
 
     describe("Transfer ETH", function () {
         this.beforeEach(async function () {
-            tx = await pool
+            tx = await customProposal
                 .connect(other)
                 .proposeTransfer(
+                    pool.address,
                     AddressZero,
                     [third.address, fourth.address],
                     [parseUnits("0.1"), parseUnits("0.1")],
@@ -100,18 +98,23 @@ describe("Test transfer proposals", function () {
         });
 
         it("Getting/Setting GlobalProposalId works", async function () {
-            await pool
+            await customProposal
                 .connect(other)
                 .proposeTransfer(
+                    pool.address,
                     AddressZero,
                     [third.address, fourth.address],
                     [parseUnits("0.1"), parseUnits("0.1")],
                     "Let's give them money",
                     "#"
                 );
-                
-            expect(await Registry.getGlobalProposalId(pool.address, 1)).to.equal(0);    
-            expect(await Registry.getGlobalProposalId(pool.address, 2)).to.equal(1);    
+
+            expect(
+                await Registry.getGlobalProposalId(pool.address, 1)
+            ).to.equal(0);
+            expect(
+                await Registry.getGlobalProposalId(pool.address, 2)
+            ).to.equal(1);
         });
 
         it("Transfer proposals can only be executed by executor role holder", async function () {
@@ -122,9 +125,9 @@ describe("Test transfer proposals", function () {
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
 
-            await expect(
-                pool.connect(other).executeProposal(1)
-            ).to.be.revertedWith(Exceptions.INVALID_USER);
+            await expect(pool.connect(other).executeProposal(1)).to.be.revertedWith(
+                Exceptions.INVALID_USER
+            );
         });
 
         it("Can't execute transfer proposal if pool doesn't hold enough funds", async function () {
@@ -167,9 +170,10 @@ describe("Test transfer proposals", function () {
 
     describe("Transfer ERC20", function () {
         this.beforeEach(async function () {
-            tx = await pool
+            tx = await customProposal
                 .connect(other)
                 .proposeTransfer(
+                    pool.address,
                     token1.address,
                     [third.address],
                     [parseUnits("10")],
@@ -194,19 +198,15 @@ describe("Test transfer proposals", function () {
         it("Executing succeeded transfer proposals should work", async function () {
             //waiting for voting start
             await mineBlock(10);
-            
+
             await pool.connect(owner).castVote(1, true);
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
             await token1.transfer(pool.address, parseUnits("100"));
 
             await pool.executeProposal(1);
-            expect(await token1.balanceOf(pool.address)).to.equal(
-                parseUnits("90")
-            );
-            expect(await token1.balanceOf(third.address)).to.equal(
-                parseUnits("10")
-            );
+            expect(await token1.balanceOf(pool.address)).to.equal(parseUnits("90"));
+            expect(await token1.balanceOf(third.address)).to.equal(parseUnits("10"));
         });
     });
 });

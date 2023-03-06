@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-import { ERC20Mock, Service, Registry } from "../../typechain-types";
+import { ERC20Mock, Service, Registry, CustomProposal } from "../../typechain-types";
 import { BASE_JURISDICTION, BASE_ENTITY_TYPE } from "./settings";
 
 const { getContract, getSigners } = ethers;
@@ -14,9 +14,11 @@ export async function setup() {
     // Get contracts
     const service = await getContract<Service>("Service");
     const registry = await getContract<Registry>("Registry");
+    const customProposal = await getContract<CustomProposal>("CustomProposal");
     const token1 = await getContract<ERC20Mock>("ONE");
 
     // Whitelist
+
     await service.grantRole(
         await service.WHITELISTED_USER_ROLE(),
         owner.address

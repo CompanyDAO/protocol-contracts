@@ -25,7 +25,6 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     /// @dev A list of existing events. An event can be either a contract or a specific action performed by a pool based on the results of voting for a promotion (for example, the transfer of funds from a pool contract is considered an event, but does not have a contract, and TGE has both the status of an event and its own separate contract).
     Event[] public events;
 
-
     // EVENTS
 
     /**
@@ -111,7 +110,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
             ProposalInfo({pool: pool, proposalId: proposalId, description: ""})
         );
         index = proposalRecords.length - 1;
-        setGlobalProposalId(pool,proposalId,index);
+        setGlobalProposalId(pool, proposalId, index);
         // Emit event
         emit ProposalRecordAdded(index, pool, proposalId);
     }
@@ -150,7 +149,11 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
 
     // VIRTUAL FUNCTIONS
 
-    function setGlobalProposalId(address pool, uint256 proposalId, uint256 globalProposalId) internal virtual;
+    function setGlobalProposalId(
+        address pool,
+        uint256 proposalId,
+        uint256 globalProposalId
+    ) internal virtual;
 
     // PUBLIC VIEW FUNCTIONS
 
@@ -190,6 +193,4 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     function eventRecordsCount() external view returns (uint256) {
         return events.length;
     }
-
-    
 }

@@ -12,21 +12,16 @@ import {
     UpgradeableBeacon,
 } from "../typechain-types";
 
-import { mineBlock } from "./shared/utils";
-import Exceptions from "./shared/exceptions";
 import { CreateArgs, makeCreateData } from "./shared/settings";
 import { setup } from "./shared/setup";
 
-const { getContract, getContractAt, getSigners, Wallet, provider } = ethers;
-const { parseUnits } = ethers.utils;
+const { getContract, getSigners } = ethers;
 
 describe("Upgrade beacon test", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress;
     let service: Service, registry: Registry;
-    let pool: Pool, tge: TGE, token: Token;
-    let newPool: Pool, newTge: TGE, newToken: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
     let createArgs: CreateArgs;
@@ -66,7 +61,11 @@ describe("Upgrade beacon test", function () {
 
     describe("Uprade tests", function () {
         it("Create company, upgrade beacon and check implementation and pool address", async function () {
-            const companyPoolAddress = await registry.getCompanyPoolAddress(1, 1, 1);
+            const companyPoolAddress = await registry.getCompanyPoolAddress(
+                1,
+                1,
+                1
+            );
             // const receipt = await tx.wait();
 
             // const event = receipt.events!.filter((e) => e.event == "PoolCreated")[0];
@@ -77,22 +76,29 @@ describe("Upgrade beacon test", function () {
             // );
             // const tge: TGE = await getContractAt("TGE", event.args![2]);
 
-            const poolImplementation = await deployments.deploy("poolImplementation", {
-                contract: "Pool",
-                from: owner.address,
-                args: [],
-                log: true,
-            });
-            const poolBeacon = await getContract<UpgradeableBeacon>("PoolBeacon");
+            const poolImplementation = await deployments.deploy(
+                "poolImplementation",
+                {
+                    contract: "Pool",
+                    from: owner.address,
+                    args: [],
+                    log: true,
+                }
+            );
+            const poolBeacon = await getContract<UpgradeableBeacon>(
+                "PoolBeacon"
+            );
             poolBeacon.upgradeTo(poolImplementation.address);
-            
+
             // await expect(
             //     service.connect(other).createPool(...createArgs, {
             //         value: parseUnits("0.01"),
             //     })
             // ).to.be.reverted;
 
-            expect(await registry.getCompanyPoolAddress(1, 1, 1)).to.be.equal(companyPoolAddress);
+            expect(await registry.getCompanyPoolAddress(1, 1, 1)).to.be.equal(
+                companyPoolAddress
+            );
         });
     });
 });

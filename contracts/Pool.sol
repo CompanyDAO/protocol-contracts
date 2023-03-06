@@ -6,11 +6,13 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "./governor/GovernorProposals.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/ITGE.sol";
+import "./interfaces/ICustomProposal.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
@@ -24,20 +26,36 @@ contract Pool is
     GovernorProposals,
     IPool
 {
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     /// @dev The company's trade mark, label, brand name. It also acts as the Name of all the Governance tokens created for this pool.
     string public trademark;
 
     /// @dev When a buyer acquires a company, its record disappears from the Registry contract, but before that, the company's legal data is copied to this variable.
     IRegistry.CompanyInfo public companyInfo;
 
-    /// @dev A list of tokens belonging to this pool. There can be only one valid Governance token and only one Preference token.
+    /// @dev Mapping for Governance Token. There can be only one valid Governance token.
     mapping(IToken.TokenType => address) public tokens;
 
-    /// @dev last proposal id for address. This method returns the proposal Id for the last proposal created by the specified address. 
+    /// @dev last proposal id for address. This method returns the proposal Id for the last proposal created by the specified address.
     mapping(address => uint256) public lastProposalIdForAddress;
 
     /// @dev mapping for creation block
     mapping(uint256 => uint256) public proposalCreatedAt;
+
+    /// @dev A list of tokens belonging to this pool. There can be only one valid Governance token and several Preference tokens with diffrent settings.
+    mapping(IToken.TokenType => address[]) public tokensFullList;
+
+    /// @dev token type by address
+    mapping(address => IToken.TokenType) public tokenTypeByAddress;
+
+    /// @dev pool secretary list
+    EnumerableSetUpgradeable.AddressSet poolSecretary;
+
+    /// @dev last executed proposal Id
+    uint256 public lastExecutedProposalId;
+
+    /// @dev mapping for proposalId to TGE address
+    mapping(uint256 => address) public proposalIdToTGE;
 
     // EVENTS
 
@@ -80,6 +98,22 @@ contract Pool is
         _;
     }
 
+    modifier onlyPropose() {
+        require(
+            msg.sender == address(service.customProposal()),
+            ExceptionsLibrary.NOT_VALID_PROPOSER
+        );
+        _;
+    }
+
+    modifier onlyValidProposer(address proposer) {
+        require(
+            isValidProposer(proposer),
+            ExceptionsLibrary.NOT_VALID_PROPOSER
+        );
+        _;
+    }
+
     // INITIALIZER AND CONFIGURATOR
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -103,8 +137,7 @@ contract Pool is
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
-        __GovernorProposals_init(IService(msg.sender));
-
+        service = IService(msg.sender);
         _transferOwnership(owner_);
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
@@ -124,11 +157,10 @@ contract Pool is
      * @param proposalId Pool proposal ID
      * @param support Against or for
      */
-    function castVote(uint256 proposalId, bool support)
-        external
-        nonReentrant
-        whenNotPaused
-    {
+    function castVote(
+        uint256 proposalId,
+        bool support
+    ) external nonReentrant whenNotPaused {
         _castVote(proposalId, support);
     }
 
@@ -139,24 +171,45 @@ contract Pool is
      * @param token_ Token address
      * @param tokenType_ Token type
      */
-    function setToken(address token_, IToken.TokenType tokenType_)
-        external
-        onlyService
-    {
+    function setToken(
+        address token_,
+        IToken.TokenType tokenType_
+    ) external onlyService {
         require(token_ != address(0), ExceptionsLibrary.ADDRESS_ZERO);
+        if (tokenExists(IToken(token_))) return;
+        if (tokenType_ == IToken.TokenType.Governance) {
+            // Check that there is no governance tokens or tge failed
+            require(
+                address(getGovernanceToken()) == address(0) ||
+                    ITGE(getGovernanceToken().getTGEList()[0]).state() ==
+                    ITGE.State.Failed,
+                ExceptionsLibrary.GOVERNANCE_TOKEN_EXISTS
+            );
+            tokens[IToken.TokenType.Governance] = token_;
+            if (tokensFullList[tokenType_].length > 0) {
+                tokensFullList[tokenType_].pop();
+            }
+        }
+        tokensFullList[tokenType_].push(token_);
+        tokenTypeByAddress[address(token_)] = tokenType_;
+    }
 
-        tokens[tokenType_] = token_;
+    /**
+     * @dev set value to mapping Proposal IdTo TGE
+     * @param tge tge address
+     */
+    function setProposalIdToTGE(address tge) external onlyService {
+        proposalIdToTGE[lastExecutedProposalId] = tge;
     }
 
     /**
      * @dev Execute proposal
      * @param proposalId Proposal ID
      */
-    function executeProposal(uint256 proposalId)
-        external
-        whenNotPaused
-        onlyExecutor(proposalId)
-    {
+    function executeProposal(
+        uint256 proposalId
+    ) external whenNotPaused onlyExecutor(proposalId) {
+        lastExecutedProposalId = proposalId;
         _executeProposal(proposalId, service);
     }
 
@@ -182,6 +235,57 @@ contract Pool is
         _unpause();
     }
 
+    /**
+     * @dev Creating a proposal and assigning it a unique identifier to store in the list of proposals in the Governor contract.
+     * @param core Proposal core data
+     * @param meta Proposal meta data
+     */
+    function propose(
+        address proposer,
+        uint256 proposeType,
+        IGovernor.ProposalCoreData memory core,
+        IGovernor.ProposalMetaData memory meta
+    )
+        external
+        onlyPropose
+        onlyValidProposer(proposer)
+        returns (uint256 proposalId)
+    {
+        core.quorumThreshold = quorumThreshold;
+        core.decisionThreshold = decisionThreshold;
+        core.executionDelay = executionDelays[meta.proposalType];
+        uint256 proposalId_ = _propose(
+            core,
+            meta,
+            votingDuration,
+            votingStartDelay
+        );
+        lastProposalIdByType[proposeType] = proposalId_;
+
+        _setLastProposalIdForAddress(proposer, proposalId);
+
+        return proposalId_;
+    }
+
+    /**
+     * @dev changePoolSecretary
+     * @param addSecretary array of addresses to add to the PoolSecretary role
+     * @param removeSecretary array of addresses to remove to the PoolSecretary role
+     */
+    function changePoolSecretary(
+        address[] memory addSecretary,
+        address[] memory removeSecretary
+    ) external onlyPool {
+        for (uint256 i = 0; i < addSecretary.length; i++) {
+            poolSecretary.add(addSecretary[i]);
+        }
+        if (poolSecretary.length() > 0) {
+            for (uint256 i = 0; i < removeSecretary.length; i++) {
+                poolSecretary.remove(removeSecretary[i]);
+            }
+        }
+    }
+
     // PUBLIC VIEW FUNCTIONS
 
     /**
@@ -189,9 +293,7 @@ contract Pool is
      * @return Is any governance TGE successful
      */
     function isDAO() external view returns (bool) {
-        return
-            IToken(tokens[IToken.TokenType.Governance])
-                .isPrimaryTGESuccessful();
+        return getGovernanceToken().isPrimaryTGESuccessful();
     }
 
     /**
@@ -206,13 +308,72 @@ contract Pool is
     {
         return super.owner();
     }
-    /// @dev This getter is needed in order to return a Token contract address depending on the type of token requested (Governance or Preference).
-    function getToken(IToken.TokenType tokenType)
-        external
-        view
-        returns (IToken)
-    {
-        return IToken(tokens[tokenType]);
+
+    /// @dev This getter is needed in order to return a Token contract addresses depending on the type of token requested (Governance or Preference).
+    function getTokens(
+        IToken.TokenType tokenType
+    ) external view returns (address[] memory) {
+        return tokensFullList[tokenType];
+    }
+
+    /// @dev This getter returns current Governance Token For this Pool
+    function getGovernanceToken() public view returns (IToken) {
+        return IToken(tokens[IToken.TokenType.Governance]);
+    }
+
+    /**
+     * @dev Getter checks token exists for this pool
+     * @return bool
+     */
+    function tokenExists(IToken token) public view returns (bool) {
+        return
+            tokenTypeByAddress[address(token)] == IToken.TokenType.None
+                ? false
+                : true;
+    }
+
+    /// @dev This getter to show list of current pool Secretary
+    function getPoolSecretary() external view returns (address[] memory) {
+        return poolSecretary.values();
+    }
+
+    /// @dev This getter shows if address is pool Secretary
+    function isPoolSecretary(address account) public view returns (bool) {
+        return poolSecretary.contains(account);
+    }
+
+    /// @dev This getter check if address can propose
+    function isValidProposer(address account) public view returns (bool) {
+        if (
+            _getCurrentVotes(account) >= proposalThreshold ||
+            isPoolSecretary(account)
+        ) return true;
+
+        return false;
+    }
+
+    /// @dev This getter returns if Last Proposal By Type is Active
+    function isLastProposalIdByTypeActive(
+        uint256 type_
+    ) public view returns (bool) {
+        if (proposalState(lastProposalIdByType[type_]) == ProposalState.Active)
+            return true;
+
+        return false;
+    }
+
+    /// @dev This getter validate Governance Settings
+    function validateGovernanceSettings(
+        NewGovernanceSettings memory settings
+    ) external pure {
+        _validateGovernanceSettings(settings);
+    }
+
+    /// @dev This getter returns if available Votes For Proposal by Id
+    function availableVotesForProposal(
+        uint256 proposalId
+    ) external view returns (uint256) {
+        return _getBlockTotalVotes(proposals[proposalId].vote.startBlock - 1);
     }
 
     // INTERNAL FUNCTIONS
@@ -226,32 +387,8 @@ contract Pool is
      * @param account Account's address
      * @return Amount of votes
      */
-    function _getCurrentVotes(address account)
-        internal
-        view
-        override
-        returns (uint256)
-    {
-        return IToken(tokens[IToken.TokenType.Governance]).getVotes(account);
-    }
-
-    /**
-     * @dev Function that returns creation block of proposal
-     * @param proposalId proposal Id
-     * @return creation block
-     */
-    function _getProposalCreatedAt(uint256 proposalId)
-        internal
-        view
-        override
-        returns (uint256)
-    {
-        uint256 createdAt = proposalCreatedAt[proposalId];
-        
-        if(createdAt == 0){
-            return proposals[proposalId].vote.startBlock - 1;
-        }
-        return createdAt;    
+    function _getCurrentVotes(address account) internal view returns (uint256) {
+        return getGovernanceToken().getVotes(account);
     }
 
     /**
@@ -259,13 +396,13 @@ contract Pool is
      * @param blocknumber blocknumber
      * @return Amount of votes
      */
-    function _getBlockTotalVotes(uint256 blocknumber) 
-        internal 
-        view 
-        override 
-        returns (uint256) 
-    {
-        return IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply( blocknumber);
+    function _getBlockTotalVotes(
+        uint256 blocknumber
+    ) internal view override returns (uint256) {
+        return
+            IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply(
+                blocknumber
+            );
     }
 
     /**
@@ -274,17 +411,11 @@ contract Pool is
      * @param blockNumber Block number
      * @return Account's votes at given block
      */
-    function _getPastVotes(address account, uint256 blockNumber)
-        internal
-        view
-        override
-        returns (uint256)
-    {
-        return
-            IToken(tokens[IToken.TokenType.Governance]).getPastVotes(
-                account,
-                blockNumber
-            );
+    function _getPastVotes(
+        address account,
+        uint256 blockNumber
+    ) internal view override returns (uint256) {
+        return getGovernanceToken().getPastVotes(account, blockNumber);
     }
 
     /**
@@ -306,16 +437,10 @@ contract Pool is
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
-    function _setLastProposalIdForAddress(address proposer, uint256 proposalId) internal override {
+    function _setLastProposalIdForAddress(
+        address proposer,
+        uint256 proposalId
+    ) internal override {
         lastProposalIdForAddress[proposer] = proposalId;
-    }
-
-     /**
-     * @dev Function that set Proposal Created At block
-     * @param proposalId proposal Id
-     * @param blocknumber  block.number
-     */
-    function _setProposalCreatedAt(uint256 proposalId, uint256 blocknumber) internal override{
-        proposalCreatedAt[proposalId] = blocknumber;
     }
 }

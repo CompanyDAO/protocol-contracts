@@ -34,11 +34,11 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /// @dev Token decimals
     uint8 private _decimals;
 
-    /// @dev List of all TGEs with locked tokens
-    address[] private tgeWithLockedTokensList;
-
     /// @dev Total Vested tokens for all TGEs
     uint256 private totalVested;
+
+    /// @dev List of all TGEs with locked tokens
+    address[] private tgeWithLockedTokensList;
 
     /// @dev Total amount of tokens reserved for the minting protocol fee
     uint256 private totalProtocolFeeReserved;
@@ -80,12 +80,12 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     // RESTRICTED FUNCTIONS
 
     /**
-     * @dev Minting of new tokens. Only the TGE contract can mint tokens, there is no other way to get an additional issue. If the user who is being minted does not have tokens, they are sent to delegation on his behalf.
+     * @dev Minting of new tokens. Only the TGE or Vesting contract can mint tokens, there is no other way to get an additional issue. If the user who is being minted does not have tokens, they are sent to delegation on his behalf.
      * @param to Recipient
      * @param amount Amount of tokens
      */
-    function mint(address to, uint256 amount) external onlyTGE {
-        // Delegate to self if first mint andno delegatee set
+    function mint(address to, uint256 amount) external onlyTGEOrVesting {
+        // Delegate to self if first mint and no delegatee set
         if (tokenType == IToken.TokenType.Governance) {
             if (balanceOf(to) == 0 && delegates(to) == address(0))
                 _delegate(to, to);
@@ -126,7 +126,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @dev Set amount of tokens to  Total Vested tokens for all TGEs
      * @param amount amount of tokens
      */
-    function setTGEVestedTokens(uint256 amount) external onlyTGE {
+    function setTGEVestedTokens(uint256 amount) external onlyTGEOrVesting {
         totalVested = amount;
     }
 
@@ -192,11 +192,13 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         // Get total account balance
         uint256 balance = balanceOf(account);
 
-        // Iterate through  TGE With Locked Tokens List to get locked balance
+        // Iterate through TGE With Locked Tokens List to get locked balance
         address[] memory _tgeWithLockedTokensList = tgeWithLockedTokensList;
         uint256 totalLocked = 0;
         for (uint256 i; i < _tgeWithLockedTokensList.length; i++) {
-            totalLocked += ITGE(_tgeWithLockedTokensList[i]).lockedBalanceOf(account);
+            totalLocked += ITGE(_tgeWithLockedTokensList[i]).lockedBalanceOf(
+                account
+            );
         }
 
         // Return difference
@@ -223,8 +225,12 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @dev Return list of pool's TGEs with locked tokens
      * @return TGE list
      */
-    
-    function getTgeWithLockedTokensList() external view returns (address[] memory) {
+
+    function getTgeWithLockedTokensList()
+        external
+        view
+        returns (address[] memory)
+    {
         return tgeWithLockedTokensList;
     }
 
@@ -241,7 +247,6 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @return Total vesting tokens
      */
     function getTotalTGEVestedTokens() public view returns (uint256) {
-        
         return totalVested;
     }
 
@@ -250,17 +255,17 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @return Total vesting tokens
      */
     function getTotalProtocolFeeReserved() public view returns (uint256) {
-        
         return totalProtocolFeeReserved;
     }
 
-   /**
+    /**
      * @dev Getter returns the sum of all tokens that was minted or reserved for mint
      * @return Total vesting tokens
      */
     function totalSupplyWithReserves() public view returns (uint256) {
-
-        uint256 _totalSupplyWithReserves = totalSupply() + getTotalTGEVestedTokens() + getTotalProtocolFeeReserved();
+        uint256 _totalSupplyWithReserves = totalSupply() +
+            getTotalTGEVestedTokens() +
+            getTotalProtocolFeeReserved();
 
         return _totalSupplyWithReserves;
     }
@@ -280,7 +285,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         address to,
         uint256 amount
     ) internal override whenPoolNotPaused {
-        //update list of TGEs with locked tokens
+        // Update list of TGEs with locked tokens
         updateTgeWithLockedTokensList();
 
         // Check that locked tokens are not transferred
@@ -330,6 +335,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     {
         super._burn(account, amount);
     }
+
     // PRIVATE FUNCTIONS
 
     /**
@@ -338,10 +344,12 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     function updateTgeWithLockedTokensList() private {
         address[] memory _tgeWithLockedTokensList = tgeWithLockedTokensList;
         for (uint256 i; i < _tgeWithLockedTokensList.length; i++) {
-            //check if transfer is unlocked
-            if (ITGE(_tgeWithLockedTokensList[i]).transferUnlocked()){
-                //remove tge from tgeWithLockedTokensList when transfer is unlocked
-                tgeWithLockedTokensList[i] = tgeWithLockedTokensList[tgeWithLockedTokensList.length - 1];
+            // Check if transfer is unlocked
+            if (ITGE(_tgeWithLockedTokensList[i]).transferUnlocked()) {
+                // Remove tge from tgeWithLockedTokensList when transfer is unlocked
+                tgeWithLockedTokensList[i] = tgeWithLockedTokensList[
+                    tgeWithLockedTokensList.length - 1
+                ];
                 tgeWithLockedTokensList.pop();
             }
         }
@@ -365,6 +373,14 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
                 IRecordsRegistry.ContractType.TGE,
             ExceptionsLibrary.NOT_TGE
         );
+        _;
+    }
+
+    modifier onlyTGEOrVesting() {
+        bool isTGE = service.registry().typeOf(msg.sender) ==
+            IRecordsRegistry.ContractType.TGE;
+        bool isVesting = address(service.vesting()) == msg.sender;
+        require(isTGE || isVesting, ExceptionsLibrary.NOT_TGE);
         _;
     }
 

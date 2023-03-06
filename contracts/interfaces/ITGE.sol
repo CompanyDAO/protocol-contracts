@@ -3,6 +3,7 @@
 pragma solidity 0.8.17;
 
 import "./IToken.sol";
+import "./IVesting.sol";
 
 interface ITGE {
     struct TGEInfo {
@@ -20,10 +21,23 @@ interface ITGE {
         uint256 lockupDuration;
         uint256 lockupTVL;
     }
+    struct TGEInfoV2 {
+        uint256 price;
+        uint256 hardcap;
+        uint256 softcap;
+        uint256 minPurchase;
+        uint256 maxPurchase;
+        uint256 duration;
+        IVesting.VestingParams vestingParams;
+        address[] userWhitelist;
+        address unitOfAccount;
+        uint256 lockupDuration;
+        uint256 lockupTVL;
+    }
 
     function initialize(
         IToken token_,
-        TGEInfo calldata info,
+        TGEInfoV2 calldata info,
         uint256 protocolFee
     ) external;
 
@@ -33,17 +47,21 @@ interface ITGE {
         Successful
     }
 
+    function token() external view returns (IToken);
+
     function state() external view returns (State);
+
+    function getInfo() external view returns (TGEInfoV2 memory);
+
+    function getInfoV1() external view returns (TGEInfo memory);
 
     function transferUnlocked() external view returns (bool);
 
-    function totalVested() external view returns (uint256);
-
     function purchaseOf(address user) external view returns (uint256);
-
-    function vestedBalanceOf(address user) external view returns (uint256);
 
     function redeemableBalanceOf(address user) external view returns (uint256);
 
     function lockedBalanceOf(address account) external view returns (uint256);
+
+    function getEnd() external view returns (uint256);
 }

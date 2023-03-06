@@ -397,23 +397,55 @@
                     },
                     {
                         "internalType": "uint256",
-                        "name": "vestingPercent",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingTVL",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
                         "name": "duration",
                         "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "vestedShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliff",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliffShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spans",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanDuration",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "claimTVL",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address[]",
+                                "name": "resolvers",
+                                "type": "address[]"
+                            }
+                        ],
+                        "internalType": "struct IVesting.VestingParams",
+                        "name": "vestingParams",
+                        "type": "tuple"
                     },
                     {
                         "internalType": "address[]",
@@ -436,7 +468,7 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfo",
+                "internalType": "struct ITGE.TGEInfoV2",
                 "name": "tgeInfo",
                 "type": "tuple"
             },
@@ -511,6 +543,11 @@
     {
         "inputs": [
             {
+                "internalType": "contract IToken",
+                "name": "token",
+                "type": "address"
+            },
+            {
                 "components": [
                     {
                         "internalType": "uint256",
@@ -539,23 +576,55 @@
                     },
                     {
                         "internalType": "uint256",
-                        "name": "vestingPercent",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingTVL",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
                         "name": "duration",
                         "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "vestedShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliff",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliffShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spans",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanDuration",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "claimTVL",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address[]",
+                                "name": "resolvers",
+                                "type": "address[]"
+                            }
+                        ],
+                        "internalType": "struct IVesting.VestingParams",
+                        "name": "vestingParams",
+                        "type": "tuple"
                     },
                     {
                         "internalType": "address[]",
@@ -578,7 +647,7 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfo",
+                "internalType": "struct ITGE.TGEInfoV2",
                 "name": "tgeInfo",
                 "type": "tuple"
             },
@@ -628,6 +697,19 @@
         "name": "createSecondaryTGE",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "customProposal",
+        "outputs": [
+            {
+                "internalType": "contract ICustomProposal",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -703,6 +785,25 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token_",
+                "type": "address"
+            }
+        ],
+        "name": "getProtocolCollectedFee",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -839,6 +940,16 @@
                 "type": "address"
             },
             {
+                "internalType": "contract ICustomProposal",
+                "name": "customProposal_",
+                "type": "address"
+            },
+            {
+                "internalType": "contract IVesting",
+                "name": "vesting_",
+                "type": "address"
+            },
+            {
                 "internalType": "address",
                 "name": "poolBeacon_",
                 "type": "address"
@@ -860,6 +971,19 @@
             }
         ],
         "name": "initialize",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "contract IVesting",
+                "name": "vesting_",
+                "type": "address"
+            }
+        ],
+        "name": "initializeV2",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -924,6 +1048,25 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "protolCollectedFee",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "registry",
         "outputs": [
@@ -975,6 +1118,50 @@
     {
         "inputs": [
             {
+                "internalType": "contract ICustomProposal",
+                "name": "_customProposal",
+                "type": "address"
+            }
+        ],
+        "name": "setCustomProposal",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "setPoolBeacon",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_token",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_protocolTokenFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "setProtocolCollectedFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "uint256",
                 "name": "_protocolTokenFee",
                 "type": "uint256"
@@ -994,6 +1181,58 @@
             }
         ],
         "name": "setProtocolTreasury",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "contract IRegistry",
+                "name": "_registry",
+                "type": "address"
+            }
+        ],
+        "name": "setRegistry",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "setTGEBeacon",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "setTokenBeacon",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "contract IVesting",
+                "name": "_vesting",
+                "type": "address"
+            }
+        ],
+        "name": "setVesting",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -1094,23 +1333,55 @@
                     },
                     {
                         "internalType": "uint256",
-                        "name": "vestingPercent",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingTVL",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
                         "name": "duration",
                         "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "vestedShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliff",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliffShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spans",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanDuration",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "claimTVL",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address[]",
+                                "name": "resolvers",
+                                "type": "address[]"
+                            }
+                        ],
+                        "internalType": "struct IVesting.VestingParams",
+                        "name": "vestingParams",
+                        "type": "tuple"
                     },
                     {
                         "internalType": "address[]",
@@ -1133,7 +1404,7 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfo",
+                "internalType": "struct ITGE.TGEInfoV2",
                 "name": "info",
                 "type": "tuple"
             },
@@ -1155,6 +1426,19 @@
         ],
         "name": "validateTGEInfo",
         "outputs": [],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "vesting",
+        "outputs": [
+            {
+                "internalType": "contract IVesting",
+                "name": "",
+                "type": "address"
+            }
+        ],
         "stateMutability": "view",
         "type": "function"
     }

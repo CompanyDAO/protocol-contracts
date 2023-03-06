@@ -13,6 +13,7 @@ import "hardhat-deploy";
 import "hardhat-dependency-compiler";
 import "solidity-docgen";
 import "hardhat-abi-exporter";
+import "hardhat-contract-sizer";
 
 import "./tasks";
 
@@ -64,7 +65,7 @@ const config: HardhatUserConfig = {
     },
     spdxLicenseIdentifier: {
         overwrite: true,
-        runOnCompile: true,
+        //runOnCompile: true,
     },
     verify: {
         etherscan: {
@@ -81,7 +82,7 @@ const config: HardhatUserConfig = {
         clear: true,
         flat: true,
         spacing: 4,
-        only: [":Registry$", ":Service$", ":Pool$", ":TGE$", ":Token$"],
+        only: [":Registry$", ":Service$", ":Pool$", ":TGE$", ":Token$", ":Vesting$", ":CustomProposal$"],
     },
 };
 

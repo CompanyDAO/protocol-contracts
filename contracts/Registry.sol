@@ -8,7 +8,6 @@ import "./registry/TokensRegistry.sol";
 
 /// @dev The repository of all user and business entities created by the protocol: companies to be implemented, contracts to be deployed, proposal created by shareholders.
 contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
-
     /// @dev Mapping of pool contracts and local proposal ids to their global ids
     mapping(address => mapping(uint256 => uint256)) public globalProposalIds;
 
@@ -32,13 +31,13 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
      * @param proposalId Local Proposal ID
      * @param globalProposalId Global Proposal ID
      */
-    function setGlobalProposalId(address pool, uint256 proposalId, uint256 globalProposalId)
-        internal
-        override
-    {
+    function setGlobalProposalId(
+        address pool,
+        uint256 proposalId,
+        uint256 globalProposalId
+    ) internal override {
         globalProposalIds[pool][proposalId] = globalProposalId;
     }
-
 
     // VIEW FUNCTIONS
 
@@ -55,6 +54,4 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
     {
         return globalProposalIds[pool][proposalId];
     }
-
-
 }

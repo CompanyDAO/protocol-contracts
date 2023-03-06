@@ -9,6 +9,7 @@ import {
     Service,
     TGE,
     Registry,
+    Vesting,
 } from "../typechain-types";
 
 import { mineBlock } from "./shared/utils";
@@ -23,7 +24,7 @@ describe("Test initial TGE", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress;
-    let service: Service, registry: Registry;
+    let service: Service, registry: Registry, vesting: Vesting;
     let pool: Pool, tge: TGE, token: Token;
     let newPool: Pool, newTge: TGE, newToken: Token;
     let token1: ERC20Mock;
@@ -40,6 +41,7 @@ describe("Test initial TGE", function () {
         // Get contracts
         service = await getContract("Service");
         registry = await getContract("Registry");
+        vesting = await getContract("Vesting");
         token1 = await getContract("ONE");
 
         // Setup
@@ -65,11 +67,16 @@ describe("Test initial TGE", function () {
 
     describe("Initial TGE: creating for first time", function () {
         it("Only whitelisted can create pool", async function () {
+
+            expect(await registry.isTokenWhitelisted('0x2cDAbA445e942C994F4f1f453f92542aDae68d62')).to.equal(
+                false
+            );
             await expect(
                 service.connect(other).createPool(...createArgs, {
                     value: parseUnits("0.01"),
                 })
             ).to.be.reverted;
+
         });
 
         it("Can't create pool with incorrect fee", async function () {
@@ -98,7 +105,7 @@ describe("Test initial TGE", function () {
             });
             let record = await registry.contractRecords(0);
             pool = await getContractAt("Pool", record.addr);
-            token = await getContractAt("Token", await pool.tokens(1));
+            token = await getContractAt("Token", await pool.getGovernanceToken());
             tge = await getContractAt("TGE", await token.tgeList(0));
 
             // Second TGE
@@ -112,7 +119,7 @@ describe("Test initial TGE", function () {
             });
             record = await registry.contractRecords(3);
             newPool = await getContractAt("Pool", record.addr);
-            newToken = await getContractAt("Token", await newPool.tokens(1));
+            newToken = await getContractAt("Token", await newPool.getGovernanceToken());
             newTge = await getContractAt("TGE", await newToken.tgeList(0));
         });
 
@@ -120,7 +127,7 @@ describe("Test initial TGE", function () {
             await expect(
                 tge
                     .connect(other)
-                    .purchase(parseUnits("5"), { value: parseUnits("0.05") })
+                    .purchase(1, { value: parseUnits("0.05") })
             ).to.be.revertedWith(Exceptions.MIN_PURCHASE_UNDERFLOW);
         });
 
@@ -280,22 +287,22 @@ describe("Test initial TGE", function () {
                 .connect(other)
                 .purchase(parseUnits("1000"), { value: parseUnits("10") });
             await mineBlock(20);
-            
+
             expect(await tge.totalProtocolFee()).to.equal(
-                await(await tge.totalPurchased()).div(100)
+                await (await tge.totalPurchased()).div(100)
             );
 
             await tge.transferFunds();
 
-            expect(await tge.totalProtocolFee()).to.equal( 0 );
+            expect(await tge.totalProtocolFee()).to.equal(0);
 
             expect(await provider.getBalance(pool.address)).to.equal(
                 parseUnits("10")
             );
             expect(await token.balanceOf(await service.protocolTreasury())).to.equal(
-                await(await tge.totalPurchased()).div(100)
+                await (await tge.totalPurchased()).div(100)
             );
-            await(await tge.totalPurchased()).div(100)
+            await (await tge.totalPurchased()).div(100)
         });
 
         it("In successful TGE purchased funds are still locked until conditions are met", async function () {
@@ -308,9 +315,24 @@ describe("Test initial TGE", function () {
             expect(await tge.lockedBalanceOf(other.address)).to.equal(
                 parseUnits("500")
             );
-            await expect(tge.connect(other).claim()).to.be.revertedWith(
-                Exceptions.CLAIM_NOT_AVAILABLE
-            );
+            await expect(
+                vesting.connect(other).claim(tge.address)
+            ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
+        });
+        it("Check getTotalVestedValue and getTotalPurchasedValue", async function () {
+            await tge
+                .connect(other)
+                .purchase(parseUnits("1000"), { value: parseUnits("10") });
+
+            expect(
+                await tge.getTotalVestedValue()
+            ).to.be.equal(parseUnits("5"));
+
+            expect(
+                await tge.getTotalPurchasedValue()
+            ).to.be.equal(parseUnits("10"));
+
+
         });
 
         it("Funds are still locked if only TVL condition is met", async function () {
@@ -325,9 +347,9 @@ describe("Test initial TGE", function () {
             expect(await tge.lockedBalanceOf(other.address)).to.equal(
                 parseUnits("1000")
             );
-            await expect(tge.connect(other).claim()).to.be.revertedWith(
-                Exceptions.CLAIM_NOT_AVAILABLE
-            );
+            await expect(
+                vesting.connect(other).claim(tge.address)
+            ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
         });
 
         it("Funds are still locked if only duration condition is met", async function () {
@@ -339,20 +361,20 @@ describe("Test initial TGE", function () {
             expect(await tge.lockedBalanceOf(other.address)).to.equal(
                 parseUnits("500")
             );
-            await expect(tge.connect(other).claim()).to.be.revertedWith(
-                Exceptions.CLAIM_NOT_AVAILABLE
-            );
+            await expect(
+                vesting.connect(other).claim(tge.address)
+            ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
         });
 
         it("Vested funds can be unlocked as soon as all unlocked conditions are met", async function () {
             await tge
                 .connect(other)
                 .purchase(parseUnits("2000"), { value: parseUnits("20") });
-            await mineBlock(100);
+            await mineBlock(400);
             await tge.transferFunds();
-            await tge.setVestingTVLReached();
+            await vesting.setClaimTVLReached(tge.address);
 
-            await tge.connect(other).claim();
+            await vesting.connect(other).claim(tge.address);
             expect(await tge.lockedBalanceOf(other.address)).to.equal(
                 parseUnits("2000")
             );
@@ -403,7 +425,7 @@ describe("Test initial TGE", function () {
             });
             const record = await registry.contractRecords(0);
             pool = await getContractAt("Pool", record.addr);
-            token = await getContractAt("Token", await pool.tokens(1));
+            token = await getContractAt("Token", await pool.getGovernanceToken());
             tge = await getContractAt("TGE", await token.tgeList(0));
 
             // Buy from TGE
@@ -438,13 +460,17 @@ describe("Test initial TGE", function () {
             await mineBlock(20);
 
             const balanceBefore = await other.getBalance();
-            expect(await tge.redeemableBalanceOf(other.address)).to.equal(parseUnits("500"));
+            expect(await tge.redeemableBalanceOf(other.address)).to.equal(
+                parseUnits("500")
+            );
             await tge.connect(other).redeem();
             const balanceAfter = await other.getBalance();
 
             expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
             expect(await token.balanceOf(other.address)).to.equal(0);
-            expect(await tge.vestedBalanceOf(other.address)).to.equal(0);
+            expect(
+                await vesting.vestedBalanceOf(tge.address, other.address)
+            ).to.equal(0);
             expect(balanceAfter.sub(balanceBefore)).to.be.gt(
                 parseUnits("4.999") // Adjusted for spent gas fees
             );
@@ -495,7 +521,7 @@ describe("Test initial TGE", function () {
             const newPool = await getContractAt("Pool", record.addr);
             const newToken = await getContractAt(
                 "Token",
-                await newPool.tokens(1)
+                await newPool.getGovernanceToken()
             );
             const newTge = await getContractAt(
                 "TGE",

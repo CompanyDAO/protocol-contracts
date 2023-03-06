@@ -154,7 +154,7 @@
                     }
                 ],
                 "indexed": false,
-                "internalType": "struct Governor.ProposalCoreData",
+                "internalType": "struct IGovernor.ProposalCoreData",
                 "name": "core",
                 "type": "tuple"
             },
@@ -177,7 +177,7 @@
                     }
                 ],
                 "indexed": false,
-                "internalType": "struct Governor.ProposalMetaData",
+                "internalType": "struct IGovernor.ProposalMetaData",
                 "name": "meta",
                 "type": "tuple"
             }
@@ -258,6 +258,25 @@
     {
         "inputs": [
             {
+                "internalType": "uint256",
+                "name": "proposalId",
+                "type": "uint256"
+            }
+        ],
+        "name": "availableVotesForProposal",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "address",
                 "name": "",
                 "type": "address"
@@ -306,6 +325,24 @@
             }
         ],
         "name": "castVote",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address[]",
+                "name": "addSecretary",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "removeSecretary",
+                "type": "address[]"
+            }
+        ],
+        "name": "changePoolSecretary",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -418,6 +455,32 @@
         "type": "function"
     },
     {
+        "inputs": [],
+        "name": "getGovernanceToken",
+        "outputs": [
+            {
+                "internalType": "contract IToken",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getPoolSecretary",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
                 "internalType": "enum IToken.TokenType",
@@ -425,12 +488,12 @@
                 "type": "uint8"
             }
         ],
-        "name": "getToken",
+        "name": "getTokens",
         "outputs": [
             {
-                "internalType": "contract IToken",
+                "internalType": "address[]",
                 "name": "",
-                "type": "address"
+                "type": "address[]"
             }
         ],
         "stateMutability": "view",
@@ -542,8 +605,97 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "type_",
+                "type": "uint256"
+            }
+        ],
+        "name": "isLastProposalIdByTypeActive",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "isPoolSecretary",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "isValidProposer",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "lastExecutedProposalId",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "lastProposalId",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "lastProposalIdByType",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -629,6 +781,25 @@
         "inputs": [
             {
                 "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "proposalIdToTGE",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
                 "name": "proposalId",
                 "type": "uint256"
             }
@@ -700,7 +871,7 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct Governor.ProposalCoreData",
+                "internalType": "struct IGovernor.ProposalCoreData",
                 "name": "core",
                 "type": "tuple"
             },
@@ -759,7 +930,7 @@
                         "type": "string"
                     }
                 ],
-                "internalType": "struct Governor.ProposalMetaData",
+                "internalType": "struct IGovernor.ProposalMetaData",
                 "name": "meta",
                 "type": "tuple"
             }
@@ -770,11 +941,31 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "proposer",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "proposeType",
+                "type": "uint256"
+            },
+            {
                 "components": [
                     {
-                        "internalType": "uint256",
-                        "name": "proposalThreshold",
-                        "type": "uint256"
+                        "internalType": "address[]",
+                        "name": "targets",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "values",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "bytes[]",
+                        "name": "callDatas",
+                        "type": "bytes[]"
                     },
                     {
                         "internalType": "uint256",
@@ -788,141 +979,20 @@
                     },
                     {
                         "internalType": "uint256",
-                        "name": "votingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "transferValueForDelay",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256[4]",
-                        "name": "executionDelays",
-                        "type": "uint256[4]"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "votingStartDelay",
+                        "name": "executionDelay",
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
-                "name": "settings",
-                "type": "tuple"
-            },
-            {
-                "internalType": "string",
-                "name": "description",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "metaHash",
-                "type": "string"
-            }
-        ],
-        "name": "proposeGovernanceSettings",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "components": [
-                    {
-                        "internalType": "uint256",
-                        "name": "price",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "hardcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "softcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "minPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "maxPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingPercent",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingTVL",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "duration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "address[]",
-                        "name": "userWhitelist",
-                        "type": "address[]"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "unitOfAccount",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupTVL",
-                        "type": "uint256"
-                    }
-                ],
-                "internalType": "struct ITGE.TGEInfo",
-                "name": "tgeInfo",
+                "internalType": "struct IGovernor.ProposalCoreData",
+                "name": "core",
                 "type": "tuple"
             },
             {
                 "components": [
                     {
-                        "internalType": "enum IToken.TokenType",
-                        "name": "tokenType",
+                        "internalType": "enum IRecordsRegistry.EventType",
+                        "name": "proposalType",
                         "type": "uint8"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "name",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "symbol",
-                        "type": "string"
                     },
                     {
                         "internalType": "string",
@@ -930,76 +1000,17 @@
                         "type": "string"
                     },
                     {
-                        "internalType": "uint256",
-                        "name": "cap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint8",
-                        "name": "decimals",
-                        "type": "uint8"
+                        "internalType": "string",
+                        "name": "metaHash",
+                        "type": "string"
                     }
                 ],
-                "internalType": "struct IToken.TokenInfo",
-                "name": "tokenInfo",
+                "internalType": "struct IGovernor.ProposalMetaData",
+                "name": "meta",
                 "type": "tuple"
-            },
-            {
-                "internalType": "string",
-                "name": "metadataURI",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "description",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "metaHash",
-                "type": "string"
             }
         ],
-        "name": "proposeTGE",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "asset",
-                "type": "address"
-            },
-            {
-                "internalType": "address[]",
-                "name": "recipients",
-                "type": "address[]"
-            },
-            {
-                "internalType": "uint256[]",
-                "name": "amounts",
-                "type": "uint256[]"
-            },
-            {
-                "internalType": "string",
-                "name": "description",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "metaHash",
-                "type": "string"
-            }
-        ],
-        "name": "proposeTransfer",
+        "name": "propose",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -1097,6 +1108,19 @@
         "inputs": [
             {
                 "internalType": "address",
+                "name": "tge",
+                "type": "address"
+            }
+        ],
+        "name": "setProposalIdToTGE",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
                 "name": "token_",
                 "type": "address"
             },
@@ -1114,12 +1138,74 @@
     {
         "inputs": [
             {
+                "internalType": "contract IToken",
+                "name": "token",
+                "type": "address"
+            }
+        ],
+        "name": "tokenExists",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "tokenTypeByAddress",
+        "outputs": [
+            {
+                "internalType": "enum IToken.TokenType",
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "enum IToken.TokenType",
                 "name": "",
                 "type": "uint8"
             }
         ],
         "name": "tokens",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "enum IToken.TokenType",
+                "name": "",
+                "type": "uint8"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "tokensFullList",
         "outputs": [
             {
                 "internalType": "address",
@@ -1174,6 +1260,56 @@
         "name": "unpause",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "proposalThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "quorumThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "decisionThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "transferValueForDelay",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256[4]",
+                        "name": "executionDelays",
+                        "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
+                "name": "settings",
+                "type": "tuple"
+            }
+        ],
+        "name": "validateGovernanceSettings",
+        "outputs": [],
+        "stateMutability": "pure",
         "type": "function"
     },
     {
