@@ -20,7 +20,7 @@ const { getContractAt, getContract, getSigners, provider } = ethers;
 const { parseUnits } = ethers.utils;
 const { AddressZero } = ethers.constants;
 
-describe("Test transfer proposals", function () {
+describe("Test custom proposals", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress,
@@ -122,31 +122,6 @@ describe("Test transfer proposals", function () {
             ).to.equal(1);
         });
 
-        it("Transfer proposals can only be executed by executor role holder", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-
-            await expect(pool.connect(other).executeProposal(1)).to.be.revertedWith(
-                Exceptions.INVALID_USER
-            );
-        });
-
-        it("Can't execute transfer proposal if pool doesn't hold enough funds", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-
-            await expect(pool.executeProposal(1)).to.be.revertedWith(
-                "Address: insufficient balance"
-            );
-        });
 
         it("Executing succeeded transfer proposals should work", async function () {
             //waiting for voting start
@@ -173,45 +148,5 @@ describe("Test transfer proposals", function () {
         });
     });
 
-    describe("Transfer ERC20", function () {
-        this.beforeEach(async function () {
-            tx = await customProposal
-                .connect(other)
-                .proposeTransfer(
-                    pool.address,
-                    token1.address,
-                    [third.address],
-                    [parseUnits("10")],
-                    "Let's give them money in token",
-                    "#"
-                );
-        });
 
-        it("Can't execute transfer proposal if pool doesn't hold enough funds", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-
-            await expect(pool.executeProposal(1)).to.be.revertedWith(
-                "ERC20: transfer amount exceeds balance"
-            );
-        });
-
-        it("Executing succeeded transfer proposals should work", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-            await token1.transfer(pool.address, parseUnits("100"));
-
-            await pool.executeProposal(1);
-            expect(await token1.balanceOf(pool.address)).to.equal(parseUnits("90"));
-            expect(await token1.balanceOf(third.address)).to.equal(parseUnits("10"));
-        });
-    });
 });

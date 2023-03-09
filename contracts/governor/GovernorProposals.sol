@@ -38,10 +38,9 @@ abstract contract GovernorProposals is
         TGE,
         GovernanceSettings
         // 3 - PoolSecretary
+        // 4 - CustomTx
     }
 
     /// @notice Storage gap (for future upgrades)
     uint256[49] private __gap;
-
-   
 }

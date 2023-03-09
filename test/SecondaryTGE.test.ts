@@ -64,11 +64,15 @@ describe("Test secondary TGE", function () {
             second.address,
             third.address,
         ];
-        await service.createPool(...createArgs, {
+        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
             value: parseUnits("0.01"),
         });
-        const record = await registry.contractRecords(0);
+        const record = await registry.contractRecords(1);
+
         pool = await getContractAt("Pool", record.addr);
+
+
+        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
 
@@ -352,7 +356,7 @@ describe("Test secondary TGE", function () {
                 "SecondaryTGECreated"
             );
 
-            const tgeRecord = await registry.contractRecords(3);
+            const tgeRecord = await registry.contractRecords(4);
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
             expect(await tge2.state()).to.equal(0);
@@ -386,6 +390,9 @@ describe("Test secondary TGE", function () {
         });
 
         it("Can buy from secondary TGE", async function () {
+
+            await mineBlock(1);
+            expect(await pool.availableVotesForProposal(1)).to.equal(parseUnits("1500"));
             //waiting for voting start
             await mineBlock(10);
 
@@ -393,7 +400,7 @@ describe("Test secondary TGE", function () {
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
             await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
+            const tgeRecord = await registry.contractRecords(4);
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
             await tge2
@@ -409,7 +416,7 @@ describe("Test secondary TGE", function () {
             await pool.connect(other).castVote(1, true);
             await mineBlock(2);
             await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
+            const tgeRecord = await registry.contractRecords(4);
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
             await tge2

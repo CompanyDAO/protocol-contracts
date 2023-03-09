@@ -35,7 +35,8 @@ interface IGovernor {
         string metaHash;
     }
 
-    function proposalState(
-        uint256 proposalId
-    ) external view returns (uint256 state);
+    function proposalState(uint256 proposalId)
+        external
+        view
+        returns (uint256 state);
 }

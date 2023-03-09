@@ -28,6 +28,9 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
     /// @dev Status of combination of (jurisdiction, entityType, EIN) existing
     mapping(bytes32 => uint256) public companyIndex;
 
+    /// @dev CompanyDocuments mapping (companyIndex => [docId => url])
+    mapping(uint256 => mapping(uint256 => string)) private companyDocuments;
+
     // EVENTS
 
     /**
@@ -92,6 +95,9 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
 
         // Emit event
         emit CompanyCreated(index, IService(service).getPoolAddress(info));
+
+        //Create PoolContract
+        IService(service).createPool(info);
     }
 
     /**
@@ -170,6 +176,27 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         emit CompanyFeeUpdated(jurisdiction, entityType, id, fee);
     }
 
+    /**
+     * @dev Update company document by Id
+     * @param jurisdiction Jurisdiction
+     * @param entityType Entity type
+     * @param ein EIN
+     * @param docId Document Id
+     * @param docUrl New Document URL
+     */
+    function updateCompanyDocument(
+        uint256 jurisdiction,
+        uint256 entityType,
+        string calldata ein,
+        uint256 docId,
+        string memory docUrl
+    ) external onlyRole(COMPANIES_MANAGER_ROLE) {
+        bytes32 companyHash = keccak256(
+            abi.encodePacked(jurisdiction, entityType, ein)
+        );
+        companyDocuments[companyIndex[companyHash]][docId] = docUrl;
+    }
+
     // PUBLIC VIEW FUNCTIONS
 
     /**
@@ -218,5 +245,25 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
             abi.encodePacked(jurisdiction, entityType, ein)
         );
         return companies[companyIndex[companyHash]];
+    }
+
+    /**
+     * @dev Get company document by Id
+     * @param jurisdiction Jurisdiction
+     * @param entityType Entity type
+     * @param ein EIN
+     * @param docId Document Id
+     * @return Document URL
+     */
+    function getCompanyDocument(
+        uint256 jurisdiction,
+        uint256 entityType,
+        string calldata ein,
+        uint256 docId
+    ) external view returns (string memory) {
+        bytes32 companyHash = keccak256(
+            abi.encodePacked(jurisdiction, entityType, ein)
+        );
+        return companyDocuments[companyIndex[companyHash]][docId];
     }
 }

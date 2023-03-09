@@ -18,10 +18,7 @@ import "./interfaces/ITGE.sol";
 import "./interfaces/IToken.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
-contract CustomProposal is
-    Initializable,
-    AccessControlEnumerableUpgradeable
-{
+contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     // STORAGE
 
     /// @dev Service address
@@ -29,10 +26,11 @@ contract CustomProposal is
 
     // INITIALIZER
 
-   /// @custom:oz-upgrades-unsafe-allow constructor
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
+
     /**
      * @dev Initializer
      */
@@ -49,9 +47,10 @@ contract CustomProposal is
 
     // PUBLIC FUNCTIONS
 
-    function setService(
-        address service_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setService(address service_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         Service = service_;
     }
 
@@ -182,7 +181,7 @@ contract CustomProposal is
             tokenInfo,
             metadataURI
         );
-    
+
         // Propose
         uint256 proposalId_ = IPool(pool).propose(
             msg.sender,
@@ -311,8 +310,63 @@ contract CustomProposal is
         return proposalId_;
     }
 
-    // INTERNAL
-   
+    /**
+     * @dev Propose custom transactions
+     * @param targets Transfer recipients
+     * @param values Transfer amounts for payable
+     * @param callDatas raw calldatas
+     * @param description Proposal description
+     * @param metaHash Hash value of proposal metadata
+     * @return proposalId Created proposal's ID
+     */
+    function proposeCustomTx(
+        address pool,
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory callDatas,
+        string memory description,
+        string memory metaHash
+    ) external returns (uint256 proposalId) {
+        // Check lengths
+        require(
+            targets.length == values.length &&
+                targets.length == callDatas.length,
+            ExceptionsLibrary.INVALID_VALUE
+        );
 
-    
+        require(
+            targets.length == values.length &&
+                targets.length == callDatas.length,
+            ExceptionsLibrary.INVALID_VALUE
+        );
+        for (uint256 i = 0; i < targets.length; i++) {
+            require(
+                targets[i] != pool &&
+                    targets[i] != Service &&
+                    targets[i] != address(IPool(pool).getGovernanceToken()),
+                ExceptionsLibrary.INVALID_TARGET
+            );
+        }
+
+        // Create proposal
+
+        uint256 proposalId_ = IPool(pool).propose(
+            msg.sender,
+            4, // - CustomTx Type
+            IGovernor.ProposalCoreData({
+                targets: targets,
+                values: values,
+                callDatas: callDatas,
+                quorumThreshold: 0,
+                decisionThreshold: 0,
+                executionDelay: 0
+            }),
+            IGovernor.ProposalMetaData({
+                proposalType: IRecordsRegistry.EventType.Transfer,
+                description: description,
+                metaHash: metaHash
+            })
+        );
+        return proposalId_;
+    }
 }

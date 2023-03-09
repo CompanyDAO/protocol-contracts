@@ -26,7 +26,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     /// @notice Denominator for shares (such as thresholds)
     uint256 private constant DENOM = 100 * 10**4;
 
-
     /// @dev Pool's ERC20 token
     IToken public token;
 
@@ -155,7 +154,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     {
         // Check purchase price transfer depending on unit of account
         address unitOfAccount = infoV2.unitOfAccount;
-        uint256 purchasePrice = (amount * infoV2.price + (1 ether - 1)) / 1 ether;
+        uint256 purchasePrice = (amount * infoV2.price + (1 ether - 1)) /
+            1 ether;
         if (unitOfAccount == address(0)) {
             require(
                 msg.value >= purchasePrice,
@@ -419,7 +419,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      */
     function transferUnlocked() public view returns (bool) {
         return
-            lockupTVLReached && block.number >= createdAt + infoV2.lockupDuration;
+            lockupTVLReached &&
+            block.number >= createdAt + infoV2.lockupDuration;
     }
 
     /**

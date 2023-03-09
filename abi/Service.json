@@ -85,6 +85,31 @@
             },
             {
                 "indexed": false,
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "tge",
+                "type": "address"
+            }
+        ],
+        "name": "PoolPurchased",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "indexed": false,
                 "internalType": "uint256",
                 "name": "proposalId",
                 "type": "uint256"
@@ -354,14 +379,59 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPool",
-                "name": "pool",
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "jurisdiction",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "entityType",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "ein",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "dateOfIncorporation",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "fee",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct ICompaniesRegistry.CompanyInfo",
+                "name": "companyInfo",
+                "type": "tuple"
+            }
+        ],
+        "name": "createPool",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "pool_address",
                 "type": "address"
             },
             {
                 "internalType": "uint256",
                 "name": "tokenCap",
                 "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "tokenName",
+                "type": "string"
             },
             {
                 "internalType": "string",
@@ -473,71 +543,14 @@
                 "type": "tuple"
             },
             {
-                "internalType": "uint256",
-                "name": "jurisdiction",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "entityType",
-                "type": "uint256"
-            },
-            {
-                "components": [
-                    {
-                        "internalType": "uint256",
-                        "name": "proposalThreshold",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "quorumThreshold",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "decisionThreshold",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "votingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "transferValueForDelay",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256[4]",
-                        "name": "executionDelays",
-                        "type": "uint256[4]"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "votingStartDelay",
-                        "type": "uint256"
-                    }
-                ],
-                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
-                "name": "governanceSettings",
-                "type": "tuple"
-            },
-            {
-                "internalType": "string",
-                "name": "trademark",
-                "type": "string"
-            },
-            {
                 "internalType": "string",
                 "name": "metadataURI",
                 "type": "string"
             }
         ],
-        "name": "createPool",
+        "name": "createPrimaryTGE",
         "outputs": [],
-        "stateMutability": "payable",
+        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
@@ -976,19 +989,6 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "contract IVesting",
-                "name": "vesting_",
-                "type": "address"
-            }
-        ],
-        "name": "initializeV2",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
         "inputs": [],
         "name": "pause",
         "outputs": [],
@@ -1064,6 +1064,71 @@
             }
         ],
         "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "entityType",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "trademark",
+                "type": "string"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "proposalThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "quorumThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "decisionThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "transferValueForDelay",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256[4]",
+                        "name": "executionDelays",
+                        "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
+                "name": "governanceSettings",
+                "type": "tuple"
+            }
+        ],
+        "name": "purchasePool",
+        "outputs": [],
+        "stateMutability": "payable",
         "type": "function"
     },
     {

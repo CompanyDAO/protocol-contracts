@@ -19,7 +19,7 @@ abstract contract Governor {
     // CONSTANTS
 
     /// @notice Denominator for shares (such as thresholds)
-    uint256 private constant DENOM = 100 * 10 ** 4;
+    uint256 private constant DENOM = 100 * 10**4;
 
     // STORAGE
 
@@ -126,9 +126,11 @@ abstract contract Governor {
      * @param proposalId Proposal ID
      * @return ProposalState
      */
-    function proposalState(
-        uint256 proposalId
-    ) public view returns (ProposalState) {
+    function proposalState(uint256 proposalId)
+        public
+        view
+        returns (ProposalState)
+    {
         Proposal memory proposal = proposals[proposalId];
 
         if (proposal.vote.startBlock == 0) {
@@ -195,14 +197,24 @@ abstract contract Governor {
      * @return ballot Vote type
      * @return votes Number of votes cast
      */
-    function getBallot(
-        address account,
-        uint256 proposalId
-    ) public view returns (Ballot ballot, uint256 votes) {
-        return (
-            ballots[account][proposalId],
-            _getPastVotes(account, proposals[proposalId].vote.startBlock - 1)
-        );
+    function getBallot(address account, uint256 proposalId)
+        public
+        view
+        returns (Ballot ballot, uint256 votes)
+    {
+        if (proposals[proposalId].vote.startBlock - 1 < block.number)
+            return (
+                ballots[account][proposalId],
+                _getPastVotes(
+                    account,
+                    proposals[proposalId].vote.startBlock - 1
+                )
+            );
+        else
+            return (
+                ballots[account][proposalId],
+                _getPastVotes(account, block.number - 1)
+            );
     }
 
     // INTERNAL FUNCTIONS
@@ -235,7 +247,6 @@ abstract contract Governor {
             }),
             meta: meta
         });
-
 
         // Call creation hook
         _afterProposalCreated(proposalId);
@@ -444,9 +455,11 @@ abstract contract Governor {
      * @param blocknumber block number
      * @return Total amount of votes
      */
-    function _getBlockTotalVotes(
-        uint256 blocknumber
-    ) internal view virtual returns (uint256);
+    function _getBlockTotalVotes(uint256 blocknumber)
+        internal
+        view
+        virtual
+        returns (uint256);
 
     /**
      * @dev Function that returns the amount of votes for a client adrress at any given block
@@ -454,18 +467,18 @@ abstract contract Governor {
      * @param blockNumber Block number
      * @return Account's votes at given block
      */
-    function _getPastVotes(
-        address account,
-        uint256 blockNumber
-    ) internal view virtual returns (uint256);
+    function _getPastVotes(address account, uint256 blockNumber)
+        internal
+        view
+        virtual
+        returns (uint256);
 
     /**
      * @dev Function that set last ProposalId for a client address
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
-    function _setLastProposalIdForAddress(
-        address proposer,
-        uint256 proposalId
-    ) internal virtual;
+    function _setLastProposalIdForAddress(address proposer, uint256 proposalId)
+        internal
+        virtual;
 }

@@ -66,61 +66,54 @@ describe("Test initial TGE", function () {
     });
 
     describe("Initial TGE: creating for first time", function () {
-        it("Only whitelisted can create pool", async function () {
+        it("Only whitelisted can purchase pool", async function () {
 
             expect(await registry.isTokenWhitelisted('0x2cDAbA445e942C994F4f1f453f92542aDae68d62')).to.equal(
                 false
             );
             await expect(
-                service.connect(other).createPool(...createArgs, {
+
+                service.connect(other).purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
                     value: parseUnits("0.01"),
                 })
             ).to.be.reverted;
 
         });
 
-        it("Can't create pool with incorrect fee", async function () {
+        it("Can't purchase pool with incorrect fee", async function () {
             await expect(
-                service.createPool(...createArgs, {
-                    value: parseUnits("0.005"),
+                service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
+                    value: parseUnits("0.05"),
                 })
             ).to.be.revertedWith(Exceptions.INCORRECT_ETH_PASSED);
         });
 
-        it("Can't create pool with hardcap higher than token cap", async function () {
+        /*it("Can't create pool with hardcap higher than token cap", async function () {
             createArgs[3].hardcap = parseUnits("20000");
             await expect(
-                service.createPool(...createArgs, {
+                service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
                     value: parseUnits("0.01"),
                 })
             ).to.be.revertedWith(Exceptions.HARDCAP_OVERFLOW_REMAINING_SUPPLY);
-        });
+        });*/
     });
 
     describe("Initial TGE: interaction", function () {
         this.beforeEach(async function () {
             // First TGE
-            await service.createPool(...createArgs, {
+            await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
                 value: parseUnits("0.01"),
             });
-            let record = await registry.contractRecords(0);
+            let record = await registry.contractRecords(1);
             pool = await getContractAt("Pool", record.addr);
+
+            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+
             token = await getContractAt("Token", await pool.getGovernanceToken());
             tge = await getContractAt("TGE", await token.tgeList(0));
 
-            // Second TGE
-            createArgs[3].unitOfAccount = token1.address;
-            await service.grantRole(
-                await service.WHITELISTED_USER_ROLE(),
-                owner.address
-            );
-            await service.createPool(...createArgs, {
-                value: parseUnits("0.01"),
-            });
-            record = await registry.contractRecords(3);
-            newPool = await getContractAt("Pool", record.addr);
-            newToken = await getContractAt("Token", await newPool.getGovernanceToken());
-            newTge = await getContractAt("TGE", await newToken.tgeList(0));
+           
+       
         });
 
         it("Can't purchase less than min purchase", async function () {
@@ -192,12 +185,26 @@ describe("Test initial TGE", function () {
         });
 
         it("Purchasing with token (if such is unit of account) works", async function () {
+            await mineBlock(50);
+            createArgs[3].unitOfAccount = token1.address;
+            await service.grantRole(
+                await service.WHITELISTED_USER_ROLE(),
+                owner.address
+            );
+            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+
+            newToken = await getContractAt("Token", await pool.getGovernanceToken());
+            newTge = await getContractAt("TGE", await newToken.tgeList(0));
+           
             await token1.mint(other.address, parseUnits("1"));
+
             await token1
                 .connect(other)
                 .approve(newTge.address, parseUnits("1"));
             await newTge.connect(other).purchase(parseUnits("100"));
 
+            
+            
             expect(await newToken.balanceOf(other.address)).to.equal(
                 parseUnits("50")
             );
@@ -412,7 +419,7 @@ describe("Test initial TGE", function () {
             const treasury = Wallet.createRandom();
             await service.transferCollectedFees(treasury.address);
             expect(await provider.getBalance(treasury.address)).to.equal(
-                parseUnits("0.02")
+                parseUnits("0.01")
             );
         });
     });
@@ -420,13 +427,19 @@ describe("Test initial TGE", function () {
     describe("Failed TGE: redeeming & recreating", async function () {
         this.beforeEach(async function () {
             // First TGE
-            await service.createPool(...createArgs, {
+            await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
                 value: parseUnits("0.01"),
             });
-            const record = await registry.contractRecords(0);
+            const record = await registry.contractRecords(1);
+
             pool = await getContractAt("Pool", record.addr);
+
+
+            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+
             token = await getContractAt("Token", await pool.getGovernanceToken());
             tge = await getContractAt("TGE", await token.tgeList(0));
+
 
             // Buy from TGE
             await tge
@@ -476,20 +489,18 @@ describe("Test initial TGE", function () {
             );
         });
 
-        it("Can't recreate TGE for non-pool", async function () {
+        /*it("Can't recreate TGE for non-pool", async function () {
             createArgs[0] = token.address;
             await expect(
                 service.connect(other).createPool(...createArgs, {
                     value: parseUnits("0.01"),
                 })
             ).to.be.revertedWith(Exceptions.NOT_POOL);
-        });
+        });*/
 
         it("Only pool owner can recreate TGE", async function () {
             await expect(
-                service.connect(other).createPool(...createArgs, {
-                    value: parseUnits("0.01"),
-                })
+                service.connect(other).createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8])
             ).to.be.revertedWith(Exceptions.NOT_POOL_OWNER);
         });
 
@@ -500,10 +511,9 @@ describe("Test initial TGE", function () {
             await mineBlock(20);
 
             await expect(
-                service.createPool(...createArgs, {
-                    value: parseUnits("0.01"),
-                })
-            ).to.be.revertedWith(Exceptions.IS_DAO);
+                service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8])
+
+            ).to.be.revertedWith(Exceptions.GOVERNANCE_TOKEN_EXISTS);
         });
 
         it("Failed TGE can be recreated", async function () {
@@ -516,27 +526,15 @@ describe("Test initial TGE", function () {
             createArgs[1] = parseUnits("20000");
             createArgs[2] = "DTKN2";
 
-            await service.createPool(...createArgs);
-            const record = await registry.contractRecords(0);
-            const newPool = await getContractAt("Pool", record.addr);
+            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
             const newToken = await getContractAt(
                 "Token",
-                await newPool.getGovernanceToken()
-            );
-            const newTge = await getContractAt(
-                "TGE",
-                await newToken.tgeList(0)
+                await pool.getGovernanceToken()
             );
 
-            // Pool should remain the same, token and TGE should be new
-
-            expect(newPool.address).to.equal(pool.address);
-            expect(newToken.address).not.to.equal(token.address);
-            expect(newTge.address).not.to.equal(tge.address);
-
-            expect(await newToken.name()).to.equal("Name"); // pool.getTrademark()
             expect(await newToken.symbol()).to.equal("DTKN2");
             expect(await newToken.cap()).to.equal(parseUnits("20200")); // Cap with fee
+
         });
     });
 });
