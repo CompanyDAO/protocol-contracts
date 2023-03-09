@@ -13,7 +13,7 @@ interface ICompaniesRegistry {
         string dateOfIncorporation;
         uint256 fee;
     }
-
+    
     function lockCompany(uint256 jurisdiction, uint256 entityType)
         external
         returns (CompanyInfo memory);

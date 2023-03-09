@@ -35,7 +35,7 @@ contract Service is
     // CONSTANTS
 
     /// @notice Denominator for shares (such as thresholds)
-    uint256 private constant DENOM = 100 * 10 ** 4;
+    uint256 private constant DENOM = 100 * 10**4;
 
     /// @notice Default admin  role
     bytes32 public constant ADMIN_ROLE = DEFAULT_ADMIN_ROLE;
@@ -89,6 +89,14 @@ contract Service is
     event PoolCreated(address pool, address token, address tge);
 
     /**
+     * @dev Event that emits when a pool is purchased.
+     * @param pool Pool address
+     * @param token Pool token address
+     * @param tge Pool primary TGE address
+     */
+    event PoolPurchased(address pool, address token, address tge);
+
+    /**
      * @dev Event emitted on creation of secondary TGE.
      * @param pool Pool address
      * @param tge Secondary TGE address
@@ -136,6 +144,14 @@ contract Service is
         require(
             registry.typeOf(msg.sender) == IRecordsRegistry.ContractType.TGE,
             ExceptionsLibrary.NOT_TGE
+        );
+        _;
+    }
+
+    modifier onlyRegistry() {
+        require(
+            msg.sender == address(registry),
+            ExceptionsLibrary.NOT_REGISTRY
         );
         _;
     }
@@ -191,128 +207,48 @@ contract Service is
         setProtocolTokenFee(protocolTokenFee_);
     }
 
-    /**
-     * @dev Re-nitializer function for V2, can only be called once
-     * @param vesting_ Vesting address
-     */
-    function initializeV2(IVesting vesting_) external reinitializer(2) {
-        vesting = vesting_;
-    }
-
     // PUBLIC FUNCTIONS
 
     /**
-     * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type, which are used as keys to, firstly, find out if there is a company available for acquisition with such parameters among the Registry records, and secondly, to get the data of such a company if it exists, save them to the deployed pool contract, while recording the company is removed from the Registry. This action is only available to users who are on the global white list of addresses allowed before the acquisition of companies. At the same time, the Governance token contract and the TGE contract are deployed for its implementation.
-     * @param pool Pool address. If not address(0) - creates new token and new primary TGE for an existing pool.
-     * @param tokenCap Pool token cap
-     * @param tokenSymbol Pool token symbol
-     * @param tgeInfo Pool TGE parameters
-     * @param jurisdiction Pool jurisdiction
-     * @param entityType Company entity type
-     * @param governanceSettings Governance setting parameters
-     * @param trademark Pool trademark
-     * @param metadataURI Metadata URI
+     * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type
+     * @param jurisdiction jurisdiction
+     * @param entityType entityType
      */
-    function createPool(
-        IPool pool,
-        uint256 tokenCap,
-        string memory tokenSymbol,
-        ITGE.TGEInfoV2 memory tgeInfo,
+    function purchasePool(
         uint256 jurisdiction,
         uint256 entityType,
-        IGovernanceSettings.NewGovernanceSettings memory governanceSettings,
         string memory trademark,
-        string memory metadataURI
-    ) external payable nonReentrant whenNotPaused {
-        // Check token cap
-        require(tokenCap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
-
-        // Add protocol fee to token cap
-        tokenCap += getProtocolTokenFee(tokenCap);
-
-        if (address(pool) == address(0)) {
-            // Check that user is whitelisted and remove him from whitelist
-            _checkRole(WHITELISTED_USER_ROLE);
-            _revokeRole(WHITELISTED_USER_ROLE, msg.sender);
-
-            // Lock company
-            IRegistry.CompanyInfo memory companyInfo = registry.lockCompany(
-                jurisdiction,
-                entityType
-            );
-
-            // Check fee
-            require(
-                msg.value == companyInfo.fee,
-                ExceptionsLibrary.INCORRECT_ETH_PASSED
-            );
-
-            // Create pool
-            pool = _createPool(companyInfo);
-
-            // Initialize pool contract
-            pool.initialize(
-                msg.sender,
-                trademark,
-                governanceSettings,
-                companyInfo
-            );
-        } else {
-            // Check that pool is valid
-            require(
-                registry.typeOf(address(pool)) ==
-                    IRecordsRegistry.ContractType.Pool,
-                ExceptionsLibrary.NOT_POOL
-            );
-
-            // Check that sender is pool owner
-            require(
-                msg.sender == pool.owner(),
-                ExceptionsLibrary.NOT_POOL_OWNER
-            );
-
-            // Check that pool is not active yet
-            require(!pool.isDAO(), ExceptionsLibrary.IS_DAO);
-
-            // Check that there is no active tge's
-            require(
-                ITGE(pool.getGovernanceToken().getTGEList()[0]).state() ==
-                    ITGE.State.Failed,
-                ExceptionsLibrary.WRONG_STATE
-            );
-        }
-
-        // Create token contract
-        IToken token = _createToken();
-
-        // Create TGE contract
-        ITGE tge = _createTGE(metadataURI, address(pool));
-
-        // Initialize token
-        token.initialize(
-            address(pool),
-            IToken.TokenInfo({
-                tokenType: IToken.TokenType.Governance,
-                name: "",
-                symbol: tokenSymbol,
-                description: "",
-                cap: tokenCap,
-                decimals: 18
-            }),
-            address(tge)
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings
+    )
+        external
+        payable
+        onlyRole(WHITELISTED_USER_ROLE)
+        nonReentrant
+        whenNotPaused
+    {
+        // Lock company
+        IRegistry.CompanyInfo memory companyInfo = registry.lockCompany(
+            jurisdiction,
+            entityType
         );
 
-        // Set token as pool token
-        pool.setToken(address(token), IToken.TokenType.Governance);
+        // Check fee
+        require(
+            msg.value == companyInfo.fee,
+            ExceptionsLibrary.INCORRECT_ETH_PASSED
+        );
 
-        // Initialize TGE
-        tge.initialize(token, tgeInfo, protocolTokenFee);
+        // Create pool
+        IPool pool = IPool(getPoolAddress(companyInfo));
+
+        // setNewOwnerWithSettings to pool contract
+        pool.setNewOwnerWithSettings(msg.sender, trademark, governanceSettings);
 
         // Emit event
-        emit PoolCreated(address(pool), address(token), address(tge));
+        emit PoolPurchased(address(pool), address(0), address(0));
     }
 
-    // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL)
+    // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL OR REGISTRY)
 
     /**
      * @dev Method for launching secondary TGE (i.e. without reissuing the token) for Governance tokens, as well as for creating and launching TGE for Preference tokens. It can be started only as a result of the execution of the proposal on behalf of the pool.
@@ -424,15 +360,95 @@ contract Service is
         );
     }
 
+    /**
+     * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type, which are used as keys to, firstly, find out if there is a company available for acquisition with such parameters among the Registry records, and secondly, to get the data of such a company if it exists, save them to the deployed pool contract, while recording the company is removed from the Registry. This action is only available to users who are on the global white list of addresses allowed before the acquisition of companies. At the same time, the Governance token contract and the TGE contract are deployed for its implementation.
+     * @param companyInfo Company info
+     */
+    function createPool(IRegistry.CompanyInfo memory companyInfo)
+        external
+        onlyRegistry
+        nonReentrant
+        whenNotPaused
+    {
+        // Create pool
+        IPool pool = _createPool(companyInfo);
+
+        // Initialize pool contract
+        pool.initialize(companyInfo);
+
+        // Emit event
+        emit PoolCreated(address(pool), address(0), address(0));
+    }
+
     // RESTRICTED FUNCTIONS
+
+    /**
+     * @dev Method for launching primary TGE  for Governance tokens
+     * @param pool_address Pool address.
+     * @param tokenCap Pool token cap
+     * @param tokenName Pool token name
+     * @param tokenSymbol Pool token symbol
+     * @param tgeInfo Pool TGE parameters
+     * @param metadataURI Metadata URI
+     */
+    function createPrimaryTGE(
+        address pool_address,
+        uint256 tokenCap,
+        string memory tokenName,
+        string memory tokenSymbol,
+        ITGE.TGEInfoV2 memory tgeInfo,
+        string memory metadataURI
+    ) external nonReentrant whenNotPaused {
+        IPool pool = IPool(pool_address);
+
+        require(pool.owner() == msg.sender, ExceptionsLibrary.NOT_POOL_OWNER);
+        // Check token cap
+        require(tokenCap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
+
+        // Check that pool is not active yet
+        require(
+            address(pool.getGovernanceToken()) == address(0) || !pool.isDAO(),
+            ExceptionsLibrary.GOVERNANCE_TOKEN_EXISTS
+        );
+
+        // Add protocol fee to token cap
+        tokenCap += getProtocolTokenFee(tokenCap);
+
+        // Create token contract
+        IToken token = _createToken();
+
+        // Create TGE contract
+        ITGE tge = _createTGE(metadataURI, address(pool));
+
+        // Initialize token
+        token.initialize(
+            address(pool),
+            IToken.TokenInfo({
+                tokenType: IToken.TokenType.Governance,
+                name: tokenName,
+                symbol: tokenSymbol,
+                description: "",
+                cap: tokenCap,
+                decimals: 18
+            }),
+            address(tge)
+        );
+
+        // Set token as pool token
+        pool.setToken(address(token), IToken.TokenType.Governance);
+
+        // Initialize TGE
+        tge.initialize(token, tgeInfo, protocolTokenFee);
+    }
 
     /**
      * @dev Transfer collected createPool protocol fees
      * @param to Transfer recipient
      */
-    function transferCollectedFees(
-        address to
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function transferCollectedFees(address to)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(to != address(0), ExceptionsLibrary.ADDRESS_ZERO);
         uint256 balance = payable(address(this)).balance;
         (bool success, ) = payable(to).call{value: balance}("");
@@ -445,10 +461,10 @@ contract Service is
      * @param _token token address
      * @param _protocolTokenFee fee collected
      */
-    function setProtocolCollectedFee(
-        address _token,
-        uint256 _protocolTokenFee
-    ) public onlyTGE {
+    function setProtocolCollectedFee(address _token, uint256 _protocolTokenFee)
+        public
+        onlyTGE
+    {
         protolCollectedFee[_token] += _protocolTokenFee;
     }
 
@@ -456,9 +472,10 @@ contract Service is
      * @dev Assignment of the address to which the commission will be collected in the form of Governance tokens issued under successful TGE
      * @param _protocolTreasury Protocol treasury address
      */
-    function setProtocolTreasury(
-        address _protocolTreasury
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setProtocolTreasury(address _protocolTreasury)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(
             _protocolTreasury != address(0),
             ExceptionsLibrary.ADDRESS_ZERO
@@ -473,9 +490,10 @@ contract Service is
      * @param _protocolTokenFee protocol token fee percentage value with 4 decimals.
      * Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000.
      */
-    function setProtocolTokenFee(
-        uint256 _protocolTokenFee
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setProtocolTokenFee(uint256 _protocolTokenFee)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(_protocolTokenFee <= DENOM, ExceptionsLibrary.INVALID_VALUE);
 
         protocolTokenFee = _protocolTokenFee;
@@ -486,9 +504,10 @@ contract Service is
      * @dev Sets new Registry contract
      * @param _registry registry address
      */
-    function setRegistry(
-        IRegistry _registry
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setRegistry(IRegistry _registry)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(
             address(_registry) != address(0),
             ExceptionsLibrary.ADDRESS_ZERO
@@ -501,9 +520,10 @@ contract Service is
      * @dev Sets new customProposal contract
      * @param _customProposal customProposal address
      */
-    function setCustomProposal(
-        ICustomProposal _customProposal
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setCustomProposal(ICustomProposal _customProposal)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(
             address(_customProposal) != address(0),
             ExceptionsLibrary.ADDRESS_ZERO
@@ -516,9 +536,10 @@ contract Service is
      * @dev Sets new vesting
      * @param _vesting vesting address
      */
-    function setVesting(
-        IVesting _vesting
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setVesting(IVesting _vesting)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(
             address(_vesting) != address(0),
             ExceptionsLibrary.ADDRESS_ZERO
@@ -531,9 +552,10 @@ contract Service is
      * @dev Sets new pool beacon
      * @param beacon Beacon address
      */
-    function setPoolBeacon(
-        address beacon
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setPoolBeacon(address beacon)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
         poolBeacon = beacon;
@@ -543,9 +565,10 @@ contract Service is
      * @dev Sets new token beacon
      * @param beacon Beacon address
      */
-    function setTokenBeacon(
-        address beacon
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenBeacon(address beacon)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
         tokenBeacon = beacon;
@@ -555,9 +578,10 @@ contract Service is
      * @dev Sets new TGE beacon
      * @param beacon Beacon address
      */
-    function setTGEBeacon(
-        address beacon
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTGEBeacon(address beacon)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
         tgeBeacon = beacon;
@@ -568,10 +592,10 @@ contract Service is
      * @param pool pool
      * @param proposalId proposalId
      */
-    function cancelProposal(
-        address pool,
-        uint256 proposalId
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function cancelProposal(address pool, uint256 proposalId)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         IPool(pool).cancelProposal(proposalId);
         emit ProposalCancelled(pool, proposalId);
     }
@@ -615,9 +639,11 @@ contract Service is
      * @param token_ Token adress
      * @return token claimed
      */
-    function getProtocolCollectedFee(
-        address token_
-    ) external view returns (uint256) {
+    function getProtocolCollectedFee(address token_)
+        external
+        view
+        returns (uint256)
+    {
         return protolCollectedFee[token_];
     }
 
@@ -683,9 +709,11 @@ contract Service is
      * @param info Company info
      * @return Pool contract address
      */
-    function getPoolAddress(
-        IRegistry.CompanyInfo memory info
-    ) external view returns (address) {
+    function getPoolAddress(IRegistry.CompanyInfo memory info)
+        public
+        view
+        returns (address)
+    {
         (bytes32 salt, bytes memory bytecode) = _getCreate2Data(info);
         return Create2Upgradeable.computeAddress(salt, keccak256(bytecode));
     }
@@ -698,9 +726,11 @@ contract Service is
      * @return salt Create2 salt
      * @return deployBytecode Deployed bytecode
      */
-    function _getCreate2Data(
-        IRegistry.CompanyInfo memory info
-    ) internal view returns (bytes32 salt, bytes memory deployBytecode) {
+    function _getCreate2Data(IRegistry.CompanyInfo memory info)
+        internal
+        view
+        returns (bytes32 salt, bytes memory deployBytecode)
+    {
         // Get salt
         salt = keccak256(
             abi.encode(info.jurisdiction, info.entityType, info.ein)
@@ -718,9 +748,10 @@ contract Service is
      * @dev Create pool contract and initialize it
      * @return pool Pool contract
      */
-    function _createPool(
-        IRegistry.CompanyInfo memory info
-    ) internal returns (IPool pool) {
+    function _createPool(IRegistry.CompanyInfo memory info)
+        internal
+        returns (IPool pool)
+    {
         // Create pool contract using Create2
         (bytes32 salt, bytes memory bytecode) = _getCreate2Data(info);
         pool = IPool(Create2Upgradeable.deploy(0, salt, bytecode));
@@ -757,10 +788,10 @@ contract Service is
      * @param pool Pool address
      * @return tge TGE contract
      */
-    function _createTGE(
-        string memory metadataURI,
-        address pool
-    ) internal returns (ITGE tge) {
+    function _createTGE(string memory metadataURI, address pool)
+        internal
+        returns (ITGE tge)
+    {
         // Create TGE contract
         tge = ITGE(address(new BeaconProxy(tgeBeacon, "")));
 

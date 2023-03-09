@@ -9,11 +9,12 @@ import "./governor/IGovernanceSettings.sol";
 import "./governor/IGovernorProposals.sol";
 
 interface IPool is IGovernorProposals {
-    function initialize(
+    function initialize(IRegistry.CompanyInfo memory companyInfo_) external;
+
+    function setNewOwnerWithSettings(
         address owner_,
         string memory trademark_,
-        IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
-        IRegistry.CompanyInfo memory companyInfo_
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings_
     ) external;
 
     function propose(

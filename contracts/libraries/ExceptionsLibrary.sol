@@ -63,4 +63,6 @@ library ExceptionsLibrary {
     string public constant NOT_VALID_PROPOSER = "NOT_VALID_PROPOSER";
     string public constant SHARES_SUM_EXCEEDS_ONE = "SHARES_SUM_EXCEEDS_ONE";
     string public constant NOT_RESOLVER = "NOT_RESOLVER";
+    string public constant NOT_REGISTRY = "NOT_REGISTRY";
+    string public constant INVALID_TARGET = "INVALID_TARGET";
 }

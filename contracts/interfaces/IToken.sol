@@ -63,5 +63,4 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
     function getTotalProtocolFeeReserved() external view returns (uint256);
 
     function totalSupplyWithReserves() external view returns (uint256);
-
 }

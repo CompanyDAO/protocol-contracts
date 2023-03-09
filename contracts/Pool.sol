@@ -124,24 +124,32 @@ contract Pool is
     /**
      * @dev Initialization of a new pool and placement of user settings and data (including legal ones) in it
      * @param companyInfo_ Company info
-     * @param owner_ Pool owner
-     * @param trademark_ Trademark
-     * @param governanceSettings_ GovernanceSettings_
      */
-    function initialize(
-        address owner_,
-        string memory trademark_,
-        NewGovernanceSettings memory governanceSettings_,
-        IRegistry.CompanyInfo memory companyInfo_
-    ) external initializer {
+    function initialize(IRegistry.CompanyInfo memory companyInfo_)
+        external
+        initializer
+    {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
         service = IService(msg.sender);
-        _transferOwnership(owner_);
+        companyInfo = companyInfo_;
+    }
+
+    /**
+     * @dev set New Owner With Settings after company purchased
+     * @param newowner New Pool owner
+     * @param trademark_ trademark_
+     * @param governanceSettings_ governance Settings
+     */
+    function setNewOwnerWithSettings(
+        address newowner,
+        string memory trademark_,
+        NewGovernanceSettings memory governanceSettings_
+    ) external onlyOwner {
+        _transferOwnership(address(newowner));
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
-        companyInfo = companyInfo_;
     }
 
     // RECEIVE
@@ -157,10 +165,11 @@ contract Pool is
      * @param proposalId Pool proposal ID
      * @param support Against or for
      */
-    function castVote(
-        uint256 proposalId,
-        bool support
-    ) external nonReentrant whenNotPaused {
+    function castVote(uint256 proposalId, bool support)
+        external
+        nonReentrant
+        whenNotPaused
+    {
         _castVote(proposalId, support);
     }
 
@@ -171,10 +180,10 @@ contract Pool is
      * @param token_ Token address
      * @param tokenType_ Token type
      */
-    function setToken(
-        address token_,
-        IToken.TokenType tokenType_
-    ) external onlyService {
+    function setToken(address token_, IToken.TokenType tokenType_)
+        external
+        onlyService
+    {
         require(token_ != address(0), ExceptionsLibrary.ADDRESS_ZERO);
         if (tokenExists(IToken(token_))) return;
         if (tokenType_ == IToken.TokenType.Governance) {
@@ -206,9 +215,11 @@ contract Pool is
      * @dev Execute proposal
      * @param proposalId Proposal ID
      */
-    function executeProposal(
-        uint256 proposalId
-    ) external whenNotPaused onlyExecutor(proposalId) {
+    function executeProposal(uint256 proposalId)
+        external
+        whenNotPaused
+        onlyExecutor(proposalId)
+    {
         lastExecutedProposalId = proposalId;
         _executeProposal(proposalId, service);
     }
@@ -310,9 +321,11 @@ contract Pool is
     }
 
     /// @dev This getter is needed in order to return a Token contract addresses depending on the type of token requested (Governance or Preference).
-    function getTokens(
-        IToken.TokenType tokenType
-    ) external view returns (address[] memory) {
+    function getTokens(IToken.TokenType tokenType)
+        external
+        view
+        returns (address[] memory)
+    {
         return tokensFullList[tokenType];
     }
 
@@ -353,9 +366,11 @@ contract Pool is
     }
 
     /// @dev This getter returns if Last Proposal By Type is Active
-    function isLastProposalIdByTypeActive(
-        uint256 type_
-    ) public view returns (bool) {
+    function isLastProposalIdByTypeActive(uint256 type_)
+        public
+        view
+        returns (bool)
+    {
         if (proposalState(lastProposalIdByType[type_]) == ProposalState.Active)
             return true;
 
@@ -363,17 +378,23 @@ contract Pool is
     }
 
     /// @dev This getter validate Governance Settings
-    function validateGovernanceSettings(
-        NewGovernanceSettings memory settings
-    ) external pure {
+    function validateGovernanceSettings(NewGovernanceSettings memory settings)
+        external
+        pure
+    {
         _validateGovernanceSettings(settings);
     }
 
     /// @dev This getter returns if available Votes For Proposal by Id
-    function availableVotesForProposal(
-        uint256 proposalId
-    ) external view returns (uint256) {
-        return _getBlockTotalVotes(proposals[proposalId].vote.startBlock - 1);
+    function availableVotesForProposal(uint256 proposalId)
+        external
+        view
+        returns (uint256)
+    {
+        if (proposals[proposalId].vote.startBlock - 1 < block.number)
+            return
+                _getBlockTotalVotes(proposals[proposalId].vote.startBlock - 1);
+        else return _getBlockTotalVotes(block.number - 1);
     }
 
     // INTERNAL FUNCTIONS
@@ -396,9 +417,12 @@ contract Pool is
      * @param blocknumber blocknumber
      * @return Amount of votes
      */
-    function _getBlockTotalVotes(
-        uint256 blocknumber
-    ) internal view override returns (uint256) {
+    function _getBlockTotalVotes(uint256 blocknumber)
+        internal
+        view
+        override
+        returns (uint256)
+    {
         return
             IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply(
                 blocknumber
@@ -411,10 +435,12 @@ contract Pool is
      * @param blockNumber Block number
      * @return Account's votes at given block
      */
-    function _getPastVotes(
-        address account,
-        uint256 blockNumber
-    ) internal view override returns (uint256) {
+    function _getPastVotes(address account, uint256 blockNumber)
+        internal
+        view
+        override
+        returns (uint256)
+    {
         return getGovernanceToken().getPastVotes(account, blockNumber);
     }
 
@@ -437,10 +463,10 @@ contract Pool is
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
-    function _setLastProposalIdForAddress(
-        address proposer,
-        uint256 proposalId
-    ) internal override {
+    function _setLastProposalIdForAddress(address proposer, uint256 proposalId)
+        internal
+        override
+    {
         lastProposalIdForAddress[proposer] = proposalId;
     }
 }

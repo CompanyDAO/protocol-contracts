@@ -51,13 +51,21 @@ describe("Test Registry", function () {
             recipient.address,
             third.address,
         ];
-        await service.createPool(...createArgs, {
+
+        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
             value: parseUnits("0.01"),
         });
-        const record = await registry.contractRecords(0);
+        const record = await registry.contractRecords(1);
+
         pool = await getContractAt("Pool", record.addr);
+
+
+        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
+
+
 
         // Finalize TGE
         await tge.purchase(parseUnits("1000"), { value: parseUnits("10") });
@@ -98,6 +106,12 @@ describe("Test Registry", function () {
             const companyInfo = await registry.getCompany(1, 1, "EIN4");
             expect(companyInfo.dateOfIncorporation).to.equal("01.01.2023");
 
+            expect(await (await registry.getCompanyDocument(1, 1, "EIN4", 0)).toString()).to.equal("");
+
+            await registry.updateCompanyDocument(1, 1, "EIN4", 0, "ipfs://url3");
+
+            expect(await (await registry.getCompanyDocument(1, 1, "EIN4", 0)).toString()).to.equal("ipfs://url3");
+
             //Delete companies
             await registry.deleteCompany(1, 1, 1);
             await registry.deleteCompany(1, 1, 0);
@@ -110,7 +124,7 @@ describe("Test Registry", function () {
     });
     it("Can read count getters", async function () {
 
-        expect(await registry.contractRecordsCount()).to.equal(3);
+        expect(await registry.contractRecordsCount()).to.equal(4);
         expect(await registry.proposalRecordsCount()).to.equal(0);
         expect(await registry.eventRecordsCount()).to.equal(1);
     });
@@ -137,7 +151,6 @@ describe("Test Registry", function () {
 
 
     it("Can getPoolSecretary", async function () {
-
         expect(await (await pool.getPoolSecretary()).length).to.equal(0);
     });
 
@@ -161,7 +174,7 @@ describe("Test Registry", function () {
         await service.setTGEBeacon(tge.address);
         await expect(service.connect(third).setTGEBeacon(tge.address)).to.be.reverted;
     });
-    
+
     it("Can setTokenBeacon", async function () {
         await service.setTokenBeacon(token.address);
         await expect(service.connect(third).setTokenBeacon(token.address)).to.be.reverted;
@@ -171,13 +184,13 @@ describe("Test Registry", function () {
         await service.setVesting(token.address);
         await expect(service.connect(third).setVesting(token.address)).to.be.reverted;
     });
-    
+
     it("Can setCustomProposal", async function () {
         await service.setCustomProposal(token.address);
         await expect(service.connect(third).setCustomProposal(token.address)).to.be.reverted;
     });
 
     it("Can getMaxHardCap", async function () {
-        expect(await (await service.getMaxHardCap(pool.address)).toString()).to.equal("9999000000000000000000");      
+        expect(await (await service.getMaxHardCap(pool.address)).toString()).to.equal("9999000000000000000000");
     });
 });

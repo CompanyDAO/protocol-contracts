@@ -48,12 +48,17 @@ describe("Test vesting", function () {
 
         // First TGE
         createArgs = await makeCreateData();
-        await service.createPool(...createArgs, {
+        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
             value: parseUnits("0.01"),
         });
-        let record = await registry.contractRecords(0);
+        const record = await registry.contractRecords(1);
+
         pool = await getContractAt("Pool", record.addr);
-        token = await getContractAt("Token", await pool.tokens(1));
+
+
+        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+
+        token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
 
         // Purchase

@@ -20,6 +20,8 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function EXECUTOR_ROLE() external view returns (bytes32);
 
+    function createPool(IRegistry.CompanyInfo memory companyInfo) external;
+
     function createSecondaryTGE(
         IToken token,
         ITGE.TGEInfoV2 calldata tgeInfo,
@@ -35,7 +37,8 @@ interface IService is IAccessControlEnumerableUpgradeable {
         string calldata metaHash
     ) external;
 
-    function setProtocolCollectedFee(address _token, uint256 _protocolTokenFee) external;
+    function setProtocolCollectedFee(address _token, uint256 _protocolTokenFee)
+        external;
 
     function registry() external view returns (IRegistry);
 
@@ -52,14 +55,16 @@ interface IService is IAccessControlEnumerableUpgradeable {
         view
         returns (uint256);
 
-    function getProtocolCollectedFee(address token_) external view returns (uint256);
+    function getProtocolCollectedFee(address token_)
+        external
+        view
+        returns (uint256);
 
     function poolBeacon() external view returns (address);
 
     function tgeBeacon() external view returns (address);
 
     function customProposal() external view returns (ICustomProposal);
-
 
     function validateTGEInfo(
         ITGE.TGEInfoV2 calldata info,

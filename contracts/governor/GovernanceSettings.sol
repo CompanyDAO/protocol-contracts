@@ -11,7 +11,7 @@ abstract contract GovernanceSettings is IGovernanceSettings {
     // CONSTANTS
 
     /// @notice Denominator for shares (such as thresholds)
-    uint256 private constant DENOM = 100 * 10 ** 4;
+    uint256 private constant DENOM = 100 * 10**4;
 
     // STORAGE
 
@@ -58,11 +58,11 @@ abstract contract GovernanceSettings is IGovernanceSettings {
      * @notice Updates governance settings
      * @param settings New governance settings
      */
-    function setGovernanceSettings(
-        NewGovernanceSettings memory settings
-    ) external {
+    function setGovernanceSettings(NewGovernanceSettings memory settings)
+        external
+    {
         // The governance settings function can only be called by the pool contract
-       require(msg.sender == address(this), ExceptionsLibrary.INVALID_USER);
+        require(msg.sender == address(this), ExceptionsLibrary.INVALID_USER);
 
         // Internal function to update governance settings
         _setGovernanceSettings(settings);
@@ -74,9 +74,9 @@ abstract contract GovernanceSettings is IGovernanceSettings {
      * @notice Updates governance settings
      * @param settings New governance settings
      */
-    function _setGovernanceSettings(
-        NewGovernanceSettings memory settings
-    ) internal {
+    function _setGovernanceSettings(NewGovernanceSettings memory settings)
+        internal
+    {
         // Validates the values for governance settings
         _validateGovernanceSettings(settings);
 
@@ -106,9 +106,10 @@ abstract contract GovernanceSettings is IGovernanceSettings {
      * @notice Validates governance settings
      * @param settings New governance settings
      */
-    function _validateGovernanceSettings(
-        NewGovernanceSettings memory settings
-    ) internal pure {
+    function _validateGovernanceSettings(NewGovernanceSettings memory settings)
+        internal
+        pure
+    {
         // Check all values for sanity
         require(
             settings.quorumThreshold < DENOM,

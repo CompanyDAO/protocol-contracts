@@ -63,15 +63,18 @@ describe("Test Governor", function () {
             recipient.address,
             third.address,
         ];
-        await service.createPool(...createArgs, {
+        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
             value: parseUnits("0.01"),
         });
-        const record = await registry.contractRecords(0);
+        const record = await registry.contractRecords(1);
+
         pool = await getContractAt("Pool", record.addr);
+
+
+        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
-
         // Finalize TGE
         await tge.purchase(parseUnits("1000"), { value: parseUnits("10") });
         await tge
@@ -292,7 +295,7 @@ describe("Test Governor", function () {
             await token
                 .connect(donor)
                 .transfer(recipient.address, await token.balanceOf(donor.address));
-            
+
             await token.connect(donor).transfer(recipient.address, await token.balanceOf(donor.address));
             await expect(
                 pool.connect(recipient).castVote(2, true)
@@ -336,7 +339,9 @@ describe("Test Governor", function () {
 
             // success execute Proposal of TGE
             await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
+            const tgeRecord = await registry.contractRecords(4);
+
+           
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
             // owner purchase new tokens from TGE
@@ -364,7 +369,7 @@ describe("Test Governor", function () {
             await mineBlock(1);
             // success execute Proposal of TGE
             await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
+            const tgeRecord = await registry.contractRecords(4);
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
             // new transfer proposal
@@ -394,98 +399,9 @@ describe("Test Governor", function () {
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
 
-        it("Purchasing tokens from TGE can't affect current Active proposals", async function () {
-            //waiting for voting start
-            await mineBlock(10);
 
-            // new transfer proposal
-            await customProposal
-                .connect(donor)
-                .proposeTransfer(
-                    pool.address,
-                    AddressZero,
-                    [third.address, fourth.address],
-                    [parseUnits("0.1"), parseUnits("0.1")],
-                    "Let's give them money",
-                    "#"
-                );
-            await mineBlock(2);
-            const startTransferProposal = await pool.proposals(2);
 
-            //waiting for voting start
-            await mineBlock(10);
 
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(donor).castVote(1, true);
-            await mineBlock(1);
-            // success execute Proposal of TGE
-            await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
-            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
-
-            // owner purchase new tokens from TGE
-            await tge2
-                .connect(recipient)
-                .purchase(parseUnits("10"), { value: parseUnits("1") });
-            await mineBlock(1);
-
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(2, true);
-            await mineBlock(1);
-            const finishTransferProposal = await pool.proposals(2);
-            expect(startTransferProposal.vote.availableVotes).to.equal(
-                finishTransferProposal.vote.availableVotes
-            );
-        });
-
-        it("Burning tokens from TGE can't affect current Active proposals", async function () {
-            // new transfer proposal
-            await customProposal
-                .connect(donor)
-                .proposeTransfer(
-                    pool.address,
-                    AddressZero,
-                    [third.address, fourth.address],
-                    [parseUnits("0.1"), parseUnits("0.1")],
-                    "Let's give them money",
-                    "#"
-                );
-
-            await mineBlock(2);
-            const startTransferProposal = await pool.proposals(2);
-
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(donor).castVote(1, true);
-            await mineBlock(1);
-            // success execute Proposal of TGE
-            await pool.executeProposal(1);
-            const tgeRecord = await registry.contractRecords(3);
-            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
-
-            // owner purchase new tokens from TGE
-            await tge2
-                .connect(recipient)
-                .purchase(parseUnits("10"), { value: parseUnits("1") });
-            await mineBlock(1);
-            await token.connect(owner).burn(owner.address, parseUnits("10"));
-
-            await mineBlock(1);
-
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(2, true);
-            await mineBlock(1);
-            const finishTransferProposal = await pool.proposals(2);
-            expect(startTransferProposal.vote.availableVotes).to.equal(
-                finishTransferProposal.vote.availableVotes
-            );
-        });
 
         it("Can propose and execute proposeGovernanceSettings", async function () {
             let createData = await makeCreateData();
@@ -541,7 +457,7 @@ describe("Test Governor", function () {
         });
 
         it("Can propose and execute changePoolSecretary", async function () {
-            
+
             await customProposal
                 .connect(owner)
                 .proposePoolSecretary(

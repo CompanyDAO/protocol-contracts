@@ -62,14 +62,18 @@ describe("Test TGE for Preference Tokens", function () {
             second.address,
             third.address,
         ];
-        await service.createPool(...createArgs, {
+        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
             value: parseUnits("0.01"),
         });
-        const record = await registry.contractRecords(0);
+        const record = await registry.contractRecords(1);
+
         pool = await getContractAt("Pool", record.addr);
+
+
+        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
-
         // Finalize TGE
         await tge.purchase(parseUnits("1000"), { value: parseUnits("10") });
         await tge
@@ -122,7 +126,7 @@ describe("Test TGE for Preference Tokens", function () {
             await mineBlock(2);
             await pool.executeProposal(1);
 
-            const tgeRecord = await registry.contractRecords(3);
+            const tgeRecord = await registry.contractRecords(4);
             pTGE = await getContractAt("TGE", tgeRecord.addr);
             pToken = await getContractAt("Token", await pTGE.token());
         });
