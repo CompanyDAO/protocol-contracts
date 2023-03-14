@@ -35,6 +35,11 @@ interface IPool is IGovernorProposals {
         address[] memory removeSecretary
     ) external;
 
+    function changePoolExecutor(
+        address[] memory addExecutor,
+        address[] memory removeExecutor
+    ) external;
+
     function owner() external view returns (address);
 
     function isDAO() external view returns (bool);
@@ -47,7 +52,13 @@ interface IPool is IGovernorProposals {
 
     function tokenExists(IToken token_) external view returns (bool);
 
+    function tokenTypeByAddress(
+        address token_
+    ) external view returns (IToken.TokenType);
+
     function isValidProposer(address account) external view returns (bool);
+
+    function isPoolSecretary(address account) external view returns (bool);
 
     function isLastProposalIdByTypeActive(
         uint256 type_

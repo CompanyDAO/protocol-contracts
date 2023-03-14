@@ -39,6 +39,7 @@ abstract contract GovernorProposals is
         GovernanceSettings
         // 3 - PoolSecretary
         // 4 - CustomTx
+        // 5 - PoolExecutor
     }
 
     /// @notice Storage gap (for future upgrades)

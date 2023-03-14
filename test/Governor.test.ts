@@ -10,6 +10,7 @@ import {
     Token,
     Registry,
     CustomProposal,
+    TGEFactory,
 } from "../typechain-types";
 import Exceptions from "./shared/exceptions";
 import {
@@ -31,7 +32,10 @@ describe("Test Governor", function () {
         recipient: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
-    let service: Service, registry: Registry, customProposal: CustomProposal;
+    let service: Service,
+        registry: Registry,
+        customProposal: CustomProposal,
+        tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -51,6 +55,7 @@ describe("Test Governor", function () {
         registry = await getContract("Registry");
         customProposal = await getContract("CustomProposal");
         token1 = await getContract("ONE");
+        tgeFactory = await getContract("TGEFactory");
 
         // Setup
         await setup();
@@ -63,15 +68,32 @@ describe("Test Governor", function () {
             recipient.address,
             third.address,
         ];
-        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-            value: parseUnits("0.01"),
-        });
+        await service.purchasePool(
+            createArgs[4],
+            createArgs[5],
+            createArgs[2],
+            createArgs[6],
+            {
+                value: parseUnits("0.01"),
+            }
+        );
         const record = await registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
 
-
-        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+        await tgeFactory.createPrimaryTGE(
+            pool.address,
+            {
+                tokenType: 1,
+                cap: createArgs[1],
+                name: createArgs[2],
+                symbol: createArgs[2],
+                description: "",
+                decimals: 18,
+            },
+            createArgs[3],
+            createArgs[8]
+        );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
@@ -99,6 +121,7 @@ describe("Test Governor", function () {
             params: [snapshotId],
         });
     });
+
     describe("Secondary TGE for governance token", async function () {
         this.beforeEach(async function () {
             // Propose secondary TGE
@@ -121,7 +144,9 @@ describe("Test Governor", function () {
             expect(startVotes_donor).to.equal(finishVotes_rec);
             await token.connect(donor).delegate(donor.address);
             await mineBlock(2);
-            expect(await token.getVotes(donor.address)).to.equal(startVotes_donor);
+            expect(await token.getVotes(donor.address)).to.equal(
+                startVotes_donor
+            );
         });
 
         it("Can't vote with tokens delegated after start of voting", async function () {
@@ -159,7 +184,10 @@ describe("Test Governor", function () {
             const VotesTransferDonor = await token.getVotes(donor.address);
             await token
                 .connect(donor)
-                .transfer(recipient.address, await token.balanceOf(donor.address));
+                .transfer(
+                    recipient.address,
+                    await token.balanceOf(donor.address)
+                );
             await token.connect(third).delegate(recipient.address);
 
             // new transfer proposal
@@ -175,14 +203,19 @@ describe("Test Governor", function () {
                 );
             await mineBlock(1);
             await mineBlock(10);
-            await token.connect(recipient).transfer(donor.address, await token.balanceOf(recipient.address));
+            await token
+                .connect(recipient)
+                .transfer(
+                    donor.address,
+                    await token.balanceOf(recipient.address)
+                );
             await mineBlock(1);
 
             //waiting for voting start
 
-            await expect(pool.connect(donor).castVote(2, true)).to.be.revertedWith(
-                Exceptions.ZERO_VOTES
-            );
+            await expect(
+                pool.connect(donor).castVote(2, true)
+            ).to.be.revertedWith(Exceptions.ZERO_VOTES);
             await pool.connect(recipient).castVote(2, true);
             await mineBlock(1);
             const TransferProposal = await pool.proposals(2);
@@ -198,9 +231,9 @@ describe("Test Governor", function () {
 
             await pool.connect(donor).castVote(1, true);
             await mineBlock(2);
-            await expect(pool.connect(donor).castVote(1, true)).to.be.revertedWith(
-                Exceptions.ALREADY_VOTED
-            );
+            await expect(
+                pool.connect(donor).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
         });
 
         it("Can't vote twice on the same proposal in the same block", async function () {
@@ -208,9 +241,9 @@ describe("Test Governor", function () {
             await mineBlock(10);
 
             await pool.connect(donor).castVote(1, true);
-            await expect(pool.connect(donor).castVote(1, true)).to.be.revertedWith(
-                Exceptions.ALREADY_VOTED
-            );
+            await expect(
+                pool.connect(donor).castVote(1, true)
+            ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
         });
 
         it("Ballot BEFORE token transfer eq Ballot AFTER token transfer", async function () {
@@ -224,7 +257,10 @@ describe("Test Governor", function () {
             expect(await tge.transferUnlocked()).to.equal(true);
             await token
                 .connect(donor)
-                .transfer(recipient.address, await token.balanceOf(donor.address));
+                .transfer(
+                    recipient.address,
+                    await token.balanceOf(donor.address)
+                );
             const finishBallot = await pool.getBallot(recipient.address, 1);
             await mineBlock(2);
             expect(startBallot[0]).to.equal(finishBallot[0]);
@@ -275,11 +311,14 @@ describe("Test Governor", function () {
             await pool.connect(donor).castVote(2, true);
             await token
                 .connect(donor)
-                .transfer(recipient.address, await token.balanceOf(donor.address));
+                .transfer(
+                    recipient.address,
+                    await token.balanceOf(donor.address)
+                );
 
-            await expect(pool.connect(donor).castVote(2, true)).to.be.revertedWith(
-                Exceptions.ALREADY_VOTED
-            );
+            await expect(
+                pool.connect(donor).castVote(2, true)
+            ).to.be.revertedWith(Exceptions.ALREADY_VOTED);
 
             await expect(
                 pool.connect(recipient).castVote(2, true)
@@ -294,9 +333,17 @@ describe("Test Governor", function () {
             await mineBlock(10);
             await token
                 .connect(donor)
-                .transfer(recipient.address, await token.balanceOf(donor.address));
+                .transfer(
+                    recipient.address,
+                    await token.balanceOf(donor.address)
+                );
 
-            await token.connect(donor).transfer(recipient.address, await token.balanceOf(donor.address));
+            await token
+                .connect(donor)
+                .transfer(
+                    recipient.address,
+                    await token.balanceOf(donor.address)
+                );
             await expect(
                 pool.connect(recipient).castVote(2, true)
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
@@ -314,7 +361,7 @@ describe("Test Governor", function () {
             );
         });
 
-        it("Executed TGE proposal can't change token cap ", async function () {
+        it("Executed TGE proposal can't change token cap", async function () {
             //waiting for voting start
             await mineBlock(10);
 
@@ -341,7 +388,7 @@ describe("Test Governor", function () {
             await pool.executeProposal(1);
             const tgeRecord = await registry.contractRecords(4);
 
-           
+
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
             // owner purchase new tokens from TGE
@@ -393,15 +440,10 @@ describe("Test Governor", function () {
 
             await mineBlock(2);
 
-
             await expect(
                 pool.connect(recipient).castVote(2, true)
             ).to.be.revertedWith(Exceptions.ZERO_VOTES);
         });
-
-
-
-
 
         it("Can propose and execute proposeGovernanceSettings", async function () {
             let createData = await makeCreateData();
@@ -457,7 +499,6 @@ describe("Test Governor", function () {
         });
 
         it("Can propose and execute changePoolSecretary", async function () {
-
             await customProposal
                 .connect(owner)
                 .proposePoolSecretary(
@@ -476,6 +517,51 @@ describe("Test Governor", function () {
             // success execute Proposal
 
             await pool.executeProposal(2);
+        });
+
+        it("Can propose and execute changePoolExecutor", async function () {
+
+            await customProposal
+                .connect(owner)
+                .proposePoolExecutor(
+                    pool.address,
+                    [third.address],
+                    [],
+                    "description",
+                    "hash"
+                );
+
+            await mineBlock(11);
+
+            await pool.connect(owner).castVote(2, true);
+            await pool.connect(donor).castVote(2, true);
+            await mineBlock(5);
+            // success execute Proposal
+            await pool.executeProposal(2);
+
+            await customProposal
+                .connect(owner)
+                .proposePoolExecutor(
+                    pool.address,
+                    [third.address],
+                    [owner.address],
+                    "description",
+                    "hash"
+                );
+
+            await mineBlock(11);
+
+            await pool.connect(owner).castVote(3, true);
+            await pool.connect(donor).castVote(3, true);
+            await mineBlock(5);
+
+            await expect(
+                pool.connect(donor).executeProposal(3)
+            ).to.be.revertedWith(
+                Exceptions.NOT_VALID_EXECUTOR
+            );
+
+            await pool.connect(third).executeProposal(3);
         });
     });
 });

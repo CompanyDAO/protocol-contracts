@@ -333,6 +333,24 @@
         "inputs": [
             {
                 "internalType": "address[]",
+                "name": "addExecutor",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "removeExecutor",
+                "type": "address[]"
+            }
+        ],
+        "name": "changePoolExecutor",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address[]",
                 "name": "addSecretary",
                 "type": "address[]"
             },
@@ -469,6 +487,19 @@
     },
     {
         "inputs": [],
+        "name": "getPoolExecutor",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "getPoolSecretary",
         "outputs": [
             {
@@ -579,7 +610,45 @@
                 "type": "address"
             }
         ],
+        "name": "isPoolExecutor",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
         "name": "isPoolSecretary",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "isValidExecutor",
         "outputs": [
             {
                 "internalType": "bool",
@@ -1115,6 +1184,76 @@
     {
         "inputs": [
             {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "proposalThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "quorumThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "decisionThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "transferValueForDelay",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256[4]",
+                        "name": "executionDelays",
+                        "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
+                "name": "governanceSettings_",
+                "type": "tuple"
+            },
+            {
+                "internalType": "address[]",
+                "name": "addSecretary",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "removeSecretary",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "addExecutor",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "removeExecutor",
+                "type": "address[]"
+            }
+        ],
+        "name": "setNewSettingsByOwner",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "address",
                 "name": "tge",
                 "type": "address"
@@ -1235,6 +1374,29 @@
             }
         ],
         "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "unitOfAccount",
+                "type": "address"
+            }
+        ],
+        "name": "transferByOwner",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
     },
     {

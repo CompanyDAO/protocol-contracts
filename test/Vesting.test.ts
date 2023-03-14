@@ -10,6 +10,7 @@ import {
     TGE,
     Registry,
     Vesting,
+    TGEFactory,
 } from "../typechain-types";
 
 import { mineBlock } from "./shared/utils";
@@ -24,7 +25,10 @@ describe("Test vesting", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress;
-    let service: Service, registry: Registry, vesting: Vesting;
+    let service: Service,
+        registry: Registry,
+        vesting: Vesting,
+        tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -42,21 +46,39 @@ describe("Test vesting", function () {
         registry = await getContract("Registry");
         vesting = await getContract("Vesting");
         token1 = await getContract("ONE");
+        tgeFactory = await getContract("TGEFactory");
 
         // Setup
         await setup();
 
         // First TGE
         createArgs = await makeCreateData();
-        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-            value: parseUnits("0.01"),
-        });
+        await service.purchasePool(
+            createArgs[4],
+            createArgs[5],
+            createArgs[2],
+            createArgs[6],
+            {
+                value: parseUnits("0.01"),
+            }
+        );
         const record = await registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
 
-
-        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+        await tgeFactory.createPrimaryTGE(
+            pool.address,
+            {
+                tokenType: 1,
+                cap: createArgs[1],
+                name: createArgs[2],
+                symbol: createArgs[2],
+                description: "",
+                decimals: 18,
+            },
+            createArgs[3],
+            createArgs[8]
+        );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));

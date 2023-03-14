@@ -9,9 +9,12 @@ import {
     TGE,
     Token,
     Registry,
+    Invoice,
     CustomProposal,
     TGEFactory,
 } from "../typechain-types";
+
+import { InvoiceCoreStruct } from "../typechain-types/Invoice";
 import Exceptions from "./shared/exceptions";
 import { CreateArgs, makeCreateData } from "./shared/settings";
 import { mineBlock } from "./shared/utils";
@@ -21,7 +24,7 @@ const { getContractAt, getContract, getSigners, provider } = ethers;
 const { parseUnits } = ethers.utils;
 const { AddressZero } = ethers.constants;
 
-describe("Test custom proposals", function () {
+describe("Test Invoice", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         third: SignerWithAddress,
@@ -29,6 +32,7 @@ describe("Test custom proposals", function () {
     let service: Service,
         Registry: Registry,
         customProposal: CustomProposal,
+        invoice: Invoice,
         tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
@@ -46,8 +50,10 @@ describe("Test custom proposals", function () {
         // Get contracts
         service = await getContract("Service");
         Registry = await getContract("Registry");
+
         token1 = await getContract("ONE");
         customProposal = await getContract("CustomProposal");
+        invoice = await getContract("Invoice");
         tgeFactory = await getContract("TGEFactory");
         // Setup
         await setup();
@@ -55,18 +61,13 @@ describe("Test custom proposals", function () {
         // Create TGE
         createArgs = await makeCreateData();
         createArgs[3].userWhitelist = [owner.address, other.address, third.address];
-        await service.purchasePool(
-            createArgs[4],
-            createArgs[5],
-            createArgs[2],
-            createArgs[6],
-            {
-                value: parseUnits("0.01"),
-            }
-        );
+        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
+            value: parseUnits("0.01"),
+        });
         const record = await Registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
+
 
         await tgeFactory.createPrimaryTGE(
             pool.address,
@@ -81,7 +82,6 @@ describe("Test custom proposals", function () {
             createArgs[3],
             createArgs[8]
         );
-
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
 
@@ -110,58 +110,95 @@ describe("Test custom proposals", function () {
         });
     });
 
-    describe("Transfer ETH", function () {
+    describe("Create invoice ETH", function () {
         this.beforeEach(async function () {
-            tx = await customProposal
-                .connect(other)
-                .proposeTransfer(
-                    pool.address,
-                    AddressZero,
-                    [third.address, fourth.address],
-                    [parseUnits("0.1"), parseUnits("0.1")],
-                    "Let's give them money",
-                    "#"
-                );
-        });
 
-        it("Getting/Setting GlobalProposalId works", async function () {
-            await customProposal
-                .connect(other)
-                .proposeTransfer(
-                    pool.address,
-                    AddressZero,
-                    [third.address, fourth.address],
-                    [parseUnits("0.1"), parseUnits("0.1")],
-                    "Let's give them money",
-                    "#"
-                );
-
-            expect(await Registry.getGlobalProposalId(pool.address, 1)).to.equal(0);
-            expect(await Registry.getGlobalProposalId(pool.address, 2)).to.equal(1);
-        });
-
-        it("Executing succeeded transfer proposals should work", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-            await owner.sendTransaction({
-                to: pool.address,
-                value: parseUnits("10"),
-            });
-
-            const thirdBefore = await provider.getBalance(third.address);
-            const fourthBefore = await provider.getBalance(fourth.address);
-            await pool.executeProposal(1);
-            const thirdAfter = await provider.getBalance(third.address);
-            const fourthAfter = await provider.getBalance(fourth.address);
-            expect(await provider.getBalance(pool.address)).to.equal(
-                parseUnits("9.8")
+            await service.grantRole(
+                await service.SERVICE_MANAGER_ROLE(),
+                owner.address
             );
-            expect(thirdAfter.sub(thirdBefore)).to.equal(parseUnits("0.1"));
-            expect(fourthAfter.sub(fourthBefore)).to.equal(parseUnits("0.1"));
+            await mineBlock(1);
+
+            let invoiceCore: InvoiceCoreStruct = {
+                amount: parseUnits("0.01"),
+                unitOfAccount: AddressZero,
+                expirationBlock: 100,
+                description: "descr",
+                whitelist: [owner.address]
+            };
+            tx = await invoice
+                .createInvoice(
+                    pool.address,
+                    invoiceCore
+                );
         });
+
+
+        it("Can get invoice info ", async function () {
+
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(1);
+
+            expect(
+                await (await invoice.invoices(pool.address, 0)).core.amount
+            ).to.equal(parseUnits("0.01"));
+
+
+
+        });
+
+        it("Can pay invoice", async function () {
+            await expect(invoice.connect(third).payInvoice(pool.address, 0)).to.be.revertedWith(
+                Exceptions.NOT_WHITELISTED
+            );
+            await invoice.payInvoice(pool.address, 0, { value: parseUnits("0.01") });
+            await expect(invoice.payInvoice(pool.address, 0)).to.be.revertedWith(
+                Exceptions.WRONG_STATE
+            );
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(2);
+
+            await expect(invoice.payInvoice(pool.address, 1)).to.be.revertedWith(
+                Exceptions.WRONG_STATE
+            );
+        });
+
+        it("Can cancel invoice", async function () {
+            await invoice.cancelInvoice(pool.address, 0);
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(4);
+        });
+
+        it("Can't pay expired invoice", async function () {
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(1);
+            await mineBlock(120);
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(3);
+            await expect(invoice.payInvoice(pool.address, 0)).to.be.revertedWith(
+                Exceptions.WRONG_STATE
+            );
+        });
+
+        it("Service manager can set invoicePaid", async function () {
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(1);
+
+            await invoice.setInvoicePaid(pool.address, 0)
+
+            expect(
+                await invoice.invoiceState(pool.address, 0)
+            ).to.equal(2);
+            await mineBlock(120);
+
+        });
+
     });
+
 });

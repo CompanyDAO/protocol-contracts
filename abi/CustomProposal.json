@@ -106,19 +106,6 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "Service",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
         "inputs": [
             {
                 "internalType": "bytes32",
@@ -353,6 +340,45 @@
             },
             {
                 "internalType": "address[]",
+                "name": "addExecutor",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "removeExecutor",
+                "type": "address[]"
+            },
+            {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "metaHash",
+                "type": "string"
+            }
+        ],
+        "name": "proposePoolExecutor",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "proposalId",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "internalType": "address[]",
                 "name": "addSecretary",
                 "type": "address[]"
             },
@@ -495,7 +521,7 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfoV2",
+                "internalType": "struct ITGE.TGEInfo",
                 "name": "tgeInfo",
                 "type": "tuple"
             },
@@ -641,6 +667,19 @@
         "name": "revokeRole",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "service",
+        "outputs": [
+            {
+                "internalType": "contract IService",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {

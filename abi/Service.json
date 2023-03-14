@@ -225,31 +225,6 @@
             {
                 "indexed": false,
                 "internalType": "address",
-                "name": "pool",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "tge",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "token",
-                "type": "address"
-            }
-        ],
-        "name": "SecondaryTGECreated",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
                 "name": "account",
                 "type": "address"
             }
@@ -412,302 +387,6 @@
             }
         ],
         "name": "createPool",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "pool_address",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "tokenCap",
-                "type": "uint256"
-            },
-            {
-                "internalType": "string",
-                "name": "tokenName",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "tokenSymbol",
-                "type": "string"
-            },
-            {
-                "components": [
-                    {
-                        "internalType": "uint256",
-                        "name": "price",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "hardcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "softcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "minPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "maxPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "duration",
-                        "type": "uint256"
-                    },
-                    {
-                        "components": [
-                            {
-                                "internalType": "uint256",
-                                "name": "vestedShare",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "cliff",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "cliffShare",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "spans",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "spanDuration",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "spanShare",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "claimTVL",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "address[]",
-                                "name": "resolvers",
-                                "type": "address[]"
-                            }
-                        ],
-                        "internalType": "struct IVesting.VestingParams",
-                        "name": "vestingParams",
-                        "type": "tuple"
-                    },
-                    {
-                        "internalType": "address[]",
-                        "name": "userWhitelist",
-                        "type": "address[]"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "unitOfAccount",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupTVL",
-                        "type": "uint256"
-                    }
-                ],
-                "internalType": "struct ITGE.TGEInfoV2",
-                "name": "tgeInfo",
-                "type": "tuple"
-            },
-            {
-                "internalType": "string",
-                "name": "metadataURI",
-                "type": "string"
-            }
-        ],
-        "name": "createPrimaryTGE",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "contract IToken",
-                "name": "token",
-                "type": "address"
-            },
-            {
-                "components": [
-                    {
-                        "internalType": "uint256",
-                        "name": "price",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "hardcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "softcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "minPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "maxPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "duration",
-                        "type": "uint256"
-                    },
-                    {
-                        "components": [
-                            {
-                                "internalType": "uint256",
-                                "name": "vestedShare",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "cliff",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "cliffShare",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "spans",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "spanDuration",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "spanShare",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "uint256",
-                                "name": "claimTVL",
-                                "type": "uint256"
-                            },
-                            {
-                                "internalType": "address[]",
-                                "name": "resolvers",
-                                "type": "address[]"
-                            }
-                        ],
-                        "internalType": "struct IVesting.VestingParams",
-                        "name": "vestingParams",
-                        "type": "tuple"
-                    },
-                    {
-                        "internalType": "address[]",
-                        "name": "userWhitelist",
-                        "type": "address[]"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "unitOfAccount",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupTVL",
-                        "type": "uint256"
-                    }
-                ],
-                "internalType": "struct ITGE.TGEInfoV2",
-                "name": "tgeInfo",
-                "type": "tuple"
-            },
-            {
-                "components": [
-                    {
-                        "internalType": "enum IToken.TokenType",
-                        "name": "tokenType",
-                        "type": "uint8"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "name",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "symbol",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "description",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "cap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint8",
-                        "name": "decimals",
-                        "type": "uint8"
-                    }
-                ],
-                "internalType": "struct IToken.TokenInfo",
-                "name": "tokenInfo",
-                "type": "tuple"
-            },
-            {
-                "internalType": "string",
-                "name": "metadataURI",
-                "type": "string"
-            }
-        ],
-        "name": "createSecondaryTGE",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -989,6 +668,37 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "contract ITokenFactory",
+                "name": "tokenFactory_",
+                "type": "address"
+            },
+            {
+                "internalType": "contract ITGEFactory",
+                "name": "tgeFactory_",
+                "type": "address"
+            }
+        ],
+        "name": "initializeFactories",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "invoice",
+        "outputs": [
+            {
+                "internalType": "contract IInvoice",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "pause",
         "outputs": [],
@@ -1196,6 +906,19 @@
     {
         "inputs": [
             {
+                "internalType": "contract IInvoice",
+                "name": "_invoice",
+                "type": "address"
+            }
+        ],
+        "name": "setInvoice",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "address",
                 "name": "beacon",
                 "type": "address"
@@ -1336,10 +1059,36 @@
     },
     {
         "inputs": [],
+        "name": "tgeFactory",
+        "outputs": [
+            {
+                "internalType": "contract ITGEFactory",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "tokenBeacon",
         "outputs": [
             {
                 "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "tokenFactory",
+        "outputs": [
+            {
+                "internalType": "contract ITokenFactory",
                 "name": "",
                 "type": "address"
             }
@@ -1469,7 +1218,7 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfoV2",
+                "internalType": "struct ITGE.TGEInfo",
                 "name": "info",
                 "type": "tuple"
             },

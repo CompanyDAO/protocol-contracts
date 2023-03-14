@@ -217,86 +217,6 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfoV2",
-                "name": "",
-                "type": "tuple"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "getInfoV1",
-        "outputs": [
-            {
-                "components": [
-                    {
-                        "internalType": "uint256",
-                        "name": "price",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "hardcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "softcap",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "minPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "maxPurchase",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingPercent",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "vestingTVL",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "duration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "address[]",
-                        "name": "userWhitelist",
-                        "type": "address[]"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "unitOfAccount",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupDuration",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "lockupTVL",
-                        "type": "uint256"
-                    }
-                ],
                 "internalType": "struct ITGE.TGEInfo",
                 "name": "",
                 "type": "tuple"
@@ -366,74 +286,6 @@
     {
         "inputs": [],
         "name": "info",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "price",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "hardcap",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "softcap",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "minPurchase",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "maxPurchase",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "vestingPercent",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "vestingDuration",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "vestingTVL",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "duration",
-                "type": "uint256"
-            },
-            {
-                "internalType": "address",
-                "name": "unitOfAccount",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "lockupDuration",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "lockupTVL",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "infoV2",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -534,8 +386,13 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "service",
+                "type": "address"
+            },
+            {
                 "internalType": "contract IToken",
-                "name": "_token",
+                "name": "token_",
                 "type": "address"
             },
             {
@@ -638,8 +495,8 @@
                         "type": "uint256"
                     }
                 ],
-                "internalType": "struct ITGE.TGEInfoV2",
-                "name": "_info",
+                "internalType": "struct ITGE.TGEInfo",
+                "name": "info_",
                 "type": "tuple"
             },
             {

@@ -10,6 +10,7 @@ import {
     Token,
     Registry,
     CustomProposal,
+    TGEFactory,
 } from "../typechain-types";
 import Exceptions from "./shared/exceptions";
 import {
@@ -31,7 +32,10 @@ describe("Test TGE for Preference Tokens", function () {
         second: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
-    let service: Service, registry: Registry, customProposal: CustomProposal;
+    let service: Service,
+        registry: Registry,
+        customProposal: CustomProposal,
+        tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -51,6 +55,8 @@ describe("Test TGE for Preference Tokens", function () {
         registry = await getContract("Registry");
         token1 = await getContract("ONE");
         customProposal = await getContract("CustomProposal");
+        tgeFactory = await getContract("TGEFactory");
+
         // Setup
         await setup();
 
@@ -62,15 +68,32 @@ describe("Test TGE for Preference Tokens", function () {
             second.address,
             third.address,
         ];
-        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-            value: parseUnits("0.01"),
-        });
+        await service.purchasePool(
+            createArgs[4],
+            createArgs[5],
+            createArgs[2],
+            createArgs[6],
+            {
+                value: parseUnits("0.01"),
+            }
+        );
         const record = await registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
 
-
-        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+        await tgeFactory.createPrimaryTGE(
+            pool.address,
+            {
+                tokenType: 1,
+                cap: createArgs[1],
+                name: createArgs[2],
+                symbol: createArgs[2],
+                description: "",
+                decimals: 18,
+            },
+            createArgs[3],
+            createArgs[8]
+        );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
@@ -199,7 +222,9 @@ describe("Test TGE for Preference Tokens", function () {
             expect(await pToken.name()).to.equal("Preference DAO");
             expect(await pToken.symbol()).to.equal("PDAO");
             expect(await pToken.decimals()).to.equal(6);
-            expect(await pToken.description()).to.equal("This is a preference token");
+            expect(await pToken.description()).to.equal(
+                "This is a preference token"
+            );
         });
 
         it("Can create several Preference Tokens TGE", async function () {
@@ -231,10 +256,15 @@ describe("Test TGE for Preference Tokens", function () {
 
             expect(preferenceTokens.length).to.equal(2);
 
-            let pTokenSecond = await getContractAt("Token", preferenceTokens[1]);
+            let pTokenSecond = await getContractAt(
+                "Token",
+                preferenceTokens[1]
+            );
 
             // Check values
-            expect(await pTokenSecond.name()).to.equal("Preference DAO UPD Second");
+            expect(await pTokenSecond.name()).to.equal(
+                "Preference DAO UPD Second"
+            );
             expect(await pTokenSecond.symbol()).to.equal("PDAOUPD2");
         });
     });

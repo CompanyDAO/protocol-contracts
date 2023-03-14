@@ -8,6 +8,7 @@ import {
     TGE,
     Token,
     Registry,
+    TGEFactory,
 } from "../typechain-types";
 import { CreateArgs, makeCreateData } from "./shared/settings";
 import Exceptions from "./shared/exceptions";
@@ -22,7 +23,7 @@ describe("Test Registry", function () {
         donor: SignerWithAddress,
         recipient: SignerWithAddress,
         third: SignerWithAddress;
-    let service: Service, registry: Registry;
+    let service: Service, registry: Registry, tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -39,6 +40,7 @@ describe("Test Registry", function () {
         service = await getContract("Service");
         registry = await getContract("Registry");
         token1 = await getContract("ONE");
+        tgeFactory = await getContract("TGEFactory");
 
         // Setup
         await setup();
@@ -52,20 +54,35 @@ describe("Test Registry", function () {
             third.address,
         ];
 
-        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-            value: parseUnits("0.01"),
-        });
+        await service.purchasePool(
+            createArgs[4],
+            createArgs[5],
+            createArgs[2],
+            createArgs[6],
+            {
+                value: parseUnits("0.01"),
+            }
+        );
         const record = await registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
 
-
-        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+        await tgeFactory.createPrimaryTGE(
+            pool.address,
+            {
+                tokenType: 1,
+                cap: createArgs[1],
+                name: createArgs[2],
+                symbol: createArgs[2],
+                description: "",
+                decimals: 18,
+            },
+            createArgs[3],
+            createArgs[8]
+        );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
-
-
 
         // Finalize TGE
         await tge.purchase(parseUnits("1000"), { value: parseUnits("10") });
@@ -92,8 +109,6 @@ describe("Test Registry", function () {
         });
     });
     describe("Company Registry", async function () {
-
-
         it("Can create company, read and delete company", async function () {
             await registry.createCompany({
                 jurisdiction: 1,
@@ -106,11 +121,11 @@ describe("Test Registry", function () {
             const companyInfo = await registry.getCompany(1, 1, "EIN4");
             expect(companyInfo.dateOfIncorporation).to.equal("01.01.2023");
 
-            expect(await (await registry.getCompanyDocument(1, 1, "EIN4", 0)).toString()).to.equal("");
+            const availableCompanyAddress = await registry.getAvailableCompanyAddress(1, 1);
 
-            await registry.updateCompanyDocument(1, 1, "EIN4", 0, "ipfs://url3");
+            expect(availableCompanyAddress).to.equal("0xEE4c7dFE0341C0E481D827210414FcC561099590");
 
-            expect(await (await registry.getCompanyDocument(1, 1, "EIN4", 0)).toString()).to.equal("ipfs://url3");
+
 
             //Delete companies
             await registry.deleteCompany(1, 1, 1);
@@ -123,7 +138,6 @@ describe("Test Registry", function () {
         expect(companyInfo.dateOfIncorporation).to.equal("01.01.2023");
     });
     it("Can read count getters", async function () {
-
         expect(await registry.contractRecordsCount()).to.equal(4);
         expect(await registry.proposalRecordsCount()).to.equal(0);
         expect(await registry.eventRecordsCount()).to.equal(1);
@@ -137,18 +151,16 @@ describe("Test Registry", function () {
             entityType: 1,
             fee: parseUnits("0.01"),
         });
-        await registry.updateCompanyFee(1, 1, 1, parseUnits("0.02"))
+        await registry.updateCompanyFee(1, 1, 1, parseUnits("0.02"));
         const companyInfo = await registry.getCompany(1, 1, "EIN4");
         expect(companyInfo.fee).to.equal(parseUnits("0.02"));
     });
-
 
     it("Can whitelistTokens", async function () {
         await registry.whitelistTokens([token.address]);
 
         expect(await registry.isTokenWhitelisted(token.address)).to.equal(true);
     });
-
 
     it("Can getPoolSecretary", async function () {
         expect(await (await pool.getPoolSecretary()).length).to.equal(0);
@@ -164,33 +176,39 @@ describe("Test Registry", function () {
         await service.unpause();
     });
 
-
     it("Can setPoolBeacon", async function () {
         await service.setPoolBeacon(pool.address);
-        await expect(service.connect(third).setPoolBeacon(pool.address)).to.be.reverted;
+        await expect(service.connect(third).setPoolBeacon(pool.address)).to.be
+            .reverted;
     });
 
     it("Can setTGEBeacon", async function () {
         await service.setTGEBeacon(tge.address);
-        await expect(service.connect(third).setTGEBeacon(tge.address)).to.be.reverted;
+        await expect(service.connect(third).setTGEBeacon(tge.address)).to.be
+            .reverted;
     });
 
     it("Can setTokenBeacon", async function () {
         await service.setTokenBeacon(token.address);
-        await expect(service.connect(third).setTokenBeacon(token.address)).to.be.reverted;
+        await expect(service.connect(third).setTokenBeacon(token.address)).to.be
+            .reverted;
     });
 
     it("Can setVesting", async function () {
         await service.setVesting(token.address);
-        await expect(service.connect(third).setVesting(token.address)).to.be.reverted;
+        await expect(service.connect(third).setVesting(token.address)).to.be
+            .reverted;
     });
 
     it("Can setCustomProposal", async function () {
         await service.setCustomProposal(token.address);
-        await expect(service.connect(third).setCustomProposal(token.address)).to.be.reverted;
+        await expect(service.connect(third).setCustomProposal(token.address)).to
+            .be.reverted;
     });
 
     it("Can getMaxHardCap", async function () {
-        expect(await (await service.getMaxHardCap(pool.address)).toString()).to.equal("9999000000000000000000");
+        expect(
+            await (await service.getMaxHardCap(pool.address)).toString()
+        ).to.equal("9999000000000000000000");
     });
 });

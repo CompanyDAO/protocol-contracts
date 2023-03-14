@@ -10,6 +10,7 @@ import {
     Token,
     Registry,
     CustomProposal,
+    TGEFactory,
 } from "../typechain-types";
 import Exceptions from "./shared/exceptions";
 import { CreateArgs, makeCreateData } from "./shared/settings";
@@ -25,7 +26,10 @@ describe("Test transfer proposals", function () {
         other: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
-    let service: Service, Registry: Registry, customProposal: CustomProposal;
+    let service: Service,
+        Registry: Registry,
+        customProposal: CustomProposal,
+        tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
@@ -44,21 +48,52 @@ describe("Test transfer proposals", function () {
         Registry = await getContract("Registry");
         token1 = await getContract("ONE");
         customProposal = await getContract("CustomProposal");
+        tgeFactory = await getContract("TGEFactory");
+
         // Setup
         await setup();
 
         // Create TGE
         createArgs = await makeCreateData();
-        createArgs[3].userWhitelist = [owner.address, other.address, third.address];
-        await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-            value: parseUnits("0.01"),
-        });
+        createArgs[3].userWhitelist = [
+            owner.address,
+            other.address,
+            third.address,
+        ];
+        await service.purchasePool(
+            createArgs[4],
+            createArgs[5],
+            createArgs[2],
+            createArgs[6],
+            {
+                value: parseUnits("0.01"),
+            }
+        );
+        await mineBlock(1);
         const record = await Registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
+        await pool.setNewSettingsByOwner(
+            createArgs[6],
+            [owner.address],
+            [],
+            [owner.address],
+            []
+        );
 
-
-        await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+        await tgeFactory.createPrimaryTGE(
+            pool.address,
+            {
+                tokenType: 1,
+                cap: createArgs[1],
+                name: createArgs[2],
+                symbol: createArgs[2],
+                description: "",
+                decimals: 18,
+            },
+            createArgs[3],
+            createArgs[8]
+        );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
         tge = await getContractAt("TGE", await token.tgeList(0));
@@ -131,7 +166,7 @@ describe("Test transfer proposals", function () {
             await mineBlock(2);
 
             await expect(pool.connect(other).executeProposal(1)).to.be.revertedWith(
-                Exceptions.INVALID_USER
+                Exceptions.NOT_VALID_EXECUTOR
             );
         });
 
@@ -210,8 +245,12 @@ describe("Test transfer proposals", function () {
             await token1.transfer(pool.address, parseUnits("100"));
 
             await pool.executeProposal(1);
-            expect(await token1.balanceOf(pool.address)).to.equal(parseUnits("90"));
-            expect(await token1.balanceOf(third.address)).to.equal(parseUnits("10"));
+            expect(await token1.balanceOf(pool.address)).to.equal(
+                parseUnits("90")
+            );
+            expect(await token1.balanceOf(third.address)).to.equal(
+                parseUnits("10")
+            );
         });
     });
 });

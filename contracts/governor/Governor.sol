@@ -197,11 +197,10 @@ abstract contract Governor {
      * @return ballot Vote type
      * @return votes Number of votes cast
      */
-    function getBallot(address account, uint256 proposalId)
-        public
-        view
-        returns (Ballot ballot, uint256 votes)
-    {
+    function getBallot(
+        address account,
+        uint256 proposalId
+    ) public view returns (Ballot ballot, uint256 votes) {
         if (proposals[proposalId].vote.startBlock - 1 < block.number)
             return (
                 ballots[account][proposalId],

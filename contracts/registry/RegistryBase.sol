@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "../libraries/ExceptionsLibrary.sol";
+import "../interfaces/IService.sol";
 
 abstract contract RegistryBase is AccessControlEnumerableUpgradeable {
     // STORAGE
@@ -18,6 +19,16 @@ abstract contract RegistryBase is AccessControlEnumerableUpgradeable {
         _;
     }
 
+    modifier onlyServiceOrFactory() {
+        bool isService = msg.sender == service;
+        bool isFactory = msg.sender ==
+            address(IService(service).tokenFactory()) ||
+            msg.sender == address(IService(service).tgeFactory());
+
+        require(isService || isFactory, ExceptionsLibrary.NOT_SERVICE);
+        _;
+    }
+
     // INITIALIZER
 
     function __RegistryBase_init() internal onlyInitializing {
@@ -26,10 +37,9 @@ abstract contract RegistryBase is AccessControlEnumerableUpgradeable {
 
     // PUBLIC FUNCTIONS
 
-    function setService(address service_)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setService(
+        address service_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         service = service_;
     }
 }
