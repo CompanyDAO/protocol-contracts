@@ -20,70 +20,81 @@ import "./tasks";
 dotenv.config();
 
 const networkConfig = (url: string | null | undefined) => ({
-    url: url || "",
-    accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+  url: url || "",
+  accounts:
+    process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
 });
 
 const config: HardhatUserConfig = {
-    solidity: {
-        compilers: [
-            {
-                version: "0.8.17",
-                settings: {
-                    optimizer: {
-                        enabled: true,
-                        runs: 200,
-                    },
-                },
-            },
-        ],
-    },
-    namedAccounts: {
-        deployer: {
-            default: 0,
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
         },
+      },
+    ],
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
     },
-    networks: {
-        hardhat: {
-            chainId: 1337,
-            /*forking: {
+  },
+  networks: {
+    hardhat: {
+      chainId: 1337,
+      /*forking: {
                 url: process.env.FORKING_RPC_URL!,
                 blockNumber: 15050841,
             },*/
-        },
-        mainnet: { ...networkConfig(process.env.MAINNET_RPC_URL!) },
-        goerli: { ...networkConfig(process.env.GOERLI_RPC_URL!) },
     },
-    gasReporter: {
-        enabled: process.env.REPORT_GAS !== undefined,
-        currency: "USD",
-    },
-    docgen: {},
+    mainnet: { ...networkConfig(process.env.MAINNET_RPC_URL!) },
+    goerli: { ...networkConfig(process.env.GOERLI_RPC_URL!) },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+  },
+  docgen: {},
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  spdxLicenseIdentifier: {
+    overwrite: true,
+    //runOnCompile: true,
+  },
+  verify: {
     etherscan: {
-        apiKey: process.env.ETHERSCAN_API_KEY,
+      apiKey: process.env.ETHERSCAN_API_KEY,
     },
-    spdxLicenseIdentifier: {
-        overwrite: true,
-        //runOnCompile: true,
-    },
-    verify: {
-        etherscan: {
-            apiKey: process.env.ETHERSCAN_API_KEY,
-        },
-    },
-    dependencyCompiler: {
-        paths: ["@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol"],
-    },
-    abiExporter: {
-        path: "./abi",
-        runOnCompile: true,
-        format: "json",
-        clear: true,
-        flat: true,
-        spacing: 4,
-        only: [":Registry$", ":Service$", ":Pool$", ":TGE$", ":Token$", ":Vesting$", ":CustomProposal$"],
-    },
+  },
+  dependencyCompiler: {
+    paths: ["@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol"],
+  },
+  abiExporter: {
+    path: "./abi",
+    runOnCompile: true,
+    format: "json",
+    clear: true,
+    flat: true,
+    spacing: 4,
+    only: [
+      ":Registry$",
+      ":Service$",
+      ":Pool$",
+      ":TGE$",
+      ":Token$",
+      ":Vesting$",
+      ":CustomProposal$",
+      ":Invoice$",
+      ":TGEFactory$",
+      ":TokenFactory$",
+    ],
+  },
 };
 
 export default config;

@@ -27,6 +27,7 @@ contract Pool is
     IPool
 {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
     /// @dev The company's trade mark, label, brand name. It also acts as the Name of all the Governance tokens created for this pool.
     string public trademark;
 
@@ -57,6 +58,9 @@ contract Pool is
     /// @dev mapping for proposalId to TGE address
     mapping(uint256 => address) public proposalIdToTGE;
 
+    /// @dev pool executor list
+    EnumerableSetUpgradeable.AddressSet poolExecutor;
+
     // EVENTS
 
     /**
@@ -66,9 +70,18 @@ contract Pool is
     event Received(uint256 amount);
 
     // MODIFIER
+
     /// @dev Is executed when the main contract is applied. It is used to transfer control of Registry and deployable user contracts for the final configuration of the company.
     modifier onlyService() {
         require(msg.sender == address(service), ExceptionsLibrary.NOT_SERVICE);
+        _;
+    }
+
+    modifier onlyTGEFactory() {
+        require(
+            msg.sender == address(service.tgeFactory()),
+            ExceptionsLibrary.NOT_TGE_FACTORY
+        );
         _;
     }
 
@@ -86,15 +99,10 @@ contract Pool is
     }
 
     modifier onlyExecutor(uint256 proposalId) {
-        if (
-            proposals[proposalId].meta.proposalType ==
-            IRecordsRegistry.EventType.Transfer
-        ) {
-            require(
-                service.hasRole(service.EXECUTOR_ROLE(), msg.sender),
-                ExceptionsLibrary.INVALID_USER
-            );
-        }
+        require(
+            isValidExecutor(msg.sender),
+            ExceptionsLibrary.NOT_VALID_EXECUTOR
+        );
         _;
     }
 
@@ -125,10 +133,9 @@ contract Pool is
      * @dev Initialization of a new pool and placement of user settings and data (including legal ones) in it
      * @param companyInfo_ Company info
      */
-    function initialize(IRegistry.CompanyInfo memory companyInfo_)
-        external
-        initializer
-    {
+    function initialize(
+        IRegistry.CompanyInfo memory companyInfo_
+    ) external initializer {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -146,10 +153,42 @@ contract Pool is
         address newowner,
         string memory trademark_,
         NewGovernanceSettings memory governanceSettings_
-    ) external onlyOwner {
+    ) external onlyService {
         _transferOwnership(address(newowner));
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
+    }
+
+    /**
+     * @dev set New Owner With Settings after company purchased
+     * @param governanceSettings_ governance Settings
+     * @param addSecretary secretary address list
+     * @param addExecutor executor address list
+     */
+    function setNewSettingsByOwner(
+        NewGovernanceSettings memory governanceSettings_,
+        address[] memory addSecretary,
+        address[] memory removeSecretary,
+        address[] memory addExecutor,
+        address[] memory removeExecutor
+    ) external onlyOwner {
+        if (address(getGovernanceToken()) != address(0)) {
+            require(!isDAO(), ExceptionsLibrary.IS_DAO);
+            require(
+                ITGE(getGovernanceToken().lastTGE()).state() !=
+                    ITGE.State.Active,
+                ExceptionsLibrary.ACTIVE_TGE_EXISTS
+            );
+        }
+
+        _setGovernanceSettings(governanceSettings_);
+
+        if (addSecretary.length > 0 || removeSecretary.length > 0) {
+            IPool(this).changePoolSecretary(addSecretary, removeSecretary);
+        }
+        if (addExecutor.length > 0 || removeExecutor.length > 0) {
+            IPool(this).changePoolExecutor(addExecutor, removeExecutor);
+        }
     }
 
     // RECEIVE
@@ -165,11 +204,10 @@ contract Pool is
      * @param proposalId Pool proposal ID
      * @param support Against or for
      */
-    function castVote(uint256 proposalId, bool support)
-        external
-        nonReentrant
-        whenNotPaused
-    {
+    function castVote(
+        uint256 proposalId,
+        bool support
+    ) external nonReentrant whenNotPaused {
         _castVote(proposalId, support);
     }
 
@@ -180,10 +218,10 @@ contract Pool is
      * @param token_ Token address
      * @param tokenType_ Token type
      */
-    function setToken(address token_, IToken.TokenType tokenType_)
-        external
-        onlyService
-    {
+    function setToken(
+        address token_,
+        IToken.TokenType tokenType_
+    ) external onlyTGEFactory {
         require(token_ != address(0), ExceptionsLibrary.ADDRESS_ZERO);
         if (tokenExists(IToken(token_))) return;
         if (tokenType_ == IToken.TokenType.Governance) {
@@ -207,7 +245,7 @@ contract Pool is
      * @dev set value to mapping Proposal IdTo TGE
      * @param tge tge address
      */
-    function setProposalIdToTGE(address tge) external onlyService {
+    function setProposalIdToTGE(address tge) external onlyTGEFactory {
         proposalIdToTGE[lastExecutedProposalId] = tge;
     }
 
@@ -215,11 +253,9 @@ contract Pool is
      * @dev Execute proposal
      * @param proposalId Proposal ID
      */
-    function executeProposal(uint256 proposalId)
-        external
-        whenNotPaused
-        onlyExecutor(proposalId)
-    {
+    function executeProposal(
+        uint256 proposalId
+    ) external whenNotPaused onlyExecutor(proposalId) {
         lastExecutedProposalId = proposalId;
         _executeProposal(proposalId, service);
     }
@@ -286,7 +322,7 @@ contract Pool is
     function changePoolSecretary(
         address[] memory addSecretary,
         address[] memory removeSecretary
-    ) external onlyPool {
+    ) public onlyPool {
         for (uint256 i = 0; i < addSecretary.length; i++) {
             poolSecretary.add(addSecretary[i]);
         }
@@ -297,13 +333,69 @@ contract Pool is
         }
     }
 
+    /**
+     * @dev changePoolExecutor
+     * @param addExecutor array of addresses to add to the PoolExecutor role
+     * @param removeExecutor array of addresses to remove to the PoolExecutor role
+     */
+    function changePoolExecutor(
+        address[] memory addExecutor,
+        address[] memory removeExecutor
+    ) public onlyPool {
+        for (uint256 i = 0; i < addExecutor.length; i++) {
+            poolExecutor.add(addExecutor[i]);
+        }
+        if (poolExecutor.length() > 0) {
+            for (uint256 i = 0; i < removeExecutor.length; i++) {
+                poolExecutor.remove(removeExecutor[i]);
+            }
+        }
+    }
+
+    /**
+     * @dev Transfers funds from treasury if the pool is not yeta  DAO
+     * @param to receiver addresss
+     * @param amount transfer amount
+     * @param unitOfAccount unitOfAccount (token contract address or address(0) for eth)
+     */
+    function transferByOwner(
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) external onlyOwner {
+        //only if pool is yet DAO
+        require(!isDAO(), ExceptionsLibrary.IS_DAO);
+
+        if (unitOfAccount == address(0)) {
+            require(
+                address(this).balance >= amount,
+                ExceptionsLibrary.WRONG_AMOUNT
+            );
+
+            (bool success, ) = payable(to).call{value: amount}("");
+            require(success, ExceptionsLibrary.WRONG_AMOUNT);
+        } else {
+            require(
+                IERC20Upgradeable(unitOfAccount).balanceOf(address(this)) >=
+                    amount,
+                ExceptionsLibrary.WRONG_AMOUNT
+            );
+
+            IERC20Upgradeable(unitOfAccount).safeTransferFrom(
+                msg.sender,
+                to,
+                amount
+            );
+        }
+    }
+
     // PUBLIC VIEW FUNCTIONS
 
     /**
      * @dev Getter showing whether this company has received the status of a DAO as a result of the successful completion of the primary TGE (that is, launched by the owner of the company and with the creation of a new Governance token). After receiving the true status, it is not transferred back. This getter is responsible for the basic logic of starting a contract as managed by token holders.
      * @return Is any governance TGE successful
      */
-    function isDAO() external view returns (bool) {
+    function isDAO() public view returns (bool) {
         return getGovernanceToken().isPrimaryTGESuccessful();
     }
 
@@ -321,11 +413,9 @@ contract Pool is
     }
 
     /// @dev This getter is needed in order to return a Token contract addresses depending on the type of token requested (Governance or Preference).
-    function getTokens(IToken.TokenType tokenType)
-        external
-        view
-        returns (address[] memory)
-    {
+    function getTokens(
+        IToken.TokenType tokenType
+    ) external view returns (address[] memory) {
         return tokensFullList[tokenType];
     }
 
@@ -350,27 +440,47 @@ contract Pool is
         return poolSecretary.values();
     }
 
+    /// @dev This getter to show list of current pool executor
+    function getPoolExecutor() external view returns (address[] memory) {
+        return poolExecutor.values();
+    }
+
     /// @dev This getter shows if address is pool Secretary
     function isPoolSecretary(address account) public view returns (bool) {
         return poolSecretary.contains(account);
+    }
+
+    /// @dev This getter shows if address is pool executor
+    function isPoolExecutor(address account) public view returns (bool) {
+        return poolExecutor.contains(account);
     }
 
     /// @dev This getter check if address can propose
     function isValidProposer(address account) public view returns (bool) {
         if (
             _getCurrentVotes(account) >= proposalThreshold ||
-            isPoolSecretary(account)
+            isPoolSecretary(account) ||
+            service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender)
+        ) return true;
+
+        return false;
+    }
+
+    /// @dev This getter check if address can execute ballot
+    function isValidExecutor(address account) public view returns (bool) {
+        if (
+            poolExecutor.length() == 0 ||
+            isPoolExecutor(account) ||
+            service.hasRole(service.SERVICE_MANAGER_ROLE(), account)
         ) return true;
 
         return false;
     }
 
     /// @dev This getter returns if Last Proposal By Type is Active
-    function isLastProposalIdByTypeActive(uint256 type_)
-        public
-        view
-        returns (bool)
-    {
+    function isLastProposalIdByTypeActive(
+        uint256 type_
+    ) public view returns (bool) {
         if (proposalState(lastProposalIdByType[type_]) == ProposalState.Active)
             return true;
 
@@ -378,19 +488,16 @@ contract Pool is
     }
 
     /// @dev This getter validate Governance Settings
-    function validateGovernanceSettings(NewGovernanceSettings memory settings)
-        external
-        pure
-    {
+    function validateGovernanceSettings(
+        NewGovernanceSettings memory settings
+    ) external pure {
         _validateGovernanceSettings(settings);
     }
 
     /// @dev This getter returns if available Votes For Proposal by Id
-    function availableVotesForProposal(uint256 proposalId)
-        external
-        view
-        returns (uint256)
-    {
+    function availableVotesForProposal(
+        uint256 proposalId
+    ) external view returns (uint256) {
         if (proposals[proposalId].vote.startBlock - 1 < block.number)
             return
                 _getBlockTotalVotes(proposals[proposalId].vote.startBlock - 1);
@@ -417,12 +524,9 @@ contract Pool is
      * @param blocknumber blocknumber
      * @return Amount of votes
      */
-    function _getBlockTotalVotes(uint256 blocknumber)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _getBlockTotalVotes(
+        uint256 blocknumber
+    ) internal view override returns (uint256) {
         return
             IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply(
                 blocknumber
@@ -435,12 +539,10 @@ contract Pool is
      * @param blockNumber Block number
      * @return Account's votes at given block
      */
-    function _getPastVotes(address account, uint256 blockNumber)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _getPastVotes(
+        address account,
+        uint256 blockNumber
+    ) internal view override returns (uint256) {
         return getGovernanceToken().getPastVotes(account, blockNumber);
     }
 
@@ -463,10 +565,10 @@ contract Pool is
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
-    function _setLastProposalIdForAddress(address proposer, uint256 proposalId)
-        internal
-        override
-    {
+    function _setLastProposalIdForAddress(
+        address proposer,
+        uint256 proposalId
+    ) internal override {
         lastProposalIdForAddress[proposer] = proposalId;
     }
 }

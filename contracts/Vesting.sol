@@ -15,7 +15,7 @@ contract Vesting is Initializable, IVesting {
     // CONSTANTS
 
     /// @notice Denominator for shares
-    uint256 private constant DENOM = 100 * 10**4;
+    uint256 private constant DENOM = 100 * 10 ** 4;
 
     // STORAGE
 
@@ -152,10 +152,10 @@ contract Vesting is Initializable, IVesting {
      * @param tge TGE address
      * @param account Account address
      */
-    function cancel(address tge, address account)
-        external
-        onlyResolverOrTGE(tge)
-    {
+    function cancel(
+        address tge,
+        address account
+    ) external onlyResolverOrTGE(tge) {
         uint256 amount = vestedBalanceOf(tge, account);
 
         vested[tge][account] -= amount;
@@ -189,11 +189,9 @@ contract Vesting is Initializable, IVesting {
      * @notice Gets vesting params for TGE
      * @param tge TGE address
      */
-    function vestingParams(address tge)
-        public
-        view
-        returns (VestingParams memory)
-    {
+    function vestingParams(
+        address tge
+    ) public view returns (VestingParams memory) {
         return ITGE(tge).getInfo().vestingParams;
     }
 
@@ -202,11 +200,9 @@ contract Vesting is Initializable, IVesting {
      * @param params Vesting params
      * @return True if params are valid (reverts otherwise)
      */
-    function validateParams(VestingParams memory params)
-        public
-        pure
-        returns (bool)
-    {
+    function validateParams(
+        VestingParams memory params
+    ) public pure returns (bool) {
         require(
             params.cliffShare + params.spans * params.spanShare <= DENOM,
             ExceptionsLibrary.SHARES_SUM_EXCEEDS_ONE
@@ -219,11 +215,10 @@ contract Vesting is Initializable, IVesting {
      * @param tge TGE address
      * @param account Account address
      */
-    function unlockedBalanceOf(address tge, address account)
-        public
-        view
-        returns (uint256)
-    {
+    function unlockedBalanceOf(
+        address tge,
+        address account
+    ) public view returns (uint256) {
         // In active or failed TGE nothing is unlocked
         if (ITGE(tge).state() != ITGE.State.Successful) {
             return 0;
@@ -262,11 +257,10 @@ contract Vesting is Initializable, IVesting {
      * @param tge TGE address
      * @param account Account address
      */
-    function claimableBalanceOf(address tge, address account)
-        public
-        view
-        returns (uint256)
-    {
+    function claimableBalanceOf(
+        address tge,
+        address account
+    ) public view returns (uint256) {
         return unlockedBalanceOf(tge, account) - claimed[tge][account];
     }
 
@@ -275,11 +269,10 @@ contract Vesting is Initializable, IVesting {
      * @param tge TGE address
      * @param account Account address
      */
-    function vestedBalanceOf(address tge, address account)
-        public
-        view
-        returns (uint256)
-    {
+    function vestedBalanceOf(
+        address tge,
+        address account
+    ) public view returns (uint256) {
         return vested[tge][account] - claimed[tge][account];
     }
 }

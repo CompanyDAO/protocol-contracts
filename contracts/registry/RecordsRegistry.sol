@@ -73,7 +73,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         address addr,
         ContractType contractType,
         string memory description
-    ) external onlyService returns (uint256 index) {
+    ) external onlyServiceOrFactory returns (uint256 index) {
         // Add record
         contractRecords.push(
             ContractInfo({
@@ -100,11 +100,10 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
      * @param proposalId Proposal ID
      * @return index Record index
      */
-    function addProposalRecord(address pool, uint256 proposalId)
-        external
-        onlyService
-        returns (uint256 index)
-    {
+    function addProposalRecord(
+        address pool,
+        uint256 proposalId
+    ) external onlyService returns (uint256 index) {
         // Add record
         proposalRecords.push(
             ProposalInfo({pool: pool, proposalId: proposalId, description: ""})
@@ -130,7 +129,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         address eventContract,
         uint256 proposalId,
         string calldata metaHash
-    ) external onlyService returns (uint256 index) {
+    ) external onlyServiceOrFactory returns (uint256 index) {
         // Add record
         events.push(
             Event({

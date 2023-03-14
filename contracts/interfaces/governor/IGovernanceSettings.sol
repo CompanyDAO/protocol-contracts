@@ -22,6 +22,7 @@ interface IGovernanceSettings {
         uint256 votingStartDelay;
     }
 
-    function setGovernanceSettings(NewGovernanceSettings memory settings)
-        external;
+    function setGovernanceSettings(
+        NewGovernanceSettings memory settings
+    ) external;
 }

@@ -28,9 +28,6 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
     /// @dev Status of combination of (jurisdiction, entityType, EIN) existing
     mapping(bytes32 => uint256) public companyIndex;
 
-    /// @dev CompanyDocuments mapping (companyIndex => [docId => url])
-    mapping(uint256 => mapping(uint256 => string)) private companyDocuments;
-
     // EVENTS
 
     /**
@@ -66,10 +63,9 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
      * @dev Create company record - A method for creating a new company record, including its legal data and the sale price.
      * @param info Company Info
      */
-    function createCompany(CompanyInfo calldata info)
-        public
-        onlyRole(COMPANIES_MANAGER_ROLE)
-    {
+    function createCompany(
+        CompanyInfo calldata info
+    ) public onlyRole(COMPANIES_MANAGER_ROLE) {
         // Check that company data is valid
         require(
             info.jurisdiction > 0 &&
@@ -104,11 +100,10 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
      * @dev Lock company record - Booking the company for the buyer. During the acquisition of a company, this method searches for a free company at the request of the client (jurisdiction and type of organization), if such exist in the company’s storage reserve, then the method selects the last of the added companies, extracts its record data and sends it as a response for further work of the Service contract, removes its record from the Registry.
      * @return info Company info
      */
-    function lockCompany(uint256 jurisdiction, uint256 entityType)
-        external
-        onlyService
-        returns (CompanyInfo memory info)
-    {
+    function lockCompany(
+        uint256 jurisdiction,
+        uint256 entityType
+    ) external onlyService returns (CompanyInfo memory info) {
         // Check that company is available
         uint256 queueLength = queue[jurisdiction][entityType].length;
         require(queueLength > 0, ExceptionsLibrary.NO_COMPANY);
@@ -176,27 +171,6 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         emit CompanyFeeUpdated(jurisdiction, entityType, id, fee);
     }
 
-    /**
-     * @dev Update company document by Id
-     * @param jurisdiction Jurisdiction
-     * @param entityType Entity type
-     * @param ein EIN
-     * @param docId Document Id
-     * @param docUrl New Document URL
-     */
-    function updateCompanyDocument(
-        uint256 jurisdiction,
-        uint256 entityType,
-        string calldata ein,
-        uint256 docId,
-        string memory docUrl
-    ) external onlyRole(COMPANIES_MANAGER_ROLE) {
-        bytes32 companyHash = keccak256(
-            abi.encodePacked(jurisdiction, entityType, ein)
-        );
-        companyDocuments[companyIndex[companyHash]][docId] = docUrl;
-    }
-
     // PUBLIC VIEW FUNCTIONS
 
     /**
@@ -205,11 +179,10 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
      * @param entityType Entity type
      * @return Flag if company is available
      */
-    function companyAvailable(uint256 jurisdiction, uint256 entityType)
-        external
-        view
-        returns (bool)
-    {
+    function companyAvailable(
+        uint256 jurisdiction,
+        uint256 entityType
+    ) external view returns (bool) {
         return queue[jurisdiction][entityType].length > 0;
     }
 
@@ -248,22 +221,26 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
     }
 
     /**
-     * @dev Get company document by Id
+     * @dev This view method is designed to show available for purchase for the jurisdiction and type of organization selected by the user.
      * @param jurisdiction Jurisdiction
      * @param entityType Entity type
-     * @param ein EIN
-     * @param docId Document Id
-     * @return Document URL
+     * @return CompanyInfo
      */
-    function getCompanyDocument(
+    function getAvailableCompanyAddress(
         uint256 jurisdiction,
-        uint256 entityType,
-        string calldata ein,
-        uint256 docId
-    ) external view returns (string memory) {
-        bytes32 companyHash = keccak256(
-            abi.encodePacked(jurisdiction, entityType, ein)
+        uint256 entityType
+    ) external view returns (address) {
+        // Check that company is available
+        uint256 queueLength = queue[jurisdiction][entityType].length;
+        require(queueLength > 0, ExceptionsLibrary.NO_COMPANY);
+
+        // Get index
+        uint256 index = queue[jurisdiction][entityType][queueLength - 1];
+
+        address companyAddress = IService(service).getPoolAddress(
+            companies[index]
         );
-        return companyDocuments[companyIndex[companyHash]][docId];
+
+        return companyAddress;
     }
 }

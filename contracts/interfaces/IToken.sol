@@ -23,6 +23,7 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
     }
 
     function initialize(
+        IService service_,
         address pool_,
         TokenInfo memory info,
         address primaryTGE_

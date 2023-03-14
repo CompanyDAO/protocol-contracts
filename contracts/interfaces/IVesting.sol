@@ -18,20 +18,19 @@ interface IVesting {
 
     function cancel(address tge, address account) external;
 
-    function validateParams(VestingParams memory params)
-        external
-        pure
-        returns (bool);
+    function validateParams(
+        VestingParams memory params
+    ) external pure returns (bool);
 
-    function vested(address tge, address account)
-        external
-        view
-        returns (uint256);
+    function vested(
+        address tge,
+        address account
+    ) external view returns (uint256);
 
     function totalVested(address tge) external view returns (uint256);
 
-    function vestedBalanceOf(address tge, address account)
-        external
-        view
-        returns (uint256);
+    function vestedBalanceOf(
+        address tge,
+        address account
+    ) external view returns (uint256);
 }

@@ -9,11 +9,12 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "./interfaces/IPool.sol";
-import "./interfaces/governor/IGovernorProposals.sol";
+
 import "./interfaces/governor/IGovernanceSettings.sol";
 import "./interfaces/governor/IGovernor.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
+import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IToken.sol";
 import "./libraries/ExceptionsLibrary.sol";
@@ -22,7 +23,23 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     // STORAGE
 
     /// @dev Service address
-    address public Service;
+    IService public service;
+
+    // MODIFIERS
+
+    modifier onlyService() {
+        require(msg.sender == address(service), ExceptionsLibrary.NOT_SERVICE);
+        _;
+    }
+
+    modifier onlyForPool(address pool) {
+        //check if pool registry record exists
+        require(
+            service.registry().typeOf(pool) == IRecordsRegistry.ContractType.Pool,
+            ExceptionsLibrary.NOT_POOL
+        );
+        _;
+    }
 
     // INITIALIZER
 
@@ -37,21 +54,13 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     function initialize() public initializer {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
-
-    // MODIFIERS
-
-    modifier onlyService() {
-        require(msg.sender == Service, ExceptionsLibrary.NOT_SERVICE);
-        _;
-    }
-
+    
     // PUBLIC FUNCTIONS
 
-    function setService(address service_)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        Service = service_;
+    function setService(
+        address service_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        service = IService(service_);
     }
 
     /**
@@ -131,7 +140,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     function proposeTGE(
         address pool,
         IToken token,
-        ITGE.TGEInfoV2 memory tgeInfo,
+        ITGE.TGEInfo memory tgeInfo,
         IToken.TokenInfo memory tokenInfo,
         string memory metadataURI,
         string memory description,
@@ -159,7 +168,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         }
 
         // Validate TGE info
-        IService(Service).validateTGEInfo(
+        IService(service).validateTGEInfo(
             tgeInfo,
             tokenInfo.cap,
             totalSupplyWithReserves,
@@ -168,14 +177,14 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Prepare proposal action
         address[] memory targets = new address[](1);
-        targets[0] = address(Service);
+        targets[0] = address(IService(service).tgeFactory());
 
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
         bytes[] memory callDatas = new bytes[](1);
         callDatas[0] = abi.encodeWithSelector(
-            IService.createSecondaryTGE.selector,
+            ITGEFactory.createSecondaryTGE.selector,
             token,
             tgeInfo,
             tokenInfo,
@@ -262,6 +271,14 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         return proposalId_;
     }
 
+    /**
+     * @notice A proposal that changes the PoolSecretary list.
+     * @param addSecretary add new address to pool secretary list
+     * @param removeSecretary remove address to pool secretary list
+     * @param description Proposal description
+     * @param metaHash Hash value of proposal metadata
+     * @return proposalId Created proposal's ID
+     */
     function proposePoolSecretary(
         address pool,
         address[] memory addSecretary,
@@ -326,7 +343,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         bytes[] memory callDatas,
         string memory description,
         string memory metaHash
-    ) external returns (uint256 proposalId) {
+    ) external onlyForPool(pool) returns (uint256 proposalId) {
         // Check lengths
         require(
             targets.length == values.length &&
@@ -334,16 +351,10 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
             ExceptionsLibrary.INVALID_VALUE
         );
 
-        require(
-            targets.length == values.length &&
-                targets.length == callDatas.length,
-            ExceptionsLibrary.INVALID_VALUE
-        );
         for (uint256 i = 0; i < targets.length; i++) {
             require(
-                targets[i] != pool &&
-                    targets[i] != Service &&
-                    targets[i] != address(IPool(pool).getGovernanceToken()),
+                IRegistry(IService(service).registry()).typeOf(targets[i]) ==
+                    IRecordsRegistry.ContractType.None,
                 ExceptionsLibrary.INVALID_TARGET
             );
         }
@@ -367,6 +378,62 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
                 metaHash: metaHash
             })
         );
+        return proposalId_;
+    }
+
+    /**
+     * @notice A proposal that changes the PoolExecutor list.
+     * @param addExecutor add new address to pool Executor list
+     * @param removeExecutor remove address to pool Executor list
+     * @param description Proposal description
+     * @param metaHash Hash value of proposal metadata
+     * @return proposalId Created proposal's ID
+     */
+    function proposePoolExecutor(
+        address pool,
+        address[] memory addExecutor,
+        address[] memory removeExecutor,
+        string memory description,
+        string memory metaHash
+    ) external returns (uint256 proposalId) {
+        // Validate
+        require(
+            addExecutor.length > 0 || removeExecutor.length > 0,
+            ExceptionsLibrary.EMPTY_ADDRESS
+        );
+
+        // Prepare proposal action
+        address[] memory targets = new address[](1);
+        targets[0] = pool;
+
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        bytes[] memory callDatas = new bytes[](1);
+        callDatas[0] = abi.encodeWithSelector(
+            IPool.changePoolExecutor.selector,
+            addExecutor,
+            removeExecutor
+        );
+        // Propose
+        uint256 proposalId_ = IPool(pool).propose(
+            msg.sender,
+            5, // PoolExecutor
+            IGovernor.ProposalCoreData({
+                targets: targets,
+                values: values,
+                callDatas: callDatas,
+                quorumThreshold: 0,
+                decisionThreshold: 0,
+                executionDelay: 0
+            }),
+            IGovernor.ProposalMetaData({
+                proposalType: IRecordsRegistry.EventType.GovernanceSettings,
+                description: description,
+                metaHash: metaHash
+            })
+        );
+
         return proposalId_;
     }
 }

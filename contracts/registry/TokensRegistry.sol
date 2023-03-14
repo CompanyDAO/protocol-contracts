@@ -15,10 +15,9 @@ abstract contract TokensRegistry is RegistryBase, ITokensRegistry {
 
     // PUBLIC FUNCTIONS
 
-    function whitelistTokens(address[] calldata tokens)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function whitelistTokens(
+        address[] calldata tokens
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint256 i = 0; i < tokens.length; i++) {
             _grantRole(WHITELISTED_TOKEN_ROLE, tokens[i]);
         }

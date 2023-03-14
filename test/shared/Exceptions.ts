@@ -45,5 +45,6 @@ export default class Exceptions {
     static readonly HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY: string = "HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY";
     static readonly NOT_VALID_PROPOSER: string = "NOT_VALID_PROPOSER";
     static readonly GOVERNANCE_TOKEN_EXISTS: string = "GOVERNANCE_TOKEN_EXISTS";
-    
+    static readonly NOT_VALID_EXECUTOR: string = "NOT_VALID_EXECUTOR";
+
 }

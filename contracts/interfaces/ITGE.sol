@@ -6,22 +6,8 @@ import "./IToken.sol";
 import "./IVesting.sol";
 
 interface ITGE {
+
     struct TGEInfo {
-        uint256 price;
-        uint256 hardcap;
-        uint256 softcap;
-        uint256 minPurchase;
-        uint256 maxPurchase;
-        uint256 vestingPercent;
-        uint256 vestingDuration;
-        uint256 vestingTVL;
-        uint256 duration;
-        address[] userWhitelist;
-        address unitOfAccount;
-        uint256 lockupDuration;
-        uint256 lockupTVL;
-    }
-    struct TGEInfoV2 {
         uint256 price;
         uint256 hardcap;
         uint256 softcap;
@@ -36,9 +22,10 @@ interface ITGE {
     }
 
     function initialize(
+        address service,
         IToken token_,
-        TGEInfoV2 calldata info,
-        uint256 protocolFee
+        TGEInfo calldata info_,
+        uint256 protocolFee_
     ) external;
 
     enum State {
@@ -51,9 +38,7 @@ interface ITGE {
 
     function state() external view returns (State);
 
-    function getInfo() external view returns (TGEInfoV2 memory);
-
-    function getInfoV1() external view returns (TGEInfo memory);
+    function getInfo() external view returns (TGEInfo memory);
 
     function transferUnlocked() external view returns (bool);
 

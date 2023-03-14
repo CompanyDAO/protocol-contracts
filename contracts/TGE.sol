@@ -24,7 +24,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     // CONSTANTS
 
     /// @notice Denominator for shares (such as thresholds)
-    uint256 private constant DENOM = 100 * 10**4;
+    uint256 private constant DENOM = 100 * 10 ** 4;
 
     /// @dev Pool's ERC20 token
     IToken public token;
@@ -65,11 +65,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     /// @dev Total amount of tokens reserved for protocolfee
     uint256 public totalProtocolFee;
 
-    /// @dev TGE info struct
-    TGEInfoV2 public infoV2;
-
     /// @dev Vesting contract
     IVesting public vesting;
+
     // EVENTS
 
     /**
@@ -107,32 +105,35 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev Constructor function, can only be called once. In this method, settings for the TGE event are assigned, such as the contract of the token implemented using TGE, as well as the TGEInfoV2 structure, which includes the parameters of purchase, vesting and lockup. If no lockup or westing conditions were set for the TVL value when creating the TGE, then the TVL achievement flag is set to true from the very beginning.
-     * @param _token pool's token
-     * @param _info TGE parameters
+     * @dev Constructor function, can only be called once. In this method, settings for the TGE event are assigned, such as the contract of the token implemented using TGE, as well as the TGEInfo structure, which includes the parameters of purchase, vesting and lockup. If no lockup or westing conditions were set for the TVL value when creating the TGE, then the TVL achievement flag is set to true from the very beginning.
+     * @param service Service contract
+     * @param token_ TGE's token
+     * @param info_ TGE parameters
+     * @param protocolFee_ Protocol's fee value
      */
     function initialize(
-        IToken _token,
-        TGEInfoV2 calldata _info,
+        address service,
+        IToken token_,
+        TGEInfo calldata info_,
         uint256 protocolFee_
     ) external initializer {
         __ReentrancyGuard_init();
-        IService(msg.sender).validateTGEInfo(
-            _info,
-            _token.cap(),
-            _token.totalSupplyWithReserves(),
-            _token.tokenType()
+        IService(service).validateTGEInfo(
+            info_,
+            token_.cap(),
+            token_.totalSupplyWithReserves(),
+            token_.tokenType()
         );
 
-        vesting = IService(msg.sender).vesting();
+        vesting = IService(service).vesting();
 
-        token = _token;
-        infoV2 = _info;
+        token = token_;
+        info = info_;
         protocolFee = protocolFee_;
-        lockupTVLReached = (_info.lockupTVL == 0);
+        lockupTVLReached = (info_.lockupTVL == 0);
 
-        for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
-            _isUserWhitelisted[_info.userWhitelist[i]] = true;
+        for (uint256 i = 0; i < info_.userWhitelist.length; i++) {
+            _isUserWhitelisted[info_.userWhitelist[i]] = true;
         }
 
         createdAt = block.number;
@@ -141,10 +142,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     // PUBLIC FUNCTIONS
 
     /**
-     * @dev Purchase pool's tokens during TGE. The method for users from the TGE whitelist (set in TGEInfoV2 when initializing the TGE contract), if the list is not set, then the sale is carried out for any address. The contract, when using this method, exchanges info.unitofaccount tokens available to buyers (if the address of the info.unitofaccount contract is set as zero, then the native ETH is considered unitofaccount) at the info.price rate of info.unitofaccount tokens for one pool token being sold. The buyer specifies the purchase amount in pool tokens, not in Unitofaccount. After receiving the user's funds by the contract, part of the tokens are minted to the buyer's balance, part of the tokens are minted to the address of the TGE contract in vesting. The percentage of vesting is specified in info.vestingPercent, if it is equal to 0, then all tokens are transferred to the buyer's balance.
+     * @dev Purchase pool's tokens during TGE. The method for users from the TGE whitelist (set in TGEInfo when initializing the TGE contract), if the list is not set, then the sale is carried out for any address. The contract, when using this method, exchanges info.unitofaccount tokens available to buyers (if the address of the info.unitofaccount contract is set as zero, then the native ETH is considered unitofaccount) at the info.price rate of info.unitofaccount tokens for one pool token being sold. The buyer specifies the purchase amount in pool tokens, not in Unitofaccount. After receiving the user's funds by the contract, part of the tokens are minted to the buyer's balance, part of the tokens are minted to the address of the TGE contract in vesting. The percentage of vesting is specified in info.vestingPercent, if it is equal to 0, then all tokens are transferred to the buyer's balance.
      * @param amount amount of tokens in wei (10**18 = 1 token)
      */
-    function purchase(uint256 amount)
+    function purchase(
+        uint256 amount
+    )
         external
         payable
         onlyWhitelistedUser
@@ -153,8 +156,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         whenPoolNotPaused
     {
         // Check purchase price transfer depending on unit of account
-        address unitOfAccount = infoV2.unitOfAccount;
-        uint256 purchasePrice = (amount * infoV2.price + (1 ether - 1)) /
+        address unitOfAccount = info.unitOfAccount;
+        uint256 purchasePrice = (amount * info.price + (1 ether - 1)) /
             1 ether;
         if (unitOfAccount == address(0)) {
             require(
@@ -171,7 +174,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Check purchase size
         require(
-            amount >= infoV2.minPurchase,
+            amount >= info.minPurchase,
             ExceptionsLibrary.MIN_PURCHASE_UNDERFLOW
         );
         require(
@@ -185,7 +188,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Mint tokens directly to user
         uint256 vestedAmount = (amount *
-            infoV2.vestingParams.vestedShare +
+            info.vestingParams.vestedShare +
             (DENOM - 1)) / DENOM;
         IToken _token = token;
         if (amount - vestedAmount > 0) {
@@ -261,12 +264,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         require(refundAmount > 0, ExceptionsLibrary.NOTHING_TO_REDEEM);
 
         // Transfer refund value
-        uint256 refundValue = (refundAmount * infoV2.price + (1 ether - 1)) /
+        uint256 refundValue = (refundAmount * info.price + (1 ether - 1)) /
             1 ether;
-        if (infoV2.unitOfAccount == address(0)) {
+        if (info.unitOfAccount == address(0)) {
             payable(msg.sender).sendValue(refundValue);
         } else {
-            IERC20Upgradeable(infoV2.unitOfAccount).safeTransfer(
+            IERC20Upgradeable(info.unitOfAccount).safeTransfer(
                 msg.sender,
                 refundValue
             );
@@ -318,10 +321,10 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         _claimProtocolTokenFee();
 
         // Transfer remaining funds to pool
-        address unitOfAccount = infoV2.unitOfAccount;
+        address unitOfAccount = info.unitOfAccount;
         address pool = token.pool();
         uint256 balance = 0;
-        if (infoV2.price != 0) {
+        if (info.price != 0) {
             if (unitOfAccount == address(0)) {
                 balance = address(this).balance;
                 payable(pool).sendValue(balance);
@@ -379,8 +382,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         }
         return
             MathUpgradeable.min(
-                infoV2.maxPurchase - purchaseOf[account],
-                infoV2.hardcap - totalPurchased
+                info.maxPurchase - purchaseOf[account],
+                info.hardcap - totalPurchased
             );
     }
 
@@ -390,12 +393,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      */
     function state() public view returns (State) {
         // If hardcap is reached TGE is successfull
-        if (totalPurchased == infoV2.hardcap) {
+        if (totalPurchased == info.hardcap) {
             return State.Successful;
         }
 
         // If deadline not reached TGE is active
-        if (block.number < createdAt + infoV2.duration) {
+        if (block.number < createdAt + info.duration) {
             return State.Active;
         }
 
@@ -405,7 +408,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         }
 
         // If softcap is reached TGE is successfull
-        if (totalPurchased >= infoV2.softcap && totalPurchased > 0) {
+        if (totalPurchased >= info.softcap && totalPurchased > 0) {
             return State.Successful;
         }
 
@@ -420,7 +423,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     function transferUnlocked() public view returns (bool) {
         return
             lockupTVLReached &&
-            block.number >= createdAt + infoV2.lockupDuration;
+            block.number >= createdAt + info.lockupDuration;
     }
 
     /**
@@ -441,11 +444,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @param account Account address
      * @return Redeemable balance of the address
      */
-    function redeemableBalanceOf(address account)
-        external
-        view
-        returns (uint256)
-    {
+    function redeemableBalanceOf(
+        address account
+    ) external view returns (uint256) {
         if (purchaseOf[account] == 0) return 0;
         if (state() != State.Failed) return 0;
 
@@ -458,11 +459,11 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
-     * @dev The given getter shows how much infoV2.unitofaccount was collected within this TGE. To do this, the amount of tokens purchased by all buyers is multiplied by info.price.
+     * @dev The given getter shows how much info.unitofaccount was collected within this TGE. To do this, the amount of tokens purchased by all buyers is multiplied by info.price.
      * @return Total value
      */
     function getTotalPurchasedValue() public view returns (uint256) {
-        return (totalPurchased * infoV2.price) / 10**18;
+        return (totalPurchased * info.price) / 10 ** 18;
     }
 
     /**
@@ -470,7 +471,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return Total value
      */
     function getTotalVestedValue() public view returns (uint256) {
-        return (vesting.totalVested(address(this)) * infoV2.price) / 10**18;
+        return (vesting.totalVested(address(this)) * info.price) / 10 ** 18;
     }
 
     /**
@@ -478,7 +479,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return User whitelist
      */
     function getUserWhitelist() external view returns (address[] memory) {
-        return infoV2.userWhitelist;
+        return info.userWhitelist;
     }
 
     /**
@@ -487,7 +488,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return Flag if user if whitelisted
      */
     function isUserWhitelisted(address account) public view returns (bool) {
-        return infoV2.userWhitelist.length == 0 || _isUserWhitelisted[account];
+        return info.userWhitelist.length == 0 || _isUserWhitelisted[account];
     }
 
     /**
@@ -495,22 +496,14 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return TGE end block
      */
     function getEnd() external view returns (uint256) {
-        return createdAt + infoV2.duration;
+        return createdAt + info.duration;
     }
 
     /**
      * @dev Get TGE info
      * @return TGE info
      */
-    function getInfo() external view returns (TGEInfoV2 memory) {
-        return infoV2;
-    }
-
-    /**
-     * @dev Get TGE info
-     * @return TGE info
-     */
-    function getInfoV1() external view returns (TGEInfo memory) {
+    function getInfo() external view returns (TGEInfo memory) {
         return info;
     }
 

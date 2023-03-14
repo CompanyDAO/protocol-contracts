@@ -52,20 +52,23 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
 
     /**
      * @dev Token creation, can only be started once. At the same time, the TGE contract, which sells the created token, is necessarily simultaneously deployed and receives an entry in the Registry. For the Governance token, the Name field for the ERC20 standard is taken from the trademark of the Pool contract to which the deployed token belongs. For Preference tokens, you can set an arbitrary value of the Name field.
+     * @param service_ Service
      * @param pool_ Pool
      * @param info Token info struct
      * @param primaryTGE_ Primary tge address
      */
     function initialize(
+        IService service_,
         address pool_,
         TokenInfo memory info,
         address primaryTGE_
     ) external initializer {
         __ERC20Capped_init(info.cap);
 
+        description = info.description;
+
         if (info.tokenType == TokenType.Preference) {
             __ERC20_init(info.name, info.symbol);
-            description = info.description;
             _decimals = info.decimals;
         } else {
             __ERC20_init(IPool(pool_).trademark(), info.symbol);
@@ -73,7 +76,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         tgeList.push(primaryTGE_);
         tgeWithLockedTokensList.push(primaryTGE_);
         tokenType = info.tokenType;
-        service = IService(msg.sender);
+        service = service_;
         pool = pool_;
     }
 
@@ -117,7 +120,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @dev Add TGE to TGE archive list
      * @param tge TGE address
      */
-    function addTGE(address tge) external onlyService {
+    function addTGE(address tge) external onlyTGEFactory {
         tgeList.push(tge);
         tgeWithLockedTokensList.push(tge);
     }
@@ -318,10 +321,10 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
      * the total supply.
      */
-    function _mint(address account, uint256 amount)
-        internal
-        override(ERC20VotesUpgradeable, ERC20CappedUpgradeable)
-    {
+    function _mint(
+        address account,
+        uint256 amount
+    ) internal override(ERC20VotesUpgradeable, ERC20CappedUpgradeable) {
         super._mint(account, amount);
     }
 
@@ -329,10 +332,10 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
      * @dev Destroys `amount` tokens from `account`, reducing the
      * total supply.
      */
-    function _burn(address account, uint256 amount)
-        internal
-        override(ERC20Upgradeable, ERC20VotesUpgradeable)
-    {
+    function _burn(
+        address account,
+        uint256 amount
+    ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._burn(account, amount);
     }
 
@@ -362,8 +365,11 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         _;
     }
 
-    modifier onlyService() {
-        require(msg.sender == address(service), ExceptionsLibrary.NOT_SERVICE);
+    modifier onlyTGEFactory() {
+        require(
+            msg.sender == address(service.tgeFactory()),
+            ExceptionsLibrary.NOT_TGE_FACTORY
+        );
         _;
     }
 

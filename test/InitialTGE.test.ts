@@ -3,13 +3,14 @@ import { expect } from "chai";
 import { deployments, ethers, network } from "hardhat";
 
 import {
-    ERC20Mock,
-    Token,
-    Pool,
-    Service,
-    TGE,
-    Registry,
-    Vesting,
+  ERC20Mock,
+  Token,
+  Pool,
+  Service,
+  TGE,
+  Registry,
+  Vesting,
+  TGEFactory,
 } from "../typechain-types";
 
 import { mineBlock } from "./shared/utils";
@@ -21,475 +22,466 @@ const { getContract, getContractAt, getSigners, Wallet, provider } = ethers;
 const { parseUnits } = ethers.utils;
 
 describe("Test initial TGE", function () {
-    let owner: SignerWithAddress,
-        other: SignerWithAddress,
-        third: SignerWithAddress;
-    let service: Service, registry: Registry, vesting: Vesting;
-    let pool: Pool, tge: TGE, token: Token;
-    let newPool: Pool, newTge: TGE, newToken: Token;
-    let token1: ERC20Mock;
-    let snapshotId: any;
-    let createArgs: CreateArgs;
+  let owner: SignerWithAddress,
+    other: SignerWithAddress,
+    third: SignerWithAddress;
+  let service: Service,
+    registry: Registry,
+    vesting: Vesting,
+    tgeFactory: TGEFactory;
+  let pool: Pool, tge: TGE, token: Token;
+  let newPool: Pool, newTge: TGE, newToken: Token;
+  let token1: ERC20Mock;
+  let snapshotId: any;
+  let createArgs: CreateArgs;
 
-    before(async function () {
-        // Get accounts
-        [owner, other, third] = await getSigners();
+  before(async function () {
+    // Get accounts
+    [owner, other, third] = await getSigners();
 
-        // Fixture
-        await deployments.fixture();
+    // Fixture
+    await deployments.fixture();
 
-        // Get contracts
-        service = await getContract("Service");
-        registry = await getContract("Registry");
-        vesting = await getContract("Vesting");
-        token1 = await getContract("ONE");
+    // Get contracts
+    service = await getContract("Service");
+    registry = await getContract("Registry");
+    vesting = await getContract("Vesting");
+    token1 = await getContract("ONE");
+    tgeFactory = await getContract("TGEFactory");
 
-        // Setup
-        await setup();
+    // Setup
+    await setup();
+  });
+
+  beforeEach(async function () {
+    snapshotId = await network.provider.request({
+      method: "evm_snapshot",
+      params: [],
     });
 
-    beforeEach(async function () {
-        snapshotId = await network.provider.request({
-            method: "evm_snapshot",
-            params: [],
-        });
+    // Data
+    createArgs = await makeCreateData();
+  });
 
-        // Data
-        createArgs = await makeCreateData();
+  afterEach(async function () {
+    snapshotId = await network.provider.request({
+      method: "evm_revert",
+      params: [snapshotId],
+    });
+  });
+
+  describe("Initial TGE: creating for first time", function () {
+    it("Can't purchase pool with incorrect fee", async function () {
+      await expect(
+        service.purchasePool(
+          createArgs[4],
+          createArgs[5],
+          createArgs[2],
+          createArgs[6],
+          {
+            value: parseUnits("0.05"),
+          }
+        )
+      ).to.be.revertedWith(Exceptions.INCORRECT_ETH_PASSED);
+    });
+  });
+
+  describe("Initial TGE: interaction", function () {
+    this.beforeEach(async function () {
+      // First TGE
+      await service.purchasePool(
+        createArgs[4],
+        createArgs[5],
+        createArgs[2],
+        createArgs[6],
+        {
+          value: parseUnits("0.01"),
+        }
+      );
+      let record = await registry.contractRecords(1);
+      pool = await getContractAt("Pool", record.addr);
+
+      await tgeFactory.createPrimaryTGE(
+        pool.address,
+        {
+          tokenType: 1,
+          cap: createArgs[1],
+          name: createArgs[2],
+          symbol: createArgs[2],
+          description: "",
+          decimals: 18,
+        },
+        createArgs[3],
+        createArgs[8]
+      );
+
+      token = await getContractAt("Token", await pool.getGovernanceToken());
+      tge = await getContractAt("TGE", await token.tgeList(0));
     });
 
-    afterEach(async function () {
-        snapshotId = await network.provider.request({
-            method: "evm_revert",
-            params: [snapshotId],
-        });
+    it("Can't purchase less than min purchase", async function () {
+      await expect(
+        tge.connect(other).purchase(1, { value: parseUnits("0.05") })
+      ).to.be.revertedWith(Exceptions.MIN_PURCHASE_UNDERFLOW);
     });
 
-    describe("Initial TGE: creating for first time", function () {
-        it("Only whitelisted can purchase pool", async function () {
-
-            expect(await registry.isTokenWhitelisted('0x2cDAbA445e942C994F4f1f453f92542aDae68d62')).to.equal(
-                false
-            );
-            await expect(
-
-                service.connect(other).purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-                    value: parseUnits("0.01"),
-                })
-            ).to.be.reverted;
-
-        });
-
-        it("Can't purchase pool with incorrect fee", async function () {
-            await expect(
-                service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-                    value: parseUnits("0.05"),
-                })
-            ).to.be.revertedWith(Exceptions.INCORRECT_ETH_PASSED);
-        });
-
-        /*it("Can't create pool with hardcap higher than token cap", async function () {
-            createArgs[3].hardcap = parseUnits("20000");
-            await expect(
-                service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-                    value: parseUnits("0.01"),
-                })
-            ).to.be.revertedWith(Exceptions.HARDCAP_OVERFLOW_REMAINING_SUPPLY);
-        });*/
+    it("Can't purchase with wrong ETH value passed", async function () {
+      await expect(
+        tge
+          .connect(other)
+          .purchase(parseUnits("50"), { value: parseUnits("0.1") })
+      ).to.be.revertedWith(Exceptions.INCORRECT_ETH_PASSED);
     });
 
-    describe("Initial TGE: interaction", function () {
-        this.beforeEach(async function () {
-            // First TGE
-            await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-                value: parseUnits("0.01"),
-            });
-            let record = await registry.contractRecords(1);
-            pool = await getContractAt("Pool", record.addr);
-
-            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
-
-            token = await getContractAt("Token", await pool.getGovernanceToken());
-            tge = await getContractAt("TGE", await token.tgeList(0));
-
-           
-       
-        });
-
-        it("Can't purchase less than min purchase", async function () {
-            await expect(
-                tge
-                    .connect(other)
-                    .purchase(1, { value: parseUnits("0.05") })
-            ).to.be.revertedWith(Exceptions.MIN_PURCHASE_UNDERFLOW);
-        });
-
-        it("Can't purchase with wrong ETH value passed", async function () {
-            await expect(
-                tge
-                    .connect(other)
-                    .purchase(parseUnits("50"), { value: parseUnits("0.1") })
-            ).to.be.revertedWith(Exceptions.INCORRECT_ETH_PASSED);
-        });
-
-        it("Can't purchase over max purchase in one tx", async function () {
-            await expect(
-                tge
-                    .connect(other)
-                    .purchase(parseUnits("4000"), { value: parseUnits("40") })
-            ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
-        });
-
-        it("Can't purchase over max purchase in several tx", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("2000"), { value: parseUnits("20") });
-
-            await expect(
-                tge
-                    .connect(other)
-                    .purchase(parseUnits("2000"), { value: parseUnits("20") })
-            ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
-        });
-
-        it("Can't purchase over hardcap", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("3000"), { value: parseUnits("30") });
-
-            await expect(
-                tge.purchase(parseUnits("3000"), { value: parseUnits("30") })
-            ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
-        });
-
-        it("Mint can't be called on token directly, should be done though TGE", async function () {
-            await expect(
-                token.connect(other).mint(other.address, 100)
-            ).to.be.revertedWith(Exceptions.NOT_TGE);
-        });
-
-        it("Purchasing works", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-
-            expect(await token.balanceOf(other.address)).to.equal(
-                parseUnits("500")
-            );
-            expect(await provider.getBalance(tge.address)).to.equal(
-                parseUnits("10")
-            );
-            expect(await tge.lockedBalanceOf(other.address)).to.equal(
-                parseUnits("500")
-            );
-        });
-
-        it("Purchasing with token (if such is unit of account) works", async function () {
-            await mineBlock(50);
-            createArgs[3].unitOfAccount = token1.address;
-            await service.grantRole(
-                await service.WHITELISTED_USER_ROLE(),
-                owner.address
-            );
-            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
-
-            newToken = await getContractAt("Token", await pool.getGovernanceToken());
-            newTge = await getContractAt("TGE", await newToken.tgeList(0));
-           
-            await token1.mint(other.address, parseUnits("1"));
-
-            await token1
-                .connect(other)
-                .approve(newTge.address, parseUnits("1"));
-            await newTge.connect(other).purchase(parseUnits("100"));
-
-            
-            
-            expect(await newToken.balanceOf(other.address)).to.equal(
-                parseUnits("50")
-            );
-            expect(await newTge.lockedBalanceOf(other.address)).to.equal(
-                parseUnits("50")
-            );
-        });
-
-        it("Can't transfer lockup tokens", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-
-            await expect(
-                token.connect(other).transfer(owner.address, parseUnits("1000"))
-            ).to.be.revertedWith(Exceptions.LOW_UNLOCKED_BALANCE);
-        });
-
-        it("Can't purchase after event is finished", async function () {
-            await mineBlock(20);
-
-            await expect(
-                tge
-                    .connect(other)
-                    .purchase(parseUnits("1000"), { value: parseUnits("10") })
-            ).to.be.revertedWith(Exceptions.WRONG_STATE);
-        });
-
-        it("Can't claim back if event is not failed", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("500"), { value: parseUnits("5") });
-
-            await expect(tge.connect(third).redeem()).to.be.revertedWith(
-                Exceptions.WRONG_STATE
-            );
-
-            await tge
-                .connect(other)
-                .purchase(parseUnits("500"), { value: parseUnits("5") });
-            await mineBlock(20);
-
-            await expect(tge.connect(third).redeem()).to.be.revertedWith(
-                Exceptions.WRONG_STATE
-            );
-        });
-
-        it("Claiming back works if TGE is failed", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("400"), { value: parseUnits("4") });
-
-            await mineBlock(20);
-
-            await tge.connect(other).redeem();
-            expect(await token.balanceOf(other.address)).to.equal(0);
-        });
-
-        it("User can't burn more than his balance", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("400"), { value: parseUnits("4") });
-            await mineBlock(20);
-            await expect(
-                token.connect(other).burn(other.address, parseUnits("500"))
-            ).to.be.revertedWith("ERC20: burn amount exceeds balance");
-        });
-
-        it("Can't transfer funds if event is not successful", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("500"), { value: parseUnits("5") });
-
-            await expect(tge.transferFunds()).to.be.revertedWith(
-                Exceptions.WRONG_STATE
-            );
-
-            await mineBlock(20);
-
-            await expect(tge.transferFunds()).to.be.revertedWith(
-                Exceptions.WRONG_STATE
-            );
-        });
-
-        it("Transferring funds for successful TGE by owner should work", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-            await mineBlock(20);
-
-            expect(await tge.totalProtocolFee()).to.equal(
-                await (await tge.totalPurchased()).div(100)
-            );
-
-            await tge.transferFunds();
-
-            expect(await tge.totalProtocolFee()).to.equal(0);
-
-            expect(await provider.getBalance(pool.address)).to.equal(
-                parseUnits("10")
-            );
-            expect(await token.balanceOf(await service.protocolTreasury())).to.equal(
-                await (await tge.totalPurchased()).div(100)
-            );
-            await (await tge.totalPurchased()).div(100)
-        });
-
-        it("In successful TGE purchased funds are still locked until conditions are met", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-            await mineBlock(20);
-            await tge.transferFunds();
-
-            expect(await tge.lockedBalanceOf(other.address)).to.equal(
-                parseUnits("500")
-            );
-            await expect(
-                vesting.connect(other).claim(tge.address)
-            ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
-        });
-        it("Check getTotalVestedValue and getTotalPurchasedValue", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-
-            expect(
-                await tge.getTotalVestedValue()
-            ).to.be.equal(parseUnits("5"));
-
-            expect(
-                await tge.getTotalPurchasedValue()
-            ).to.be.equal(parseUnits("10"));
-
-
-        });
-
-        it("Funds are still locked if only TVL condition is met", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("2000"), { value: parseUnits("20") });
-            await mineBlock(20);
-
-            await tge.transferFunds();
-            await tge.setLockupTVLReached();
-
-            expect(await tge.lockedBalanceOf(other.address)).to.equal(
-                parseUnits("1000")
-            );
-            await expect(
-                vesting.connect(other).claim(tge.address)
-            ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
-        });
-
-        it("Funds are still locked if only duration condition is met", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-            await mineBlock(20);
-
-            expect(await tge.lockedBalanceOf(other.address)).to.equal(
-                parseUnits("500")
-            );
-            await expect(
-                vesting.connect(other).claim(tge.address)
-            ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
-        });
-
-        it("Vested funds can be unlocked as soon as all unlocked conditions are met", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("2000"), { value: parseUnits("20") });
-            await mineBlock(400);
-            await tge.transferFunds();
-            await vesting.setClaimTVLReached(tge.address);
-
-            await vesting.connect(other).claim(tge.address);
-            expect(await tge.lockedBalanceOf(other.address)).to.equal(
-                parseUnits("2000")
-            );
-            expect(await token.balanceOf(other.address)).to.equal(
-                parseUnits("2000")
-            );
-        });
-
-        it("Token has zero decimals", async function () {
-            expect(await token.decimals()).to.equal(18);
-        });
-
-        it("Only service owner or manager can whitelist", async function () {
-            await expect(
-                service
-                    .connect(other)
-                    .grantRole(
-                        await service.WHITELISTED_USER_ROLE(),
-                        other.address
-                    )
-            ).to.be.revertedWith(
-                "AccessControl: account 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 is missing role 0x2b1db18cd92cf6947e9bb2f532380e05e806a043d20a65c532268a1d7f4b5e73"
-            );
-        });
-
-        it("Only owner can transfer funds", async function () {
-            await expect(
-                service.connect(other).transferCollectedFees(other.address)
-            ).to.be.revertedWith(
-                "AccessControl: account 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
-            );
-        });
-
-        it("Transferring funds work", async function () {
-            const treasury = Wallet.createRandom();
-            await service.transferCollectedFees(treasury.address);
-            expect(await provider.getBalance(treasury.address)).to.equal(
-                parseUnits("0.01")
-            );
-        });
+    it("Can't purchase over max purchase in one tx", async function () {
+      await expect(
+        tge
+          .connect(other)
+          .purchase(parseUnits("4000"), { value: parseUnits("40") })
+      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
     });
 
-    describe("Failed TGE: redeeming & recreating", async function () {
-        this.beforeEach(async function () {
-            // First TGE
-            await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
-                value: parseUnits("0.01"),
-            });
-            const record = await registry.contractRecords(1);
+    it("Can't purchase over max purchase in several tx", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("2000"), { value: parseUnits("20") });
 
-            pool = await getContractAt("Pool", record.addr);
+      await expect(
+        tge
+          .connect(other)
+          .purchase(parseUnits("2000"), { value: parseUnits("20") })
+      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+    });
 
+    it("Can't purchase over hardcap", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("3000"), { value: parseUnits("30") });
 
-            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
+      await expect(
+        tge.purchase(parseUnits("3000"), { value: parseUnits("30") })
+      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+    });
 
-            token = await getContractAt("Token", await pool.getGovernanceToken());
-            tge = await getContractAt("TGE", await token.tgeList(0));
+    it("Mint can't be called on token directly, should be done though TGE", async function () {
+      await expect(
+        token.connect(other).mint(other.address, 100)
+      ).to.be.revertedWith(Exceptions.NOT_TGE);
+    });
 
+    it("Purchasing works", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
 
-            // Buy from TGE
-            await tge
-                .connect(other)
-                .purchase(parseUnits("500"), { value: parseUnits("5") });
+      expect(await token.balanceOf(other.address)).to.equal(parseUnits("500"));
+      expect(await provider.getBalance(tge.address)).to.equal(parseUnits("10"));
+      expect(await tge.lockedBalanceOf(other.address)).to.equal(
+        parseUnits("500")
+      );
+    });
 
-            createArgs[0] = pool.address;
-        });
+    it("Purchasing with token (if such is unit of account) works", async function () {
+      await mineBlock(50);
+      createArgs[3].unitOfAccount = token1.address;
+      await service.grantRole(
+        await service.WHITELISTED_USER_ROLE(),
+        owner.address
+      );
+      await tgeFactory.createPrimaryTGE(
+        pool.address,
+        {
+          tokenType: 1,
+          cap: createArgs[1],
+          name: createArgs[2],
+          symbol: createArgs[2],
+          description: "",
+          decimals: 18,
+        },
+        createArgs[3],
+        createArgs[8]
+      );
 
-        it("Can't redeem from active TGE", async function () {
-            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
-            await expect(tge.connect(other).redeem()).to.be.revertedWith(
-                Exceptions.WRONG_STATE
-            );
-        });
+      newToken = await getContractAt("Token", await pool.getGovernanceToken());
+      newTge = await getContractAt("TGE", await newToken.tgeList(0));
 
-        it("Can't redeem from successfull TGE", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("500"), { value: parseUnits("5") });
-            await mineBlock(20);
+      await token1.mint(other.address, parseUnits("1"));
 
-            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
-            await expect(tge.connect(other).redeem()).to.be.revertedWith(
-                Exceptions.WRONG_STATE
-            );
-        });
+      await token1.connect(other).approve(newTge.address, parseUnits("1"));
+      await newTge.connect(other).purchase(parseUnits("100"));
 
-        it("Redeeming from failed TGE works", async function () {
-            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
-            await mineBlock(20);
+      expect(await newToken.balanceOf(other.address)).to.equal(
+        parseUnits("50")
+      );
+      expect(await newTge.lockedBalanceOf(other.address)).to.equal(
+        parseUnits("50")
+      );
+    });
 
-            const balanceBefore = await other.getBalance();
-            expect(await tge.redeemableBalanceOf(other.address)).to.equal(
-                parseUnits("500")
-            );
-            await tge.connect(other).redeem();
-            const balanceAfter = await other.getBalance();
+    it("Can't purchase over max purchase in one tx", async function () {
+      await expect(
+        tge
+          .connect(other)
+          .purchase(parseUnits("4000"), { value: parseUnits("40") })
+      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+    });
 
-            expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
-            expect(await token.balanceOf(other.address)).to.equal(0);
-            expect(
-                await vesting.vestedBalanceOf(tge.address, other.address)
-            ).to.equal(0);
-            expect(balanceAfter.sub(balanceBefore)).to.be.gt(
-                parseUnits("4.999") // Adjusted for spent gas fees
-            );
-        });
+    it("Can't purchase over max purchase in several tx", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("2000"), { value: parseUnits("20") });
 
-        /*it("Can't recreate TGE for non-pool", async function () {
+      await expect(
+        tge
+          .connect(other)
+          .purchase(parseUnits("2000"), { value: parseUnits("20") })
+      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+    });
+
+    it("Can't purchase over hardcap", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("3000"), { value: parseUnits("30") });
+
+      await expect(
+        tge.purchase(parseUnits("3000"), { value: parseUnits("30") })
+      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+    });
+
+    it("Mint can't be called on token directly, should be done though TGE", async function () {
+      await expect(
+        token.connect(other).mint(other.address, 100)
+      ).to.be.revertedWith(Exceptions.NOT_TGE);
+    });
+
+    it("Purchasing works", async function () {
+      expect(await (await tge.getUserWhitelist()).length).to.equal(2);
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+
+      expect(await token.balanceOf(other.address)).to.equal(parseUnits("500"));
+      expect(await provider.getBalance(tge.address)).to.equal(parseUnits("10"));
+      expect(await tge.lockedBalanceOf(other.address)).to.equal(
+        parseUnits("500")
+      );
+    });
+
+    it("Can't transfer lockup tokens", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+
+      await expect(
+        token.connect(other).transfer(owner.address, parseUnits("1000"))
+      ).to.be.revertedWith(Exceptions.LOW_UNLOCKED_BALANCE);
+    });
+
+    it("Can't purchase after event is finished", async function () {
+      await mineBlock(20);
+
+      await expect(
+        tge
+          .connect(other)
+          .purchase(parseUnits("1000"), { value: parseUnits("10") })
+      ).to.be.revertedWith(Exceptions.WRONG_STATE);
+    });
+
+    it("Can't claim back if event is not failed", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("500"), { value: parseUnits("5") });
+
+      await expect(tge.connect(third).redeem()).to.be.revertedWith(
+        Exceptions.WRONG_STATE
+      );
+
+      await tge
+        .connect(other)
+        .purchase(parseUnits("500"), { value: parseUnits("5") });
+      await mineBlock(20);
+
+      await expect(tge.connect(third).redeem()).to.be.revertedWith(
+        Exceptions.WRONG_STATE
+      );
+    });
+
+    // it.only("Claiming back works if TGE is failed", async function () {
+    //   await tge
+    //     .connect(other)
+    //     .purchase(parseUnits("400"), { value: parseUnits("4") });
+
+    //   await mineBlock(20);
+
+    //   expect(await provider.getBalance(pool.address)).to.equal(
+    //     parseUnits("10")
+    //   );
+    //   expect(
+    //     await token.balanceOf(await service.protocolTreasury())
+    //   ).to.equal(await (await tge.totalPurchased()).div(100));
+    // });
+
+    it("In successful TGE purchased funds are still locked until conditions are met", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+      await mineBlock(20);
+      await tge.transferFunds();
+
+      expect(await tge.lockedBalanceOf(other.address)).to.equal(
+        parseUnits("500")
+      );
+      await expect(
+        vesting.connect(other).claim(tge.address)
+      ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
+    });
+    it("Check getTotalVestedValue and getTotalPurchasedValue", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+
+      expect(await tge.getTotalVestedValue()).to.be.equal(parseUnits("5"));
+
+      expect(await tge.getTotalPurchasedValue()).to.be.equal(parseUnits("10"));
+    });
+
+    it("Transferring funds for successful TGE by owner should work", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+      await mineBlock(20);
+
+      expect(await tge.totalProtocolFee()).to.equal(
+        await (await tge.totalPurchased()).div(100)
+      );
+
+      await tge.transferFunds();
+
+      expect(await tge.totalProtocolFee()).to.equal(0);
+
+      expect(await provider.getBalance(pool.address)).to.equal(
+        parseUnits("10")
+      );
+      expect(await token.balanceOf(await service.protocolTreasury())).to.equal(
+        await (await tge.totalPurchased()).div(100)
+      );
+      await (await tge.totalPurchased()).div(100);
+    });
+
+    it("In successful TGE purchased funds are still locked until conditions are met", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+      await mineBlock(20);
+      await tge.transferFunds();
+
+      expect(await tge.lockedBalanceOf(other.address)).to.equal(
+        parseUnits("500")
+      );
+      await expect(
+        vesting.connect(other).claim(tge.address)
+      ).to.be.revertedWith(Exceptions.CLAIM_NOT_AVAILABLE);
+    });
+
+    it("Only owner can transfer funds", async function () {
+      await expect(
+        service.connect(other).transferCollectedFees(other.address)
+      ).to.be.revertedWith(
+        "AccessControl: account 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000"
+      );
+    });
+
+    it("Transferring funds work", async function () {
+      const treasury = Wallet.createRandom();
+      await service.transferCollectedFees(treasury.address);
+      expect(await provider.getBalance(treasury.address)).to.equal(
+        parseUnits("0.01")
+      );
+    });
+  });
+
+  describe("Failed TGE: redeeming & recreating", async function () {
+    this.beforeEach(async function () {
+      // First TGE
+      await service.purchasePool(
+        createArgs[4],
+        createArgs[5],
+        createArgs[2],
+        createArgs[6],
+        {
+          value: parseUnits("0.01"),
+        }
+      );
+      const record = await registry.contractRecords(1);
+
+      pool = await getContractAt("Pool", record.addr);
+
+      await tgeFactory.createPrimaryTGE(
+        pool.address,
+        {
+          tokenType: 1,
+          cap: createArgs[1],
+          name: createArgs[2],
+          symbol: createArgs[2],
+          description: "",
+          decimals: 18,
+        },
+        createArgs[3],
+        createArgs[8]
+      );
+
+      token = await getContractAt("Token", await pool.getGovernanceToken());
+      tge = await getContractAt("TGE", await token.tgeList(0));
+
+      // Buy from TGE
+      await tge
+        .connect(other)
+        .purchase(parseUnits("500"), { value: parseUnits("5") });
+
+      createArgs[0] = pool.address;
+    });
+
+    it("Can't redeem from active TGE", async function () {
+      expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
+      await expect(tge.connect(other).redeem()).to.be.revertedWith(
+        Exceptions.WRONG_STATE
+      );
+    });
+
+    it("Can't redeem from successfull TGE", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("500"), { value: parseUnits("5") });
+      await mineBlock(20);
+
+      expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
+      await expect(tge.connect(other).redeem()).to.be.revertedWith(
+        Exceptions.WRONG_STATE
+      );
+    });
+
+    it("Redeeming from failed TGE works", async function () {
+      expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
+      await mineBlock(20);
+
+      const balanceBefore = await other.getBalance();
+      expect(await tge.redeemableBalanceOf(other.address)).to.equal(
+        parseUnits("500")
+      );
+      await tge.connect(other).redeem();
+      const balanceAfter = await other.getBalance();
+
+      expect(await tge.redeemableBalanceOf(other.address)).to.equal(0);
+      expect(await token.balanceOf(other.address)).to.equal(0);
+      expect(
+        await vesting.vestedBalanceOf(tge.address, other.address)
+      ).to.equal(0);
+      expect(balanceAfter.sub(balanceBefore)).to.be.gt(
+        parseUnits("4.999") // Adjusted for spent gas fees
+      );
+    });
+
+    /*it("Can't recreate TGE for non-pool", async function () {
             createArgs[0] = token.address;
             await expect(
                 service.connect(other).createPool(...createArgs, {
@@ -498,43 +490,74 @@ describe("Test initial TGE", function () {
             ).to.be.revertedWith(Exceptions.NOT_POOL);
         });*/
 
-        it("Only pool owner can recreate TGE", async function () {
-            await expect(
-                service.connect(other).createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8])
-            ).to.be.revertedWith(Exceptions.NOT_POOL_OWNER);
-        });
-
-        it("Can't recreate successful TGE", async function () {
-            await tge
-                .connect(other)
-                .purchase(parseUnits("1000"), { value: parseUnits("10") });
-            await mineBlock(20);
-
-            await expect(
-                service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8])
-
-            ).to.be.revertedWith(Exceptions.GOVERNANCE_TOKEN_EXISTS);
-        });
-
-        it("Failed TGE can be recreated", async function () {
-            await mineBlock(20);
-
-            // TGE is failed
-
-            expect(await pool.isDAO()).to.be.false;
-
-            createArgs[1] = parseUnits("20000");
-            createArgs[2] = "DTKN2";
-
-            await service.createPrimaryTGE(pool.address, createArgs[1], createArgs[2], createArgs[2], createArgs[3], createArgs[8]);
-            const newToken = await getContractAt(
-                "Token",
-                await pool.getGovernanceToken()
-            );
-
-            expect(await newToken.symbol()).to.equal("DTKN2");
-            expect(await newToken.cap()).to.equal(parseUnits("20200")); // Cap with fee
-
-        });
+    it("Only pool owner can recreate TGE", async function () {
+      await expect(
+        tgeFactory.connect(other).createPrimaryTGE(
+          pool.address,
+          {
+            tokenType: 1,
+            cap: createArgs[1],
+            name: createArgs[2],
+            symbol: createArgs[2],
+            description: "",
+            decimals: 18,
+          },
+          createArgs[3],
+          createArgs[8]
+        )
+      ).to.be.revertedWith(Exceptions.NOT_POOL_OWNER);
     });
+
+    it("Can't recreate successful TGE", async function () {
+      await tge
+        .connect(other)
+        .purchase(parseUnits("1000"), { value: parseUnits("10") });
+      await mineBlock(20);
+
+      await expect(
+        tgeFactory.createPrimaryTGE(
+          pool.address,
+          {
+            tokenType: 1,
+            cap: createArgs[1],
+            name: createArgs[2],
+            symbol: createArgs[2],
+            description: "",
+            decimals: 18,
+          },
+          createArgs[3],
+          createArgs[8]
+        )
+      ).to.be.revertedWith(Exceptions.GOVERNANCE_TOKEN_EXISTS);
+    });
+
+    it("Failed TGE can be recreated", async function () {
+      await mineBlock(20);
+
+      // TGE is failed
+
+      expect(await pool.isDAO()).to.be.false;
+
+      await tgeFactory.createPrimaryTGE(
+        pool.address,
+        {
+          tokenType: 1,
+          cap: parseUnits("20000"),
+          name: createArgs[2],
+          symbol: "DTKN2",
+          description: "",
+          decimals: 18,
+        },
+        createArgs[3],
+        createArgs[8]
+      );
+      const newToken = await getContractAt(
+        "Token",
+        await pool.getGovernanceToken()
+      );
+
+      expect(await newToken.symbol()).to.equal("DTKN2");
+      expect(await newToken.cap()).to.equal(parseUnits("20200")); // Cap with fee
+    });
+  });
 });

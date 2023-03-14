@@ -65,4 +65,10 @@ library ExceptionsLibrary {
     string public constant NOT_RESOLVER = "NOT_RESOLVER";
     string public constant NOT_REGISTRY = "NOT_REGISTRY";
     string public constant INVALID_TARGET = "INVALID_TARGET";
+    string public constant NOT_TGE_FACTORY = "NOT_TGE_FACTORY";
+    string public constant WRONG_AMOUNT = "WRONG_AMOUNT";
+    string public constant WRONG_BLOCK_NUMBER = "WRONG_BLOCK_NUMBER";
+    string public constant NOT_VALID_EXECUTOR = "NOT_VALID_EXECUTOR";
+    string public constant POOL_PAUSED = "POOL_PAUSED";
+    string public constant NOT_INVOICE_MANAGER = "NOT_INVOICE_MANAGER";
 }

@@ -65,9 +65,10 @@ interface IRecordsRegistry {
         string memory description
     ) external returns (uint256 index);
 
-    function addProposalRecord(address pool, uint256 proposalId)
-        external
-        returns (uint256 index);
+    function addProposalRecord(
+        address pool,
+        uint256 proposalId
+    ) external returns (uint256 index);
 
     function addEventRecord(
         address pool,

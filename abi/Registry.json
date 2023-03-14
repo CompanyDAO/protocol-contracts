@@ -617,6 +617,30 @@
                 "internalType": "uint256",
                 "name": "entityType",
                 "type": "uint256"
+            }
+        ],
+        "name": "getAvailableCompanyAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "entityType",
+                "type": "uint256"
             },
             {
                 "internalType": "string",
@@ -657,40 +681,6 @@
                 "internalType": "struct ICompaniesRegistry.CompanyInfo",
                 "name": "",
                 "type": "tuple"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "jurisdiction",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "entityType",
-                "type": "uint256"
-            },
-            {
-                "internalType": "string",
-                "name": "ein",
-                "type": "string"
-            },
-            {
-                "internalType": "uint256",
-                "name": "docId",
-                "type": "uint256"
-            }
-        ],
-        "name": "getCompanyDocument",
-        "outputs": [
-            {
-                "internalType": "string",
-                "name": "",
-                "type": "string"
             }
         ],
         "stateMutability": "view",
@@ -1160,39 +1150,6 @@
             }
         ],
         "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "jurisdiction",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "entityType",
-                "type": "uint256"
-            },
-            {
-                "internalType": "string",
-                "name": "ein",
-                "type": "string"
-            },
-            {
-                "internalType": "uint256",
-                "name": "docId",
-                "type": "uint256"
-            },
-            {
-                "internalType": "string",
-                "name": "docUrl",
-                "type": "string"
-            }
-        ],
-        "name": "updateCompanyDocument",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
     },
     {

@@ -47,11 +47,10 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
      * @param proposalId Proposal ID
      * @return Global proposal ID
      */
-    function getGlobalProposalId(address pool, uint256 proposalId)
-        public
-        view
-        returns (uint256)
-    {
+    function getGlobalProposalId(
+        address pool,
+        uint256 proposalId
+    ) public view returns (uint256) {
         return globalProposalIds[pool][proposalId];
     }
 }
