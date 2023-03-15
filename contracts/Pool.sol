@@ -309,7 +309,7 @@ contract Pool is
         );
         lastProposalIdByType[proposeType] = proposalId_;
 
-        _setLastProposalIdForAddress(proposer, proposalId);
+        _setLastProposalIdForAddress(proposer, proposalId_);
 
         return proposalId_;
     }
