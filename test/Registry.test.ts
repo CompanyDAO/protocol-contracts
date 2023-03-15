@@ -78,7 +78,10 @@ describe("Test Registry", function () {
                 decimals: 18,
             },
             createArgs[3],
-            createArgs[8]
+            createArgs[8],
+            createArgs[6],
+            [owner.address],
+            [owner.address]
         );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
@@ -163,7 +166,7 @@ describe("Test Registry", function () {
     });
 
     it("Can getPoolSecretary", async function () {
-        expect(await (await pool.getPoolSecretary()).length).to.equal(0);
+        expect(await (await pool.getPoolSecretary()).length).to.equal(1);
     });
 
     it("Can pause pool", async function () {

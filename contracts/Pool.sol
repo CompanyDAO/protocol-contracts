@@ -165,13 +165,13 @@ contract Pool is
      * @param addSecretary secretary address list
      * @param addExecutor executor address list
      */
-    function setNewSettingsByOwner(
+    function setSettings(
         NewGovernanceSettings memory governanceSettings_,
         address[] memory addSecretary,
         address[] memory removeSecretary,
         address[] memory addExecutor,
         address[] memory removeExecutor
-    ) external onlyOwner {
+    ) external onlyTGEFactory {
         if (address(getGovernanceToken()) != address(0)) {
             require(!isDAO(), ExceptionsLibrary.IS_DAO);
             require(
