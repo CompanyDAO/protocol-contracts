@@ -92,7 +92,10 @@ describe("Test TGE for Preference Tokens", function () {
                 decimals: 18,
             },
             createArgs[3],
-            createArgs[8]
+            createArgs[8],
+            createArgs[6],
+            [owner.address],
+            [owner.address]
         );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());

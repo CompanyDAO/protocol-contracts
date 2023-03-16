@@ -112,7 +112,10 @@ describe("Test initial TGE", function () {
           decimals: 18,
         },
         createArgs[3],
-        createArgs[8]
+        createArgs[8],
+        createArgs[6],
+        [owner.address],
+        [owner.address]
       );
 
       token = await getContractAt("Token", await pool.getGovernanceToken());
@@ -199,7 +202,10 @@ describe("Test initial TGE", function () {
           decimals: 18,
         },
         createArgs[3],
-        createArgs[8]
+        createArgs[8],
+        createArgs[6],
+        [owner.address],
+        [owner.address]
       );
 
       newToken = await getContractAt("Token", await pool.getGovernanceToken());
@@ -427,7 +433,10 @@ describe("Test initial TGE", function () {
           decimals: 18,
         },
         createArgs[3],
-        createArgs[8]
+        createArgs[8],
+        createArgs[6],
+        [owner.address],
+        [owner.address]
       );
 
       token = await getContractAt("Token", await pool.getGovernanceToken());
@@ -503,7 +512,10 @@ describe("Test initial TGE", function () {
             decimals: 18,
           },
           createArgs[3],
-          createArgs[8]
+          createArgs[8],
+          createArgs[6],
+          [owner.address],
+          [owner.address]
         )
       ).to.be.revertedWith(Exceptions.NOT_POOL_OWNER);
     });
@@ -526,7 +538,10 @@ describe("Test initial TGE", function () {
             decimals: 18,
           },
           createArgs[3],
-          createArgs[8]
+          createArgs[8],
+          createArgs[6],
+          [owner.address],
+          [owner.address]
         )
       ).to.be.revertedWith(Exceptions.GOVERNANCE_TOKEN_EXISTS);
     });
@@ -549,7 +564,10 @@ describe("Test initial TGE", function () {
           decimals: 18,
         },
         createArgs[3],
-        createArgs[8]
+        createArgs[8],
+        createArgs[6],
+        [owner.address],
+        [owner.address]
       );
       const newToken = await getContractAt(
         "Token",

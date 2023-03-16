@@ -30,6 +30,14 @@ interface IPool is IGovernorProposals {
 
     function cancelProposal(uint256 proposalId) external;
 
+    function setSettings(
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
+        address[] memory addSecretary,
+        address[] memory removeSecretary,
+        address[] memory addExecutor,
+        address[] memory removeExecutor
+    ) external;
+
     function changePoolSecretary(
         address[] memory addSecretary,
         address[] memory removeSecretary

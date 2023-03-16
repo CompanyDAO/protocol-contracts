@@ -9,6 +9,7 @@ import "./interfaces/IToken.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/ITGEFactory.sol";
+import "./interfaces/governor/IGovernanceSettings.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
 contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
@@ -80,7 +81,10 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         address poolAddress,
         IToken.TokenInfo memory tokenInfo,
         ITGE.TGEInfo memory tgeInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
+        address[] memory addSecretary,
+        address[] memory addExecutor
     ) external nonReentrant whenNotPaused {
         // Check that sender is pool owner
         IPool pool = IPool(poolAddress);
@@ -93,6 +97,14 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         require(
             address(pool.getGovernanceToken()) == address(0) || !pool.isDAO(),
             ExceptionsLibrary.GOVERNANCE_TOKEN_EXISTS
+        );
+        address[] memory list;
+        pool.setSettings(
+            governanceSettings_,
+            addSecretary,
+            list,
+            addExecutor,
+            list
         );
 
         // Add protocol fee to token cap
