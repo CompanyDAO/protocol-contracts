@@ -4,12 +4,13 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IInvoice.sol";
 
-contract Invoice is Initializable, IInvoice {
+contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -105,7 +106,7 @@ contract Invoice is Initializable, IInvoice {
     function payInvoice(
         address pool,
         uint256 invoiceId
-    ) external payable whenPoolNotPaused(pool) {
+    ) external payable nonReentrant whenPoolNotPaused(pool) {
         InvoiceInfo memory invoice = invoices[pool][invoiceId];
 
         require(
@@ -129,7 +130,11 @@ contract Invoice is Initializable, IInvoice {
                 msg.value == invoice.core.amount,
                 ExceptionsLibrary.WRONG_AMOUNT
             );
-            payable(pool).sendValue(invoice.core.amount);
+
+            (bool success, ) = payable(pool).call{value: invoice.core.amount}(
+                ""
+            );
+            require(success, ExceptionsLibrary.WRONG_AMOUNT);
         } else {
             IERC20Upgradeable(invoice.core.unitOfAccount).safeTransferFrom(
                 msg.sender,
@@ -227,6 +232,11 @@ contract Invoice is Initializable, IInvoice {
             ExceptionsLibrary.WRONG_BLOCK_NUMBER
         );
 
+        require(
+            core.unitOfAccount == address(0) ||
+            IERC20Upgradeable(core.unitOfAccount).totalSupply() > 0,
+            ExceptionsLibrary.WRONG_TOKEN_ADDRESS
+        );
         return true;
     }
 
