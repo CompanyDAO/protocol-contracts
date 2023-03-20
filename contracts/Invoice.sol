@@ -233,6 +233,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         );
 
         require(
+            core.unitOfAccount == address(0) ||
             IERC20Upgradeable(core.unitOfAccount).totalSupply() > 0,
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
