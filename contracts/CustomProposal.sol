@@ -81,7 +81,9 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         string memory metaHash
     ) external returns (uint256 proposalId) {
         // Check lengths
+        
         require(
+            recipients.length > 0 &&
             recipients.length == amounts.length,
             ExceptionsLibrary.INVALID_VALUE
         );
