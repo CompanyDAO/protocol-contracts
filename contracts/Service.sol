@@ -133,6 +133,54 @@ contract Service is
      */
     event ProposalCancelled(address pool, uint256 proposalId);
 
+    /**
+     * @dev Event emitted on PoolBeacon change.
+     * @param beacon Beacon address
+     */
+    event PoolBeaconChanged(address beacon);
+
+    /**
+     * @dev Event emitted on TGEBeacon change.
+     * @param beacon Beacon address
+     */
+    event TGEBeaconChanged(address beacon);
+    /**
+     * @dev Event emitted on TokenBeacon change.
+     * @param beacon Beacon address
+     */
+    event TokenBeaconChanged(address beacon);
+    /**
+     * @dev Event emitted on CustomPropsalProxy change.
+     * @param proxy Proxy address
+     */
+    event CustomPropsalChanged(address proxy);
+    /**
+     * @dev Event emitted on InvoiceProxy change.
+     * @param proxy Proxy address
+     */
+    event InvoiceChanged(address proxy);
+    /**
+     * @dev Event emitted on RegistryProxy change.
+     * @param proxy Proxy address
+     */
+    event RegistryChanged(address proxy);
+    /**
+     * @dev Event emitted on TGEFactoryProxy change.
+     * @param proxy Proxy address
+     */
+    event TGEFactoryChanged(address proxy);
+
+    /**
+     * @dev Event emitted on TokenFactoryProxy change.
+     * @param proxy Proxy address
+     */
+    event TokenFactoryChanged(address proxy);
+
+    /**
+     * @dev Event emitted on VestingProxy change.
+     * @param proxy Proxy address
+     */
+    event VestingChanged(address proxy);
     // MODIFIERS
 
     modifier onlyPool() {
@@ -376,6 +424,7 @@ contract Service is
         );
 
         registry = _registry;
+        emit RegistryChanged(address(registry));
     }
 
     /**
@@ -391,6 +440,7 @@ contract Service is
         );
 
         customProposal = _customProposal;
+        emit CustomPropsalChanged(address(customProposal));
     }
 
     /**
@@ -406,6 +456,7 @@ contract Service is
         );
 
         vesting = _vesting;
+        emit VestingChanged(address(vesting));
     }
 
     /**
@@ -421,6 +472,7 @@ contract Service is
         );
 
         invoice = _invoice;
+        emit InvoiceChanged(address(invoice));
     }
 
     /**
@@ -433,6 +485,7 @@ contract Service is
         require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
         poolBeacon = beacon;
+        emit PoolBeaconChanged(address(poolBeacon));
     }
 
     /**
@@ -445,6 +498,7 @@ contract Service is
         require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
         tokenBeacon = beacon;
+        emit TokenBeaconChanged(address(tokenBeacon));
     }
 
     /**
@@ -457,6 +511,7 @@ contract Service is
         require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
         tgeBeacon = beacon;
+        emit TGEBeaconChanged(address(tgeBeacon));
     }
 
     /**

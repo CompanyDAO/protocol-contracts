@@ -21,10 +21,9 @@ interface IUniswapPositionManager {
     /// @dev The `msg.value` should not be trusted for any method callable from multicall.
     /// @param data The encoded function data for each of the calls to make to this contract
     /// @return results The results from each of the calls passed in via data
-    function multicall(bytes[] calldata data)
-        external
-        payable
-        returns (bytes[] memory results);
+    function multicall(
+        bytes[] calldata data
+    ) external payable returns (bytes[] memory results);
 
     struct MintParams {
         address token0;
@@ -48,7 +47,9 @@ interface IUniswapPositionManager {
     /// @return liquidity The amount of liquidity for this position
     /// @return amount0 The amount of token0
     /// @return amount1 The amount of token1
-    function mint(MintParams calldata params)
+    function mint(
+        MintParams calldata params
+    )
         external
         payable
         returns (
