@@ -47,7 +47,7 @@ task("deploy:update", "Deploy Proxy")
             await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
         }catch{        }
         console.log("change ProxyAdmin\t| Done");
-
+        await sleep(20000);
         
         //invoice proxy
         proxy = await deployProxy("Invoice", [registry]);
@@ -57,7 +57,7 @@ task("deploy:update", "Deploy Proxy")
             await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
         }catch{        }
         console.log("change ProxyAdmin\t| Done");
-        
+        await sleep(20000);
         //TGEFactory
         proxy = await deployProxy("TGEFactory", [service]);
         console.log("TGEFactory Proxy\t|", proxy.address);
@@ -67,7 +67,7 @@ task("deploy:update", "Deploy Proxy")
         }catch{        }
         console.log("change ProxyAdmin\t| Done");
         
-
+        await sleep(20000);
         //TokenFactory
         proxy = await deployProxy("TokenFactory", [service]);
         console.log("TokenFactory Proxy\t|", proxy.address);
@@ -77,7 +77,7 @@ task("deploy:update", "Deploy Proxy")
         }catch{        }
         console.log("change ProxyAdmin\t| Done");
         
-
+        await sleep(20000);
         //CustomProposal
         proxy = await deployProxy("CustomProposal", []);
         console.log("CustomProposal Proxy\t|", proxy.address);
@@ -86,6 +86,7 @@ task("deploy:update", "Deploy Proxy")
         const customProposalContract = await getContract(
             "CustomProposal"
         );
+
         await customProposalContract.setService(service);
         console.log("CustomProposal SetService\t| Done");
         
@@ -98,7 +99,10 @@ task("deploy:update", "Deploy Proxy")
         let implementation:any;
         let beacon:any;
         const beacons = ['TGE']
-        for(let contractName in beacons){
+        let contractName
+        for(let i = 0; i < beacons.length; i++) {
+            contractName = beacons[i]   
+            await sleep(20000);
             implementation = await deploy(`${contractName}Implementation`, {
                 contract: contractName,
                 from: deployer,
@@ -113,13 +117,22 @@ task("deploy:update", "Deploy Proxy")
                 log: true,
             });
             console.log(contractName," Beacon\t|", beacon.address);
-            await beacon.transferOwnership(owner);
+            beacon = await getContract(
+                `${contractName}Beacon`
+                 );
+            try{
+                await beacon.transferOwnership(owner);
+            }catch{
+
+            }
             console.log(contractName," Beacon transferOwnership\t| Done");
             
         }
-        
-        const implementations = ['Token','Pool','Registry','Service']
-        for(let contractName in implementations){
+
+        const implementationss = ['Token','Pool','Registry','Service']
+        for(let i = 0; i < implementationss.length; i++) {
+            contractName = implementationss[i]
+            await sleep(20000);
             implementation = await deploy(`${contractName}Implementation`, {
                 contract: contractName,
                 from: deployer,
