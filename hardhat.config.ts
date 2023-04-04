@@ -11,7 +11,7 @@ import "solidity-coverage";
 import "@openzeppelin/hardhat-upgrades";
 import "hardhat-deploy";
 import "hardhat-dependency-compiler";
-import "solidity-docgen";
+import "hardhat-docgen";
 import "hardhat-abi-exporter";
 import "hardhat-contract-sizer";
 
@@ -23,6 +23,21 @@ const networkConfig = (url: string | null | undefined) => ({
   url: url || "",
   accounts:
     process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+});
+
+const onlyContracts = () => ({
+  only: [
+    ":Registry$",
+    ":Service$",
+    ":Pool$",
+    ":TGE$",
+    ":Token$",
+    ":Vesting$",
+    ":CustomProposal$",
+    ":Invoice$",
+    ":TGEFactory$",
+    ":TokenFactory$",
+  ]
 });
 
 const config: HardhatUserConfig = {
@@ -59,7 +74,11 @@ const config: HardhatUserConfig = {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
   },
-  docgen: {},
+  docgen: {
+    path: './docs',
+    clear: true,
+    ...onlyContracts()
+  },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
@@ -82,18 +101,7 @@ const config: HardhatUserConfig = {
     clear: true,
     flat: true,
     spacing: 4,
-    only: [
-      ":Registry$",
-      ":Service$",
-      ":Pool$",
-      ":TGE$",
-      ":Token$",
-      ":Vesting$",
-      ":CustomProposal$",
-      ":Invoice$",
-      ":TGEFactory$",
-      ":TokenFactory$",
-    ],
+    ...onlyContracts()
   },
 };
 
