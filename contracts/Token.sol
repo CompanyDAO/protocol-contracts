@@ -71,7 +71,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
             __ERC20_init(info.name, info.symbol);
             _decimals = info.decimals;
         } else {
-            __ERC20_init(IPool(pool_).trademark(), info.symbol);
+            __ERC20_init(info.name, info.symbol);
         }
         tgeList.push(primaryTGE_);
         tgeWithLockedTokensList.push(primaryTGE_);

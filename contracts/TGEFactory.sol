@@ -107,9 +107,6 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             list
         );
 
-        // Add protocol fee to token cap
-        tokenInfo.cap += service.getProtocolTokenFee(tokenInfo.cap);
-
         // Create TGE contract
         ITGE tge = _createTGE(metadataURI, address(pool));
 
