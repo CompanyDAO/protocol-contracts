@@ -36,59 +36,59 @@ task("deploy:update", "Deploy Proxy")
 
 
         //vesting proxy
-        proxy = await deployProxy("Vesting", [registry]);
-        console.log("Vesting Proxy\t|", proxy.address);
+        // proxy = await deployProxy("Vesting", [registry]);
+        // console.log("Vesting Proxy\t|", proxy.address);
 
         const proxyAdmin = await getContract(
             "DefaultProxyAdmin"
         );
         
-        try{
-            await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
-        }catch{        }
-        console.log("change ProxyAdmin\t| Done");
-        await sleep(20000);
+        // try{
+        //     await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
+        // }catch{        }
+        // console.log("change ProxyAdmin\t| Done");
+        // await sleep(20000);
         
-        //invoice proxy
-        proxy = await deployProxy("Invoice", [registry]);
-        console.log("Invoice Proxy\t|", proxy.address);
+        // //invoice proxy
+        // proxy = await deployProxy("Invoice", [registry]);
+        // console.log("Invoice Proxy\t|", proxy.address);
 
-        try{
-            await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
-        }catch{        }
-        console.log("change ProxyAdmin\t| Done");
-        await sleep(20000);
-        //TGEFactory
-        proxy = await deployProxy("TGEFactory", [service]);
-        console.log("TGEFactory Proxy\t|", proxy.address);
+        // try{
+        //     await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
+        // }catch{        }
+        // console.log("change ProxyAdmin\t| Done");
+        // await sleep(20000);
+        // //TGEFactory
+        // proxy = await deployProxy("TGEFactory", [service]);
+        // console.log("TGEFactory Proxy\t|", proxy.address);
 
-        try{
-            await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
-        }catch{        }
-        console.log("change ProxyAdmin\t| Done");
+        // try{
+        //     await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
+        // }catch{        }
+        // console.log("change ProxyAdmin\t| Done");
         
-        await sleep(20000);
-        //TokenFactory
-        proxy = await deployProxy("TokenFactory", [service]);
-        console.log("TokenFactory Proxy\t|", proxy.address);
+        // await sleep(20000);
+        // //TokenFactory
+        // proxy = await deployProxy("TokenFactory", [service]);
+        // console.log("TokenFactory Proxy\t|", proxy.address);
 
-        try{
-            await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
-        }catch{        }
-        console.log("change ProxyAdmin\t| Done");
+        // try{
+        //     await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
+        // }catch{        }
+        // console.log("change ProxyAdmin\t| Done");
         
-        await sleep(20000);
-        //CustomProposal
-        proxy = await deployProxy("CustomProposal", []);
-        console.log("CustomProposal Proxy\t|", proxy.address);
+        // await sleep(20000);
+        // //CustomProposal
+        // proxy = await deployProxy("CustomProposal", []);
+        // console.log("CustomProposal Proxy\t|", proxy.address);
 
-        // Set Service in customProposalContract
-        const customProposalContract = await getContract(
-            "CustomProposal"
-        );
+        // // Set Service in customProposalContract
+        // const customProposalContract = await getContract(
+        //     "CustomProposal"
+        // );
 
-        await customProposalContract.setService(service);
-        console.log("CustomProposal SetService\t| Done");
+        // await customProposalContract.setService(service);
+        // console.log("CustomProposal SetService\t| Done");
         
         try{
             await proxyAdmin.changeProxyAdmin(proxy.address,realProxyAdminAddress);
