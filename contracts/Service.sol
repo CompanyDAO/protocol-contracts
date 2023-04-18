@@ -666,7 +666,7 @@ contract Service is
     ) internal view returns (bytes32 salt, bytes memory deployBytecode) {
         // Get salt
         salt = keccak256(
-            abi.encode(info.jurisdiction, info.entityType, info.ein)
+            abi.encode(info.jurisdiction, info.entityType, info.ein, 1)
         );
 
         // Get bytecode
