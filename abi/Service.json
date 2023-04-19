@@ -10,6 +10,19 @@
             {
                 "indexed": false,
                 "internalType": "address",
+                "name": "proxy",
+                "type": "address"
+            }
+        ],
+        "name": "CustomPropsalChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
                 "name": "to",
                 "type": "address"
             },
@@ -42,11 +55,37 @@
             {
                 "indexed": false,
                 "internalType": "address",
+                "name": "proxy",
+                "type": "address"
+            }
+        ],
+        "name": "InvoiceChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
                 "name": "account",
                 "type": "address"
             }
         ],
         "name": "Paused",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "PoolBeaconChanged",
         "type": "event"
     },
     {
@@ -148,6 +187,19 @@
         "anonymous": false,
         "inputs": [
             {
+                "indexed": false,
+                "internalType": "address",
+                "name": "proxy",
+                "type": "address"
+            }
+        ],
+        "name": "RegistryChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
                 "indexed": true,
                 "internalType": "bytes32",
                 "name": "role",
@@ -225,11 +277,76 @@
             {
                 "indexed": false,
                 "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "TGEBeaconChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "proxy",
+                "type": "address"
+            }
+        ],
+        "name": "TGEFactoryChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "TokenBeaconChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "proxy",
+                "type": "address"
+            }
+        ],
+        "name": "TokenFactoryChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
                 "name": "account",
                 "type": "address"
             }
         ],
         "name": "Unpaused",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "proxy",
+                "type": "address"
+            }
+        ],
+        "name": "VestingChanged",
         "type": "event"
     },
     {
@@ -668,24 +785,6 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "contract ITokenFactory",
-                "name": "tokenFactory_",
-                "type": "address"
-            },
-            {
-                "internalType": "contract ITGEFactory",
-                "name": "tgeFactory_",
-                "type": "address"
-            }
-        ],
-        "name": "initializeFactories",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
         "inputs": [],
         "name": "invoice",
         "outputs": [
@@ -906,6 +1005,24 @@
     {
         "inputs": [
             {
+                "internalType": "contract ITokenFactory",
+                "name": "tokenFactory_",
+                "type": "address"
+            },
+            {
+                "internalType": "contract ITGEFactory",
+                "name": "tgeFactory_",
+                "type": "address"
+            }
+        ],
+        "name": "setFactories",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "contract IInvoice",
                 "name": "_invoice",
                 "type": "address"
@@ -1015,6 +1132,19 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "beacon",
+                "type": "address"
+            }
+        ],
+        "name": "setTokenERC1155Beacon",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "contract IVesting",
                 "name": "_vesting",
                 "type": "address"
@@ -1073,6 +1203,19 @@
     {
         "inputs": [],
         "name": "tokenBeacon",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "tokenERC1155Beacon",
         "outputs": [
             {
                 "internalType": "address",

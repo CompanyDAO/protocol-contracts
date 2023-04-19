@@ -1184,6 +1184,19 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "tge",
+                "type": "address"
+            }
+        ],
+        "name": "setProposalIdToTGE",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "components": [
                     {
                         "internalType": "uint256",
@@ -1246,20 +1259,7 @@
                 "type": "address[]"
             }
         ],
-        "name": "setNewSettingsByOwner",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "tge",
-                "type": "address"
-            }
-        ],
-        "name": "setProposalIdToTGE",
+        "name": "setSettings",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

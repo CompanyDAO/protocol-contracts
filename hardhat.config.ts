@@ -32,11 +32,12 @@ const onlyContracts = () => ({
     ":Pool$",
     ":TGE$",
     ":Token$",
+    ":TokenERC1155$",
     ":Vesting$",
     ":CustomProposal$",
     ":Invoice$",
     ":TGEFactory$",
-    ":TokenFactory$",
+    ":TokenFactory$"
   ]
 });
 

@@ -70,7 +70,68 @@
         "name": "createToken",
         "outputs": [
             {
-                "internalType": "contract IToken",
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "enum IToken.TokenType",
+                        "name": "tokenType",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "symbol",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "cap",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "decimals",
+                        "type": "uint8"
+                    }
+                ],
+                "internalType": "struct IToken.TokenInfo",
+                "name": "info",
+                "type": "tuple"
+            },
+            {
+                "internalType": "address",
+                "name": "primaryTGE",
+                "type": "address"
+            }
+        ],
+        "name": "createTokenERC1155",
+        "outputs": [
+            {
+                "internalType": "address",
                 "name": "token",
                 "type": "address"
             }

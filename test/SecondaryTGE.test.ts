@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ContractTransaction } from "ethers";
+import { BigNumber, ContractTransaction } from "ethers";
 import { deployments, ethers, network } from "hardhat";
 import {
     ERC20Mock,
@@ -468,7 +468,8 @@ describe("Test secondary TGE", function () {
             await pool.executeProposal(1);
 
             // Create and success second proposal
-            createArgs[3].hardcap = parseUnits("1000");
+            createArgs[3].hardcap = parseUnits("6900");
+
             await customProposal.proposeTGE(pool.address, ...tgeArgs);
 
             //waiting for voting start
@@ -483,17 +484,52 @@ describe("Test secondary TGE", function () {
                 Exceptions.ACTIVE_TGE_EXISTS
             );
         });
+        it("Hardcap and protocolFee works", async function () {
+            //waiting for voting start
+            await mineBlock(10);
+            let cap =  (await token.cap())
+            let tswr =  await (await token.totalSupplyWithReserves())
+            let maxharcap =  cap.sub(tswr).mul(99).div(100)
+            
 
+            // Create and success second proposal
+            createArgs[3].hardcap = maxharcap;
+            createArgs[3].maxPurchase = maxharcap.mul(101).div(100);
+            await customProposal.proposeTGE(pool.address, ...tgeArgs);
+
+            //waiting for voting start
+            await mineBlock(10);
+
+            await pool.connect(owner).castVote(2, true);
+            await pool.connect(other).castVote(2, true);
+            await mineBlock(2);
+            await mineBlock(100);
+           
+            await mineBlock(2);
+            await pool.executeProposal(2);
+            const tgeRecord = await registry.contractRecords(4);
+            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
+            let maxpurchase = cap.sub(tswr)
+            // await tge2
+            //     .connect(owner)
+            //     .purchase( createArgs[3].maxPurchase.sub(1), { value: parseUnits("100") });
+            tswr =  await (await token.totalSupplyWithReserves())
+        });
         it("Secondary TGE's hardcap can't overflow remaining supply", async function () {
             await mineBlock(100);
 
-            createArgs[3].hardcap = parseUnits("7000").add(1);
-
+            let cap =  (await token.cap())
+            let tswr =  await (await token.totalSupplyWithReserves())
+            let maxharcap =  cap.sub(tswr).mul(100).div(100).add(1);
+            createArgs[3].hardcap = maxharcap;
             await expect(
                 customProposal.proposeTGE(pool.address, ...tgeArgs)
             ).to.be.revertedWith(
-                Exceptions.HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
+                Exceptions.HARDCAP_OVERFLOW_REMAINING_SUPPLY
             );
         });
+
+
+        
     });
 });

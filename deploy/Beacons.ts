@@ -6,6 +6,7 @@ const deployFunction: DeployFunction = async function ({
 }: HardhatRuntimeEnvironment) {
     await run("deploy:beacon", { contract: "Pool" });
     await run("deploy:beacon", { contract: "Token" });
+    await run("deploy:beacon", { contract: "TokenERC1155" });
     await run("deploy:beacon", { contract: "TGE" });
 };
 

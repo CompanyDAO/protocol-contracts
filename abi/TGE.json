@@ -387,13 +387,23 @@
         "inputs": [
             {
                 "internalType": "address",
-                "name": "service",
+                "name": "_service",
                 "type": "address"
             },
             {
-                "internalType": "contract IToken",
-                "name": "token_",
+                "internalType": "address",
+                "name": "_token",
                 "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_tokenId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "_uri",
+                "type": "string"
             },
             {
                 "components": [
@@ -496,18 +506,31 @@
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
-                "name": "info_",
+                "name": "_info",
                 "type": "tuple"
             },
             {
                 "internalType": "uint256",
-                "name": "protocolFee_",
+                "name": "_protocolFee",
                 "type": "uint256"
             }
         ],
         "name": "initialize",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "isERC1155TGE",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -689,9 +712,22 @@
         "name": "token",
         "outputs": [
             {
-                "internalType": "contract IToken",
+                "internalType": "address",
                 "name": "",
                 "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "tokenId",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",

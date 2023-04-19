@@ -47,12 +47,37 @@ contract TokenFactory is Initializable, ITokenFactory {
         address pool,
         IToken.TokenInfo memory info,
         address primaryTGE
-    ) external onlyTGEFactory returns (IToken token) {
+    ) external onlyTGEFactory returns (address token) {
         // Create token contract
-        token = IToken(address(new BeaconProxy(service.tokenBeacon(), "")));
+        token = address(new BeaconProxy(service.tokenBeacon(), ""));
 
         // Initialize token
-        token.initialize(service, pool, info, primaryTGE);
+        IToken(token).initialize(service, pool, info, primaryTGE);
+
+        // Add token contract to registry
+        service.registry().addContractRecord(
+            address(token),
+            IToken(token).tokenType() == IToken.TokenType.Governance
+                ? IRecordsRegistry.ContractType.GovernanceToken
+                : IRecordsRegistry.ContractType.PreferenceToken,
+            ""
+        );
+    }
+
+    /**
+     * @dev Create token contract ERC1155
+     * @return token Token contract
+     */
+    function createTokenERC1155(
+        address pool,
+        IToken.TokenInfo memory info,
+        address primaryTGE
+    ) external onlyTGEFactory returns (address token) {
+        // Create token contract
+        token = address(new BeaconProxy(service.tokenERC1155Beacon(), ""));
+
+        // Initialize token
+        ITokenERC1155(token).initialize(service, pool, info, primaryTGE);
 
         // Add token contract to registry
         service.registry().addContractRecord(
