@@ -3,10 +3,10 @@
 pragma solidity 0.8.17;
 
 import "./IToken.sol";
+import "./ITokenERC1155.sol";
 import "./IVesting.sol";
 
 interface ITGE {
-
     struct TGEInfo {
         uint256 price;
         uint256 hardcap;
@@ -22,10 +22,12 @@ interface ITGE {
     }
 
     function initialize(
-        address service,
-        IToken token_,
-        TGEInfo calldata info_,
-        uint256 protocolFee_
+        address _service,
+        address _token,
+        uint256 _tokenId,
+        string memory _uri,
+        TGEInfo calldata _info,
+        uint256 _protocolFee
     ) external;
 
     enum State {
@@ -34,7 +36,9 @@ interface ITGE {
         Successful
     }
 
-    function token() external view returns (IToken);
+    function token() external view returns (address);
+
+    function tokenId() external view returns (uint256);
 
     function state() external view returns (State);
 
@@ -49,4 +53,6 @@ interface ITGE {
     function lockedBalanceOf(address account) external view returns (uint256);
 
     function getEnd() external view returns (uint256);
+
+    function isERC1155TGE() external view returns (bool);
 }

@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./interfaces/IToken.sol";
+import "./interfaces/ITokenERC1155.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IPool.sol";
@@ -26,8 +27,11 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     /// @notice Denominator for shares (such as thresholds)
     uint256 private constant DENOM = 100 * 10 ** 4;
 
-    /// @dev Pool's ERC20 token
-    IToken public token;
+    /// @dev Pool's ERC20/ERC1155 token
+    address public token;
+
+    /// @dev Pool's ERC1155 tokenId
+    uint256 public tokenId;
 
     /// @dev TGE info struct
     TGEInfo public info;
@@ -106,34 +110,52 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     /**
      * @dev Constructor function, can only be called once. In this method, settings for the TGE event are assigned, such as the contract of the token implemented using TGE, as well as the TGEInfo structure, which includes the parameters of purchase, vesting and lockup. If no lockup or westing conditions were set for the TVL value when creating the TGE, then the TVL achievement flag is set to true from the very beginning.
-     * @param service Service contract
-     * @param token_ TGE's token
-     * @param info_ TGE parameters
-     * @param protocolFee_ Protocol's fee value
+     * @param _service Service contract
+     * @param _token TGE's token
+     * @param _tokenId TGE's tokenId
+     * @param _info TGE parameters
+     * @param _protocolFee Protocol's fee value
      */
     function initialize(
-        address service,
-        IToken token_,
-        TGEInfo calldata info_,
-        uint256 protocolFee_
+        address _service,
+        address _token,
+        uint256 _tokenId,
+        string memory _uri,
+        TGEInfo calldata _info,
+        uint256 _protocolFee
     ) external initializer {
         __ReentrancyGuard_init();
-        IService(service).validateTGEInfo(
-            info_,
-            token_.cap(),
-            token_.totalSupplyWithReserves(),
-            token_.tokenType()
-        );
 
-        vesting = IService(service).vesting();
+        //if tge is creating for erc20 token
+        tokenId = _tokenId;
+        if (tokenId == 0) {
+            IService(_service).validateTGEInfo(
+                _info,
+                IToken(_token).cap(),
+                IToken(_token).totalSupplyWithReserves(),
+                IToken(_token).tokenType()
+            );
+        } else {
+            //if tge is creating for erc155 token
+            if (ITokenERC1155(_token).cap(tokenId) != 0) {
+                IService(_service).validateTGEInfo(
+                    _info,
+                    ITokenERC1155(_token).cap(tokenId),
+                    ITokenERC1155(_token).totalSupplyWithReserves(tokenId),
+                    IToken(_token).tokenType()
+                );
+            }
+            ITokenERC1155(_token).setURI(_tokenId, _uri);
+        }
+        vesting = IService(_service).vesting();
+        token = _token;
 
-        token = token_;
-        info = info_;
-        protocolFee = protocolFee_;
-        lockupTVLReached = (info_.lockupTVL == 0);
+        info = _info;
+        protocolFee = _protocolFee;
+        lockupTVLReached = (_info.lockupTVL == 0);
 
-        for (uint256 i = 0; i < info_.userWhitelist.length; i++) {
-            _isUserWhitelisted[info_.userWhitelist[i]] = true;
+        for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
+            _isUserWhitelisted[_info.userWhitelist[i]] = true;
         }
 
         createdAt = block.number;
@@ -157,8 +179,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     {
         // Check purchase price transfer depending on unit of account
         address unitOfAccount = info.unitOfAccount;
-        uint256 purchasePrice = (amount * info.price + (1 ether - 1)) /
-            1 ether;
+        uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
         if (unitOfAccount == address(0)) {
             require(
                 msg.value >= purchasePrice,
@@ -190,16 +211,33 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 vestedAmount = (amount *
             info.vestingParams.vestedShare +
             (DENOM - 1)) / DENOM;
-        IToken _token = token;
+
         if (amount - vestedAmount > 0) {
-            _token.mint(msg.sender, amount - vestedAmount);
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).mint(
+                    msg.sender,
+                    tokenId,
+                    amount - vestedAmount
+                );
+            } else {
+                IToken(token).mint(msg.sender, amount - vestedAmount);
+            }
         }
 
         // Vest tokens
         if (vestedAmount > 0) {
-            token.setTGEVestedTokens(
-                token.getTotalTGEVestedTokens() + vestedAmount
-            );
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).setTGEVestedTokens(
+                    ITokenERC1155(token).getTotalTGEVestedTokens(tokenId) +
+                        vestedAmount,
+                    tokenId
+                );
+            } else {
+                IToken(token).setTGEVestedTokens(
+                    IToken(token).getTotalTGEVestedTokens() + vestedAmount
+                );
+            }
+
             vesting.vest(msg.sender, vestedAmount);
         }
 
@@ -207,9 +245,17 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 tokenFee = getProtocolTokenFee(amount);
         if (tokenFee > 0) {
             totalProtocolFee += tokenFee;
-            token.setProtocolFeeReserved(
-                token.getTotalProtocolFeeReserved() + tokenFee
-            );
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).setProtocolFeeReserved(
+                    ITokenERC1155(token).getTotalProtocolFeeReserved(tokenId) +
+                        tokenFee,
+                    tokenId
+                );
+            } else {
+                IToken(token).setProtocolFeeReserved(
+                    IToken(token).getTotalProtocolFeeReserved() + tokenFee
+                );
+            }
         }
 
         // Emit event
@@ -244,20 +290,40 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             vesting.cancel(address(this), msg.sender);
 
             // Decrease reserved tokens
-            token.setTGEVestedTokens(
-                token.getTotalTGEVestedTokens() - vestedBalance
-            );
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).setTGEVestedTokens(
+                    ITokenERC1155(token).getTotalTGEVestedTokens(tokenId) -
+                        vestedBalance,
+                    tokenId
+                );
+            } else {
+                IToken(token).setTGEVestedTokens(
+                    IToken(token).getTotalTGEVestedTokens() - vestedBalance
+                );
+            }
         }
 
         // Calculate redeemed balance
-        uint256 balanceToRedeem = MathUpgradeable.min(
-            token.balanceOf(msg.sender),
-            purchaseOf[msg.sender]
-        );
+        uint256 balanceToRedeem;
+        if (isERC1155TGE()) {
+            balanceToRedeem = MathUpgradeable.min(
+                ITokenERC1155(token).balanceOf(msg.sender, tokenId),
+                purchaseOf[msg.sender]
+            );
+        } else {
+            balanceToRedeem = MathUpgradeable.min(
+                IToken(token).balanceOf(msg.sender),
+                purchaseOf[msg.sender]
+            );
+        }
         if (balanceToRedeem > 0) {
             purchaseOf[msg.sender] -= balanceToRedeem;
             refundAmount += balanceToRedeem;
-            token.burn(msg.sender, balanceToRedeem);
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).burn(msg.sender, tokenId, balanceToRedeem);
+            } else {
+                IToken(token).burn(msg.sender, balanceToRedeem);
+            }
         }
 
         // Check that there is anything to refund
@@ -279,9 +345,17 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 tokenFee = getProtocolTokenFee(refundAmount);
         if (tokenFee > 0) {
             totalProtocolFee -= tokenFee;
-            token.setProtocolFeeReserved(
-                token.getTotalProtocolFeeReserved() - tokenFee
-            );
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).setProtocolFeeReserved(
+                    ITokenERC1155(token).getTotalProtocolFeeReserved(tokenId) -
+                        tokenFee,
+                    tokenId
+                );
+            } else {
+                IToken(token).setProtocolFeeReserved(
+                    IToken(token).getTotalProtocolFeeReserved() - tokenFee
+                );
+            }
         }
 
         // Emit event
@@ -322,7 +396,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Transfer remaining funds to pool
         address unitOfAccount = info.unitOfAccount;
-        address pool = token.pool();
+
+        address pool = IToken(token).pool();
+
         uint256 balance = 0;
         if (info.price != 0) {
             if (unitOfAccount == address(0)) {
@@ -347,9 +423,8 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             return;
         }
 
-        // Retrun for preference token
-        IToken _token = token;
-        if (_token.tokenType() == IToken.TokenType.Preference) {
+        // Return for preference token
+        if (IToken(token).tokenType() == IToken.TokenType.Preference) {
             return;
         }
 
@@ -360,14 +435,30 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 tokenFee = totalProtocolFee;
         if (totalProtocolFee > 0) {
             totalProtocolFee = 0;
-            _token.mint(_token.service().protocolTreasury(), tokenFee);
-            token.setProtocolFeeReserved(
-                token.getTotalProtocolFeeReserved() - tokenFee
-            );
+            if (isERC1155TGE()) {
+                ITokenERC1155(token).mint(
+                    ITokenERC1155(token).service().protocolTreasury(),
+                    tokenId,
+                    tokenFee
+                );
+                ITokenERC1155(token).setProtocolFeeReserved(
+                    ITokenERC1155(token).getTotalProtocolFeeReserved(tokenId) -
+                        tokenFee,
+                    tokenId
+                );
+            } else {
+                IToken(token).mint(
+                    IToken(token).service().protocolTreasury(),
+                    tokenFee
+                );
+                IToken(token).setProtocolFeeReserved(
+                    IToken(token).getTotalProtocolFeeReserved() - tokenFee
+                );
+            }
         }
 
         // Emit event
-        emit ProtocolTokenFeeClaimed(address(_token), tokenFee);
+        emit ProtocolTokenFeeClaimed(token, tokenFee);
     }
 
     // VIEW FUNCTIONS
@@ -403,8 +494,20 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         }
 
         // If it's not primary TGE it's successfull (if anything is purchased)
-        if (address(this) != token.getTGEList()[0] && totalPurchased > 0) {
-            return State.Successful;
+        if (isERC1155TGE()) {
+            if (
+                address(this) != ITokenERC1155(token).getTGEList(tokenId)[0] &&
+                totalPurchased > 0
+            ) {
+                return State.Successful;
+            }
+        } else {
+            if (
+                address(this) != IToken(token).getTGEList()[0] &&
+                totalPurchased > 0
+            ) {
+                return State.Successful;
+            }
         }
 
         // If softcap is reached TGE is successfull
@@ -422,8 +525,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      */
     function transferUnlocked() public view returns (bool) {
         return
-            lockupTVLReached &&
-            block.number >= createdAt + info.lockupDuration;
+            lockupTVLReached && block.number >= createdAt + info.lockupDuration;
     }
 
     /**
@@ -450,12 +552,21 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         if (purchaseOf[account] == 0) return 0;
         if (state() != State.Failed) return 0;
 
-        return
-            MathUpgradeable.min(
-                token.balanceOf(account) +
-                    vesting.vestedBalanceOf(address(this), account),
-                purchaseOf[account]
-            );
+        if (isERC1155TGE()) {
+            return
+                MathUpgradeable.min(
+                    ITokenERC1155(token).balanceOf(account, tokenId) +
+                        vesting.vestedBalanceOf(address(this), account),
+                    purchaseOf[account]
+                );
+        } else {
+            return
+                MathUpgradeable.min(
+                    IToken(token).balanceOf(account) +
+                        vesting.vestedBalanceOf(address(this), account),
+                    purchaseOf[account]
+                );
+        }
     }
 
     /**
@@ -492,6 +603,14 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     /**
+     * @dev Checks if TGE is created for ERC1155
+     * @return Flag if ERC1155 TGE
+     */
+    function isERC1155TGE() public view returns (bool) {
+        return tokenId == 0 ? false : true;
+    }
+
+    /**
      * @dev Get TGE end block
      * @return TGE end block
      */
@@ -513,7 +632,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
      * @return tokenFee
      */
     function getProtocolTokenFee(uint256 amount) public view returns (uint256) {
-        if (token.tokenType() == IToken.TokenType.Preference) {
+        if (IToken(token).tokenType() == IToken.TokenType.Preference) {
             return 0;
         }
         return (amount * protocolFee + (DENOM - 1)) / DENOM;
@@ -535,7 +654,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     modifier onlyManager() {
-        IService service = token.service();
+        IService service = IToken(token).service();
         require(
             service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender),
             ExceptionsLibrary.NOT_WHITELISTED
@@ -545,7 +664,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     modifier whenPoolNotPaused() {
         require(
-            !IPool(token.pool()).paused(),
+            !IPool(IToken(token).pool()).paused(),
             ExceptionsLibrary.SERVICE_PAUSED
         );
         _;

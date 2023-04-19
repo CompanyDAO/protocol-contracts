@@ -35,6 +35,9 @@ contract Vesting is Initializable, IVesting {
     /// @dev Users can claim their tokens only if claim TVL was reached.
     mapping(address => bool) public claimTVLReached;
 
+    /// @notice Mapping (tge, account) to amount of resolved tokens in TGE
+    mapping(address => mapping(address => uint256)) public resolved;
+
     // EVENTS
 
     /**
@@ -161,6 +164,8 @@ contract Vesting is Initializable, IVesting {
         vested[tge][account] -= amount;
         totalVested[tge] -= amount;
 
+        resolved[tge][account] += amount;
+
         emit Cancelled(tge, account, amount);
     }
 
@@ -175,11 +180,22 @@ contract Vesting is Initializable, IVesting {
         claimed[tge][msg.sender] += amount;
         totalVested[tge] -= amount;
 
-        IToken token = ITGE(tge).token();
-        token.setTGEVestedTokens(token.getTotalTGEVestedTokens() - amount);
+        address token = ITGE(tge).token();
+        uint256 tokenId = ITGE(tge).tokenId();
+        if (ITGE(tge).isERC1155TGE()) {
+            ITokenERC1155(token).setTGEVestedTokens(
+                ITokenERC1155(token).getTotalTGEVestedTokens(tokenId) - amount,
+                tokenId
+            );
 
-        ITGE(tge).token().mint(msg.sender, amount);
+            ITokenERC1155(token).mint(msg.sender, tokenId, amount);
+        } else {
+            IToken(token).setTGEVestedTokens(
+                IToken(token).getTotalTGEVestedTokens() - amount
+            );
 
+            IToken(token).mint(msg.sender, amount);
+        }
         emit Claimed(tge, msg.sender, amount);
     }
 

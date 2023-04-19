@@ -71,4 +71,5 @@ library ExceptionsLibrary {
     string public constant NOT_VALID_EXECUTOR = "NOT_VALID_EXECUTOR";
     string public constant POOL_PAUSED = "POOL_PAUSED";
     string public constant NOT_INVOICE_MANAGER = "NOT_INVOICE_MANAGER";
+     string public constant WRONG_RESOLVER = "WRONG_RESOLVER";
 }

@@ -39,6 +39,7 @@ task("deploy:service", "Deploy Service").setAction(async function (
     // Get Beacons
     const poolBeacon = await getContract("PoolBeacon");
     const tokenBeacon = await getContract("TokenBeacon");
+    const tokenERC1155Beacon = await getContract("TokenERC1155Beacon");
     const tgeBeacon = await getContract("TGEBeacon");
 
     // Deploy Service
@@ -58,9 +59,13 @@ task("deploy:service", "Deploy Service").setAction(async function (
 
     // Set factories in Service
     const serviceContract = await getContract<Service>("Service");
-    await serviceContract.initializeFactories(
+    await serviceContract.setFactories(
         tokenFactory.address,
         tgeFactory.address
+    );
+
+    await serviceContract.setTokenERC1155Beacon(
+        tokenERC1155Beacon.address
     );
 
     // Set Service in Registry

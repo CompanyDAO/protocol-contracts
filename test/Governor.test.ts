@@ -500,7 +500,36 @@ describe("Test Governor", function () {
                 Exceptions.ACTIVE_GOVERNANCE_SETTINGS_PROPOSAL_EXISTS
             );
         });
+        it("Can propose and execute proposeGovernanceSettingswithRoles", async function () {
+            let createData = await makeCreateData();
+            createData[6].votingStartDelay = 5;
+            createData[6].proposalThreshold = 1;
 
+            await customProposal
+                .connect(owner)
+                .proposeGovernanceSettingsWithRoles(
+                    pool.address,
+                    createData[6],
+                    [third.address],[],
+                    [third.address],[],
+                    "description",
+                    "hash"
+                );
+
+            await mineBlock(11);
+
+            await pool.connect(owner).castVote(2, true);
+            await pool.connect(donor).castVote(2, true);
+            await mineBlock(5);
+            // success execute Proposal
+
+            await pool.executeProposal(2);
+
+            expect(await pool.votingStartDelay()).to.equal(5);
+                
+            expect(await pool.isPoolExecutor(third.address)).to.equal(true);
+            expect(await pool.isPoolSecretary(third.address)).to.equal(true);
+        });
         it("Can propose and execute changePoolSecretary", async function () {
             await customProposal
                 .connect(owner)

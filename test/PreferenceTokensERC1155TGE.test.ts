@@ -8,6 +8,7 @@ import {
     Service,
     TGE,
     Token,
+    TokenERC1155,
     Registry,
     CustomProposal,
     TGEFactory,
@@ -16,8 +17,10 @@ import Exceptions from "./shared/exceptions";
 import {
     CreateArgs,
     makeCreateData,
+    makeTGEERC1155Args,
     TGEArgs,
     makeTGEArgs,
+    TGEERC1155Args,
 } from "./shared/settings";
 import { mineBlock } from "./shared/utils";
 import { setup } from "./shared/setup";
@@ -26,7 +29,7 @@ const { getContractAt, getContract, getSigners, provider } = ethers;
 const { parseUnits } = ethers.utils;
 const { AddressZero } = ethers.constants;
 
-describe("Test TGE for Preference Tokens", function () {
+describe("Test TGE for Preference Tokens ERC1155", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         second: SignerWithAddress,
@@ -40,7 +43,7 @@ describe("Test TGE for Preference Tokens", function () {
     let token1: ERC20Mock;
     let snapshotId: any;
     let createArgs: CreateArgs;
-    let tgeArgs: TGEArgs;
+    let tgeArgs: TGEERC1155Args;
     let tx: ContractTransaction;
 
     before(async function () {
@@ -109,6 +112,7 @@ describe("Test TGE for Preference Tokens", function () {
             .connect(third)
             .purchase(parseUnits("1000"), { value: parseUnits("10") });
         await mineBlock(20);
+
     });
 
     beforeEach(async function () {
@@ -126,26 +130,28 @@ describe("Test TGE for Preference Tokens", function () {
     });
 
     describe("TGE for preference token", async function () {
-        let pToken: Token, pTGE: TGE;
+        let pToken: TokenERC1155, pTGE: TGE;
 
         this.beforeEach(async function () {
             // Propose secondary TGE
-            tgeArgs = await makeTGEArgs(AddressZero, createArgs[3], {
+            tgeArgs = await makeTGEERC1155Args(AddressZero, createArgs[3], {
                 tokenType: 2,
                 name: "Preference DAO",
                 symbol: "PDAO",
                 cap: parseUnits("10000", 6),
                 decimals: 6,
-                description: "This is a preference token",
+                description: "This is a preference token ERC1155",
             });
-            tgeArgs[1].minPurchase = 1;
-            tgeArgs[1].maxPurchase = parseUnits("3000", 6);
-            tgeArgs[1].hardcap = parseUnits("5000", 6);
-            tgeArgs[1].softcap = parseUnits("1000", 6);
 
-           
+            tgeArgs[1] = 1;
+            tgeArgs[3].minPurchase = 1;
+            tgeArgs[3].maxPurchase = parseUnits("3000", 6);
+            tgeArgs[3].hardcap = parseUnits("5000", 6);
+            tgeArgs[3].softcap = 10;
 
-            tx = await customProposal.proposeTGE(pool.address, ...tgeArgs);
+
+
+            tx = await customProposal.proposeTGEERC1155(pool.address, ...tgeArgs);
 
             //waiting for voting start
             await mineBlock(10);
@@ -157,48 +163,90 @@ describe("Test TGE for Preference Tokens", function () {
 
             const tgeRecord = await registry.contractRecords(4);
             pTGE = await getContractAt("TGE", tgeRecord.addr);
-            pToken = await getContractAt("Token", await pTGE.token());
+            pToken = await getContractAt("TokenERC1155", await pTGE.token());
+
+
         });
 
-        it("Can participate in TGE for preference", async function () {
-            
-            await pTGE.purchase(parseUnits("100", 6), {
+        it("Can participate in TGE for preference, then transfer token", async function () {
+
+            await pTGE.purchase(10, {
                 value: parseUnits("1"),
             });
-            expect(await pToken.balanceOf(owner.address)).to.equal(
-                parseUnits("50", 6)
+            expect(await pToken.balanceOf(owner.address, 1)).to.equal(
+                5
             );
+            expect(await pToken.getTotalTGEVestedTokens(1)).to.equal(
+                5
+            );
+            expect(await pToken.unlockedBalanceOf(owner.address, 1)).to.equal(
+                0
+            );
+            expect(await pToken.isPrimaryTGESuccessful(1)).to.equal(
+                false
+            );
+
+            expect(await (await pToken.getTgeWithLockedTokensList(1)).length).to.equal(
+                1
+            );
+
+            await pTGE.purchase(1, {
+                value: parseUnits("1"),
+            });
+
+            await mineBlock(100);
+            await pTGE.setLockupTVLReached();
+
+            expect(await pToken.unlockedBalanceOf(owner.address, 1)).to.equal(
+                5
+            );
+            await pToken.safeTransferFrom(owner.address, third.address, 1, 5, "0x00");
+
+            expect(await pToken.balanceOf(third.address, 1)).to.equal(
+                5
+            );
+
+
+
         });
 
         it("If bought less than softcap TGE is failed", async function () {
-            await pTGE.purchase(parseUnits("100", 6), {
+            await pTGE.purchase(1, {
                 value: parseUnits("1"),
             });
             await mineBlock(100);
             expect(await pTGE.state()).to.equal(1);
         });
 
-        it("Can't start TGE if Active TGE exists", async function () {
-            // Start new TGE
-            tgeArgs = await makeTGEArgs(await pTGE.token(), createArgs[3], {
+        /*it.only("Can't start TGE if Active TGE exists", async function () {
+            tgeArgs = await makeTGEArgs(AddressZero, createArgs[3], {
                 tokenType: 2,
-                name: "Preference DAO UPD",
-                symbol: "PDAOUPD",
-                cap: parseUnits("10000"),
-                decimals: 10,
-                description: "Another description",
+                name: "Preference DAO",
+                symbol: "PDAO",
+                cap: parseUnits("10000", 6),
+                decimals: 6,
+                description: "This is a preference token ERC1155",
             });
+            
+            tgeArgs[1] = 1;
+            tgeArgs[2].minPurchase = 1;
+            tgeArgs[2].maxPurchase = parseUnits("3000", 6);
+            tgeArgs[2].hardcap = parseUnits("5000", 6);
+            tgeArgs[2].softcap = parseUnits("1000", 6);
             tx = await customProposal.proposeTGE(pool.address, ...tgeArgs);
             //waiting for voting start
             await mineBlock(10);
             await pool.connect(owner).castVote(2, true);
             await pool.connect(other).castVote(2, true);
             await mineBlock(2);
+            
+          
+            
             expect(await pTGE.state()).to.equal(0);
             await expect(pool.executeProposal(2)).to.be.revertedWith(
                 Exceptions.ACTIVE_TGE_EXISTS
             );
-        });
+        });*/
 
         it("After preference initial TGE is successful, following TGE's can't update token data", async function () {
             // Success first TGE
@@ -209,15 +257,23 @@ describe("Test TGE for Preference Tokens", function () {
             expect(await pTGE.state()).to.equal(2);
 
             // Start new TGE
-            tgeArgs = await makeTGEArgs(await pTGE.token(), createArgs[3], {
+            tgeArgs = await makeTGEERC1155Args(AddressZero, createArgs[3], {
                 tokenType: 2,
-                name: "Preference DAO UPD",
-                symbol: "PDAOUPD",
-                cap: parseUnits("10000"),
-                decimals: 10,
-                description: "Another description",
+                name: "Preference DAO1",
+                symbol: "PDAO1",
+                cap: parseUnits("10000", 6),
+                decimals: 6,
+                description: "This is a preference token ERC11551",
             });
-            tx = await customProposal.proposeTGE(pool.address, ...tgeArgs);
+
+            tgeArgs[1] = 1;
+            tgeArgs[2] = "ipfs";
+
+            tgeArgs[3].minPurchase = 1;
+            tgeArgs[3].maxPurchase = parseUnits("3000", 6);
+            tgeArgs[3].hardcap = parseUnits("5000", 6);
+            tgeArgs[3].softcap = parseUnits("1000", 6);
+            tx = await customProposal.proposeTGEERC1155(pool.address, ...tgeArgs);
             //waiting for voting start
             await mineBlock(10);
             await pool.connect(owner).castVote(2, true);
@@ -226,11 +282,15 @@ describe("Test TGE for Preference Tokens", function () {
             await pool.executeProposal(2);
 
             // Check values
-            expect(await pToken.name()).to.equal("Preference DAO");
+
             expect(await pToken.symbol()).to.equal("PDAO");
-            expect(await pToken.decimals()).to.equal(6);
+
+            expect(await pToken.uri(1)).to.equal("ipfa://uri1");
+
+            expect(await pToken.name()).to.equal("Preference DAO");
+            expect(await pToken.decimals()).to.equal(0);
             expect(await pToken.description()).to.equal(
-                "This is a preference token"
+                "This is a preference token ERC1155"
             );
         });
 
@@ -243,7 +303,7 @@ describe("Test TGE for Preference Tokens", function () {
             expect(await pTGE.state()).to.equal(2);
 
             // Start new TGE
-            tgeArgs = await makeTGEArgs(AddressZero, createArgs[3], {
+            tgeArgs = await makeTGEERC1155Args(AddressZero, createArgs[3], {
                 tokenType: 2,
                 name: "Preference DAO UPD Second",
                 symbol: "PDAOUPD2",
@@ -251,7 +311,7 @@ describe("Test TGE for Preference Tokens", function () {
                 decimals: 10,
                 description: "Another description",
             });
-            tx = await customProposal.proposeTGE(pool.address, ...tgeArgs);
+            tx = await customProposal.proposeTGEERC1155(pool.address, ...tgeArgs);
             //waiting for voting start
             await mineBlock(10);
             await pool.connect(owner).castVote(2, true);

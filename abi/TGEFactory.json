@@ -68,6 +68,37 @@
         "type": "event"
     },
     {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "tge",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "tokenId",
+                "type": "uint256"
+            }
+        ],
+        "name": "SecondaryTGEERC1155Created",
+        "type": "event"
+    },
+    {
         "inputs": [
             {
                 "internalType": "address",
@@ -219,6 +250,58 @@
                 "internalType": "string",
                 "name": "metadataURI",
                 "type": "string"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "proposalThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "quorumThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "decisionThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "transferValueForDelay",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256[4]",
+                        "name": "executionDelays",
+                        "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
+                "name": "governanceSettings_",
+                "type": "tuple"
+            },
+            {
+                "internalType": "address[]",
+                "name": "addSecretary",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "addExecutor",
+                "type": "address[]"
             }
         ],
         "name": "createPrimaryTGE",
@@ -229,7 +312,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IToken",
+                "internalType": "address",
                 "name": "token",
                 "type": "address"
             },
@@ -381,6 +464,175 @@
             }
         ],
         "name": "createSecondaryTGE",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "tokenId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "uri",
+                "type": "string"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "price",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "hardcap",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "softcap",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "minPurchase",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxPurchase",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "duration",
+                        "type": "uint256"
+                    },
+                    {
+                        "components": [
+                            {
+                                "internalType": "uint256",
+                                "name": "vestedShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliff",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "cliffShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spans",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanDuration",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "spanShare",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "uint256",
+                                "name": "claimTVL",
+                                "type": "uint256"
+                            },
+                            {
+                                "internalType": "address[]",
+                                "name": "resolvers",
+                                "type": "address[]"
+                            }
+                        ],
+                        "internalType": "struct IVesting.VestingParams",
+                        "name": "vestingParams",
+                        "type": "tuple"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "userWhitelist",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "unitOfAccount",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "lockupDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "lockupTVL",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct ITGE.TGEInfo",
+                "name": "tgeInfo",
+                "type": "tuple"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "enum IToken.TokenType",
+                        "name": "tokenType",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "symbol",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "cap",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "decimals",
+                        "type": "uint8"
+                    }
+                ],
+                "internalType": "struct IToken.TokenInfo",
+                "name": "tokenInfo",
+                "type": "tuple"
+            },
+            {
+                "internalType": "string",
+                "name": "metadataURI",
+                "type": "string"
+            }
+        ],
+        "name": "createSecondaryTGEERC1155",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

@@ -199,5 +199,8 @@ describe("Test vesting", function () {
         expect(await vesting.claimed(tge.address, other.address)).to.equal(
             parseUnits("50")
         );
+        expect(await vesting.resolved(tge.address, other.address)).to.equal(
+            parseUnits("450")
+        );
     });
 });

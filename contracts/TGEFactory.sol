@@ -36,6 +36,20 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
      */
     event SecondaryTGECreated(address pool, address tge, address token);
 
+    /**
+     * @dev Event emitted on creation of secondary TGE.
+     * @param pool Pool address
+     * @param tge Secondary TGE address
+     * @param token Preference token address
+     * @param token Preference tokenId
+     */
+    event SecondaryTGEERC1155Created(
+        address pool,
+        address tge,
+        address token,
+        uint256 tokenId
+    );
+
     // MODIFIERS
 
     modifier onlyPool() {
@@ -113,7 +127,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         // Create token contract
         tokenInfo.tokenType = IToken.TokenType.Governance;
         tokenInfo.decimals = 18;
-        IToken token = service.tokenFactory().createToken(
+        address token = service.tokenFactory().createToken(
             address(pool),
             tokenInfo,
             address(tge)
@@ -125,7 +139,9 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         // Initialize TGE
         tge.initialize(
             address(service),
-            token,
+            address(token),
+            0,
+            "",
             tgeInfo,
             service.protocolTokenFee()
         );
@@ -139,7 +155,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
      * @param metadataURI Metadata URI
      */
     function createSecondaryTGE(
-        IToken token,
+        address token,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
         string memory metadataURI
@@ -152,6 +168,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         ) {
             (token, tge) = _createInitialPreferenceTGE(
                 token,
+                0,
+                "",
                 tgeInfo,
                 tokenInfo,
                 metadataURI
@@ -159,6 +177,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         } else {
             (token, tge) = _createSecondaryTGE(
                 token,
+                0,
+                "",
                 tgeInfo,
                 tokenInfo,
                 metadataURI
@@ -172,14 +192,71 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         emit SecondaryTGECreated(msg.sender, address(tge), address(token));
     }
 
-    // INTERNAL FUNCTIONS
-
-    function _createSecondaryTGE(
-        IToken token,
+    /**
+     * @dev Method for launching secondary TGE for ERC1155.
+     * @param tgeInfo TGE parameters
+     * @param tokenInfo Token parameters
+     * @param metadataURI Metadata URI
+     */
+    function createSecondaryTGEERC1155(
+        address token,
+        uint256 tokenId,
+        string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
         string memory metadataURI
-    ) internal returns (IToken, ITGE) {
+    ) external onlyPool nonReentrant whenNotPaused {
+        require(
+            tokenInfo.tokenType == IToken.TokenType.Preference,
+            ExceptionsLibrary.WRONG_STATE
+        );
+        ITGE tge;
+        // Check whether it's initial preference TGE or any secondary token
+        if (address(token) == address(0)) {
+            (token, tge) = _createInitialPreferenceTGE(
+                token,
+                tokenId,
+                uri,
+                tgeInfo,
+                tokenInfo,
+                metadataURI
+            );
+        } else {
+            (token, tge) = _createSecondaryTGE(
+                token,
+                tokenId,
+                uri,
+                tgeInfo,
+                tokenInfo,
+                metadataURI
+            );
+        }
+        if(ITokenERC1155(token).cap(tokenId)==0){
+            ITokenERC1155(token).setTokenIdCap(tokenId,tokenInfo.cap);
+        }
+        
+        // Add proposal id to TGE
+        IPool(msg.sender).setProposalIdToTGE(address(tge));
+
+        // Emit event
+        emit SecondaryTGEERC1155Created(
+            msg.sender,
+            address(tge),
+            address(token),
+            tokenId
+        );
+    }
+
+    // INTERNAL FUNCTIONS
+
+    function _createSecondaryTGE(
+        address token,
+        uint256 tokenId,
+        string memory uri,
+        ITGE.TGEInfo calldata tgeInfo,
+        IToken.TokenInfo calldata tokenInfo,
+        string memory metadataURI
+    ) internal returns (address, ITGE) {
         // Check that token is valid
         require(
             tokenInfo.tokenType != IToken.TokenType.None &&
@@ -189,16 +266,23 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         );
 
         // Check that there is no active TGE
-        require(
-            ITGE(token.lastTGE()).state() != ITGE.State.Active,
-            ExceptionsLibrary.ACTIVE_TGE_EXISTS
-        );
-
+        if (tokenId != 0) {
+            require(
+                ITGE(ITokenERC1155(token).lastTGE(tokenId)).state() !=
+                    ITGE.State.Active,
+                ExceptionsLibrary.ACTIVE_TGE_EXISTS
+            );
+        } else {
+            require(
+                ITGE(IToken(token).lastTGE()).state() != ITGE.State.Active,
+                ExceptionsLibrary.ACTIVE_TGE_EXISTS
+            );
+        }
         // Create TGE
         ITGE tge = _createTGE(metadataURI, msg.sender);
 
         // Add TGE to token's list
-        token.addTGE(address(tge));
+        IToken(token).addTGE(address(tge));
 
         // Get protocol fee
         uint256 protocolTokenFee = tokenInfo.tokenType ==
@@ -207,32 +291,54 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             : 0;
 
         // Initialize TGE
-        tge.initialize(address(service), token, tgeInfo, protocolTokenFee);
+        tge.initialize(
+            address(service),
+            address(token),
+            tokenId,
+            uri,
+            tgeInfo,
+            protocolTokenFee
+        );
 
         return (token, tge);
     }
 
     function _createInitialPreferenceTGE(
-        IToken token,
+        address token,
+        uint256 tokenId,
+        string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
         string memory metadataURI
-    ) internal returns (IToken, ITGE) {
+    ) internal returns (address, ITGE) {
         // Create TGE
         ITGE tge = _createTGE(metadataURI, msg.sender);
 
-        // Create token contract
-        token = service.tokenFactory().createToken(
-            msg.sender,
-            tokenInfo,
-            address(tge)
-        );
+        if (tokenId != 0) {
+            // Create token contract
+            token = address(
+                service.tokenFactory().createTokenERC1155(
+                    msg.sender,
+                    tokenInfo,
+                    address(tge)
+                )
+            );
+        } else {
+            // Create token contract
+            token = address(
+                service.tokenFactory().createToken(
+                    msg.sender,
+                    tokenInfo,
+                    address(tge)
+                )
+            );
+        }
 
         // Add token to Pool
-        IPool(msg.sender).setToken(address(token), IToken.TokenType.Preference);
+        IPool(msg.sender).setToken(token, IToken.TokenType.Preference);
 
         // Initialize TGE
-        tge.initialize(address(service), token, tgeInfo, 0);
+        tge.initialize(address(service), token, tokenId, uri, tgeInfo, 0);
 
         return (token, tge);
     }

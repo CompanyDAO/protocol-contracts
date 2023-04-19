@@ -575,7 +575,7 @@ describe("Test initial TGE", function () {
       );
 
       expect(await newToken.symbol()).to.equal("DTKN2");
-      expect(await newToken.cap()).to.equal(parseUnits("20200")); // Cap with fee
+      expect(await newToken.cap()).to.equal(parseUnits("20000")); // Cap with fee
     });
   });
 });

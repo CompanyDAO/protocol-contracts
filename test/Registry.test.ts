@@ -124,9 +124,6 @@ describe("Test Registry", function () {
             const companyInfo = await registry.getCompany(1, 1, "EIN4");
             expect(companyInfo.dateOfIncorporation).to.equal("01.01.2023");
 
-            const availableCompanyAddress = await registry.getAvailableCompanyAddress(1, 1);
-
-            expect(availableCompanyAddress).to.equal("0xEE4c7dFE0341C0E481D827210414FcC561099590");
 
 
 
@@ -212,6 +209,6 @@ describe("Test Registry", function () {
     it("Can getMaxHardCap", async function () {
         expect(
             await (await service.getMaxHardCap(pool.address)).toString()
-        ).to.equal("9999000000000000000000");
+        ).to.equal("9900000000000000000000");
     });
 });

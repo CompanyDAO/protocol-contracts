@@ -22,6 +22,7 @@ export type CreateArgs = [
 ];
 
 export type TGEArgs = [string,TGEInfoStruct, TokenInfoStruct, string, string, string];
+export type TGEERC1155Args = [string,number,string,TGEInfoStruct, TokenInfoStruct, string, string, string];
 
 export const BASE_JURISDICTION = 1;
 export const BASE_ENTITY_TYPE = 1;
@@ -81,6 +82,29 @@ export async function makeTGEArgs(
 ): Promise<TGEArgs> {
     return [
         token,
+        tgeInfo,
+        tokenInfo ?? {
+            tokenType: 1,
+            name: "",
+            symbol: "",
+            cap: 0,
+            decimals: 0,
+            description: "",
+        },
+        "URI2",
+        "Let's do TGE once again",
+        "hash",
+    ];
+}
+export async function makeTGEERC1155Args(
+    token: string,
+    tgeInfo: TGEInfoStruct,
+    tokenInfo?: TokenInfoStruct
+): Promise<TGEERC1155Args> {
+    return [
+        token,
+        1,
+        "ipfa://uri1",
         tgeInfo,
         tokenInfo ?? {
             tokenType: 1,

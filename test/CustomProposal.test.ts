@@ -86,7 +86,10 @@ describe("Test custom proposals", function () {
         );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
+        
         tge = await getContractAt("TGE", await token.tgeList(0));
+
+        
 
         // Finalize TGE
         await tge.purchase(parseUnits("1000"), { value: parseUnits("10") });

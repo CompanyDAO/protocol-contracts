@@ -243,23 +243,4 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
 
         return companyAddress;
     }
-
-    /**
-     * @dev remove company info 
-     * @param jurisdiction Jurisdiction
-     * @param entityType Entity type
-     * @param ein ein
-     */
-    function removeCompanyInfo(
-        uint256 jurisdiction,
-        uint256 entityType,
-        string memory ein
-    ) external onlyRole(COMPANIES_MANAGER_ROLE){
-       bytes32 companyHash = keccak256(
-            abi.encodePacked(jurisdiction, entityType, ein)
-        );
-        companies[companyIndex[companyHash]].ein = ""; 
-        companyIndex[companyHash] = 0;
-
-    }
 }

@@ -12,7 +12,6 @@ import "./IToken.sol";
 import "./IVesting.sol";
 import "./ITokenFactory.sol";
 import "./ITGEFactory.sol";
-
 interface IService is IAccessControlEnumerableUpgradeable {
     function ADMIN_ROLE() external view returns (bytes32);
 
@@ -66,6 +65,8 @@ interface IService is IAccessControlEnumerableUpgradeable {
     function tgeBeacon() external view returns (address);
 
     function tokenBeacon() external view returns (address);
+
+    function tokenERC1155Beacon() external view returns (address);
 
     function customProposal() external view returns (ICustomProposal);
 

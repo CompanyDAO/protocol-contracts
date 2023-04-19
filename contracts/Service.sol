@@ -89,6 +89,9 @@ contract Service is
     /// @dev TGEFactory contract
     ITGEFactory public tgeFactory;
 
+    /// @dev Token beacon
+    address public tokenERC1155Beacon;
+
     // EVENTS
 
     /**
@@ -258,19 +261,6 @@ contract Service is
         setProtocolTokenFee(protocolTokenFee_);
     }
 
-    /**
-     * @dev Initializez factories for previously deployed service
-     * @param tokenFactory_ TokenFactory address
-     * @param tgeFactory_ TGEFactory address
-     */
-    function initializeFactories(
-        ITokenFactory tokenFactory_,
-        ITGEFactory tgeFactory_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) reinitializer(3) {
-        tokenFactory = tokenFactory_;
-        tgeFactory = tgeFactory_;
-    }
-
     // PUBLIC FUNCTIONS
 
     /**
@@ -368,7 +358,18 @@ contract Service is
         require(success, ExceptionsLibrary.EXECUTION_FAILED);
         emit FeesTransferred(to, balance);
     }
-
+    /**
+     * @dev Sets factories for previously deployed service
+     * @param tokenFactory_ TokenFactory address
+     * @param tgeFactory_ TGEFactory address
+     */
+    function setFactories(
+        ITokenFactory tokenFactory_,
+        ITGEFactory tgeFactory_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE)  {
+        tokenFactory = tokenFactory_;
+        tgeFactory = tgeFactory_;
+    }
     /**
      * @dev Set protocol collected token fee
      * @param _token token address
@@ -475,6 +476,8 @@ contract Service is
         emit InvoiceChanged(address(invoice));
     }
 
+        
+
     /**
      * @dev Sets new pool beacon
      * @param beacon Beacon address
@@ -499,6 +502,18 @@ contract Service is
 
         tokenBeacon = beacon;
         emit TokenBeaconChanged(address(tokenBeacon));
+    }
+
+    /**
+     * @dev Sets new tokenERC1155 beacon
+     * @param beacon Beacon address
+     */
+    function setTokenERC1155Beacon(
+        address beacon
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
+
+        tokenERC1155Beacon = beacon;
     }
 
     /**
@@ -666,7 +681,7 @@ contract Service is
     ) internal view returns (bytes32 salt, bytes memory deployBytecode) {
         // Get salt
         salt = keccak256(
-            abi.encode(info.jurisdiction, info.entityType, info.ein, 1)
+            abi.encode(info.jurisdiction, info.entityType, info.ein)
         );
 
         // Get bytecode

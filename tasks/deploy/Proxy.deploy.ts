@@ -29,7 +29,7 @@ task("deploy:proxy", "Deploy Proxy")
             });
         };
       
-        const proxy = await deployProxy(contract, ["0xa853a0d17c7A79905463A053f5B3eF346113E666"]);
+        const proxy = await deployProxy(contract, []);
      
         console.log("Contract deployed to:", proxy.address);
         return proxy;
