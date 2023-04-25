@@ -392,20 +392,13 @@ contract Pool is
         }
     }
 
-    // /**
-    //  * @dev set new company Operating Agreement Url
-    //  * @param _uri Operating Agreement Url
-    //  */
-    // function setOAUri(string calldata _uri) external {
-    //     require(
-    //         IRegistry(service.registry()).hasRole(
-    //             service.registry().COMPANIES_MANAGER_ROLE(),
-    //             msg.sender
-    //         ),
-    //         ExceptionsLibrary.INVALID_USER
-    //     );
-    //     OAurl = _uri;
-    // }
+    /**
+     * @dev set new company Operating Agreement Url
+     * @param _uri Operating Agreement Url
+     */
+    function setOAUrl(string memory _uri) external onlyService {
+        OAurl = _uri;
+    }
 
     // PUBLIC VIEW FUNCTIONS
 

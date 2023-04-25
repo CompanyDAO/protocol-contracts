@@ -75,4 +75,6 @@ interface IPool is IGovernorProposals {
     function validateGovernanceSettings(
         IGovernanceSettings.NewGovernanceSettings memory settings
     ) external pure;
+
+    function setOAUrl(string memory _uri) external;
 }
