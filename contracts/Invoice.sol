@@ -234,7 +234,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
 
         require(
             core.unitOfAccount == address(0) ||
-            IERC20Upgradeable(core.unitOfAccount).totalSupply() > 0,
+                IERC20Upgradeable(core.unitOfAccount).totalSupply() > 0,
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
         return true;
@@ -273,7 +273,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
                 account
             )
         ) return true;
-
+        if (!IPool(pool).isDAO() && account == IPool(pool).owner()) return true;
         return false;
     }
 
