@@ -61,6 +61,9 @@ contract Pool is
     /// @dev pool executor list
     EnumerableSetUpgradeable.AddressSet poolExecutor;
 
+    /// @dev Operating Agreement Url
+    string public OAurl;
+
     // EVENTS
 
     /**
@@ -389,6 +392,14 @@ contract Pool is
         }
     }
 
+    /**
+     * @dev set new company Operating Agreement Url
+     * @param _uri Operating Agreement Url
+     */
+    function setOAUrl(string memory _uri) external onlyService {
+        OAurl = _uri;
+    }
+
     // PUBLIC VIEW FUNCTIONS
 
     /**
@@ -396,7 +407,11 @@ contract Pool is
      * @return Is any governance TGE successful
      */
     function isDAO() public view returns (bool) {
-        return getGovernanceToken().isPrimaryTGESuccessful();
+        if (address(getGovernanceToken()) == address(0)) {
+            return false;
+        } else {
+            return getGovernanceToken().isPrimaryTGESuccessful();
+        }
     }
 
     /**
