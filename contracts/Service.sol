@@ -210,6 +210,14 @@ contract Service is
         _;
     }
 
+    modifier onlyManager() {
+        require(
+            registry.hasRole(registry.COMPANIES_MANAGER_ROLE(), msg.sender),
+            ExceptionsLibrary.INVALID_USER
+        );
+        _;
+    }
+
     // INITIALIZER AND CONSTRUCTOR
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -334,7 +342,7 @@ contract Service is
     function setOAUrlForPool(
         IPool pool,
         string calldata _uri
-    ) external onlyPool whenNotPaused {
+    ) external onlyManager whenNotPaused {
         pool.setOAUrl(_uri);
     }
 
