@@ -610,6 +610,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -800,6 +805,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
