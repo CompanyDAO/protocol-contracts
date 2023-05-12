@@ -1434,6 +1434,11 @@
                         "internalType": "address",
                         "name": "forceDelegateAddress",
                         "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
+                        "type": "uint256"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",

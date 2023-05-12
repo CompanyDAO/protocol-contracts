@@ -295,13 +295,14 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
                     .forceDelegateAddress != address(0)
             ) {
                 totalLocked += ITGE(_tgeWithLockedTokensList[i])
-                    .lockedBalanceOf(account);
+                    .forceDelegateBalanceOf(account);
+
                 if (
                     ITGE(_tgeWithLockedTokensList[i])
                         .getInfo()
                         .forceDelegateAddress ==
                     account &&
-                    !ITGE(_tgeWithLockedTokensList[i]).transferUnlocked()
+                    !ITGE(_tgeWithLockedTokensList[i]).forceDelegateUnlocked()
                 ) {
                     totalDelegated += ITGE(_tgeWithLockedTokensList[i])
                         .totalPurchased();
@@ -330,14 +331,14 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
             if (
                 ITGE(_tgeList[i]).getInfo().forceDelegateAddress != address(0)
             ) {
-                pastTotalLocked += ITGE(_tgeList[i]).lockedForBlockBalanceOf(
+                pastTotalLocked += ITGE(_tgeList[i]).forceDelegateForBlockBalanceOf(
                     account,
                     blockNumber
                 );
                 if (
                     ITGE(_tgeList[i]).getInfo().forceDelegateAddress ==
                     account &&
-                    !ITGE(_tgeList[i]).transferUnlockedForBlock(blockNumber)
+                    !ITGE(_tgeList[i]).forceDelegateUnlockedForBlock(blockNumber)
                 ) {
                     pastTotalDelegated += ITGE(_tgeList[i]).totalPurchased();
                 }

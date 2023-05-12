@@ -51,7 +51,8 @@ export async function makeCreateData(): Promise<CreateArgs> {
         duration: 20,
         userWhitelist: [owner.address, other.address],
         unitOfAccount: AddressZero,
-        forceDelegateAddress: AddressZero
+        forceDelegateAddress: AddressZero,
+        forceDelegateDuration: 50
     };
     const settings: NewGovernanceSettingsStruct = {
         proposalThreshold: 100000, // 10%

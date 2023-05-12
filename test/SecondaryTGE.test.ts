@@ -544,7 +544,6 @@ describe("Test secondary TGE", function () {
             const tgeRecord = await registry.contractRecords(4);
             const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
 
-            console.log(await tge2.getInfo())
 
 
             await tge2
