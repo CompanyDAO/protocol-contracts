@@ -165,15 +165,13 @@ contract Pool is
     /**
      * @dev set New Owner With Settings after company purchased
      * @param governanceSettings_ governance Settings
-     * @param addSecretary secretary address list
-     * @param addExecutor executor address list
+     * @param secretary secretary address list
+     * @param executor executor address list
      */
     function setSettings(
         NewGovernanceSettings memory governanceSettings_,
-        address[] memory addSecretary,
-        address[] memory removeSecretary,
-        address[] memory addExecutor,
-        address[] memory removeExecutor
+        address[] memory secretary,
+        address[] memory executor
     ) external onlyTGEFactory {
         if (address(getGovernanceToken()) != address(0)) {
             require(!isDAO(), ExceptionsLibrary.IS_DAO);
@@ -186,11 +184,22 @@ contract Pool is
 
         _setGovernanceSettings(governanceSettings_);
 
-        if (addSecretary.length > 0 || removeSecretary.length > 0) {
-            IPool(this).changePoolSecretary(addSecretary, removeSecretary);
+        address[] memory values = poolSecretary.values();
+        for (uint256 i = 0; i < values.length; i++) {
+            poolSecretary.remove(values[i]);
         }
-        if (addExecutor.length > 0 || removeExecutor.length > 0) {
-            IPool(this).changePoolExecutor(addExecutor, removeExecutor);
+
+        for (uint256 i = 0; i < secretary.length; i++) {
+            poolSecretary.add(secretary[i]);
+        }
+
+        values = poolExecutor.values();
+        for (uint256 i = 0; i < values.length; i++) {
+            poolExecutor.remove(values[i]);
+        }
+
+        for (uint256 i = 0; i < executor.length; i++) {
+            poolExecutor.add(secretary[i]);
         }
     }
 

@@ -32,10 +32,8 @@ interface IPool is IGovernorProposals {
 
     function setSettings(
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
-        address[] memory addSecretary,
-        address[] memory removeSecretary,
-        address[] memory addExecutor,
-        address[] memory removeExecutor
+        address[] memory secretary,
+        address[] memory executor
     ) external;
 
     function changePoolSecretary(
@@ -77,4 +75,8 @@ interface IPool is IGovernorProposals {
     ) external pure;
 
     function setOAUrl(string memory _uri) external;
+
+    function getPoolSecretary() external view returns (address[] memory);
+
+    function getPoolExecutor() external view returns (address[] memory);
 }
