@@ -5,6 +5,7 @@ pragma solidity 0.8.17;
 import "./RegistryBase.sol";
 import "../libraries/ExceptionsLibrary.sol";
 import "../interfaces/IService.sol";
+import "../interfaces/IPool.sol";
 import "../interfaces/registry/ICompaniesRegistry.sol";
 
 abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
@@ -242,5 +243,31 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         );
 
         return companyAddress;
+    }
+
+    /**
+     * @dev set Operating Agreement Url for pool
+     * @param pool pool adress
+     * @param _jurisdiction Operating Agreement Url
+     * @param _entityType Operating Agreement Url
+     * @param _ein Operating Agreement Url
+     * @param _dateOfIncorporation Operating Agreement Url
+     * @param _OAuri Operating Agreement Url
+     */
+    function setCompanyInfoForPool(
+        IPool pool,
+        uint256 _jurisdiction,
+        uint256 _entityType,
+        string memory _ein,
+        string memory _dateOfIncorporation,
+        string memory _OAuri
+    ) external onlyRole(COMPANIES_MANAGER_ROLE)  {
+        pool.setCompanyInfo(
+            _jurisdiction,
+            _entityType,
+            _ein,
+            _dateOfIncorporation,
+            _OAuri
+        );
     }
 }

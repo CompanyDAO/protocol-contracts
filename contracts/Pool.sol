@@ -172,16 +172,23 @@ contract Pool is
         NewGovernanceSettings memory governanceSettings_,
         address[] memory secretary,
         address[] memory executor
-    ) external onlyTGEFactory {
-        if (address(getGovernanceToken()) != address(0)) {
-            require(!isDAO(), ExceptionsLibrary.IS_DAO);
-            require(
-                ITGE(getGovernanceToken().lastTGE()).state() !=
-                    ITGE.State.Active,
-                ExceptionsLibrary.ACTIVE_TGE_EXISTS
-            );
+    ) external {
+        //only tgeFactory or pool
+        require(
+            msg.sender == address(service.tgeFactory()) ||
+                msg.sender == address(this),
+            ExceptionsLibrary.NOT_TGE_FACTORY
+        );
+        if (msg.sender == address(service.tgeFactory())) {
+            if (address(getGovernanceToken()) != address(0)) {
+                require(!isDAO(), ExceptionsLibrary.IS_DAO);
+                require(
+                    ITGE(getGovernanceToken().lastTGE()).state() !=
+                        ITGE.State.Active,
+                    ExceptionsLibrary.ACTIVE_TGE_EXISTS
+                );
+            }
         }
-
         _setGovernanceSettings(governanceSettings_);
 
         address[] memory values = poolSecretary.values();
@@ -201,6 +208,31 @@ contract Pool is
         for (uint256 i = 0; i < executor.length; i++) {
             poolExecutor.add(secretary[i]);
         }
+    }
+    /**
+     * @dev sets new companyInfo and Operating Agreement Url
+     * @param _jurisdiction Operating Agreement Url
+     * @param _entityType Operating Agreement Url
+     * @param _ein Operating Agreement Url
+     * @param _dateOfIncorporation Operating Agreement Url
+     * @param _OAuri Operating Agreement Url
+     */
+    function setCompanyInfo(
+        uint256 _jurisdiction,
+        uint256 _entityType,
+        string memory _ein,
+        string memory _dateOfIncorporation,
+        string memory _OAuri
+    ) external {
+        require(
+            msg.sender == address(service.registry()),
+            ExceptionsLibrary.NOT_REGISTRY
+        );
+        companyInfo.jurisdiction = _jurisdiction;
+        companyInfo.entityType = _entityType;
+        companyInfo.ein = _ein;
+        companyInfo.dateOfIncorporation = _dateOfIncorporation;
+        OAurl = _OAuri;
     }
 
     // RECEIVE
@@ -327,44 +359,6 @@ contract Pool is
     }
 
     /**
-     * @dev changePoolSecretary
-     * @param addSecretary array of addresses to add to the PoolSecretary role
-     * @param removeSecretary array of addresses to remove to the PoolSecretary role
-     */
-    function changePoolSecretary(
-        address[] memory addSecretary,
-        address[] memory removeSecretary
-    ) public onlyPool {
-        for (uint256 i = 0; i < addSecretary.length; i++) {
-            poolSecretary.add(addSecretary[i]);
-        }
-        if (poolSecretary.length() > 0) {
-            for (uint256 i = 0; i < removeSecretary.length; i++) {
-                poolSecretary.remove(removeSecretary[i]);
-            }
-        }
-    }
-
-    /**
-     * @dev changePoolExecutor
-     * @param addExecutor array of addresses to add to the PoolExecutor role
-     * @param removeExecutor array of addresses to remove to the PoolExecutor role
-     */
-    function changePoolExecutor(
-        address[] memory addExecutor,
-        address[] memory removeExecutor
-    ) public onlyPool {
-        for (uint256 i = 0; i < addExecutor.length; i++) {
-            poolExecutor.add(addExecutor[i]);
-        }
-        if (poolExecutor.length() > 0) {
-            for (uint256 i = 0; i < removeExecutor.length; i++) {
-                poolExecutor.remove(removeExecutor[i]);
-            }
-        }
-    }
-
-    /**
      * @dev Transfers funds from treasury if the pool is not yeta  DAO
      * @param to receiver addresss
      * @param amount transfer amount
@@ -401,13 +395,7 @@ contract Pool is
         }
     }
 
-    /**
-     * @dev set new company Operating Agreement Url
-     * @param _uri Operating Agreement Url
-     */
-    function setOAUrl(string memory _uri) external onlyService {
-        OAurl = _uri;
-    }
+
 
     // PUBLIC VIEW FUNCTIONS
 

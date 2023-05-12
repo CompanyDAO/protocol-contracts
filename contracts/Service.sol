@@ -362,18 +362,6 @@ contract Service is
     }
 
     /**
-     * @dev set Operating Agreement Url for pool
-     * @param pool pool adress
-     * @param _uri Operating Agreement Url
-     */
-    function setOAUrlForPool(
-        IPool pool,
-        string calldata _uri
-    ) external onlyManager whenNotPaused {
-        pool.setOAUrl(_uri);
-    }
-
-    /**
      * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type, which are used as keys to, firstly, find out if there is a company available for acquisition with such parameters among the Registry records, and secondly, to get the data of such a company if it exists, save them to the deployed pool contract, while recording the company is removed from the Registry. This action is only available to users who are on the global white list of addresses allowed before the acquisition of companies. At the same time, the Governance token contract and the TGE contract are deployed for its implementation.
      * @param companyInfo Company info
      */

@@ -343,42 +343,6 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address[]",
-                "name": "addExecutor",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "removeExecutor",
-                "type": "address[]"
-            }
-        ],
-        "name": "changePoolExecutor",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address[]",
-                "name": "addSecretary",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "removeSecretary",
-                "type": "address[]"
-            }
-        ],
-        "name": "changePoolSecretary",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
         "inputs": [],
         "name": "companyInfo",
         "outputs": [
@@ -1087,6 +1051,39 @@
     {
         "inputs": [
             {
+                "internalType": "uint256",
+                "name": "_jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_entityType",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "_ein",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_dateOfIncorporation",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_OAuri",
+                "type": "string"
+            }
+        ],
+        "name": "setCompanyInfo",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "components": [
                     {
                         "internalType": "uint256",
@@ -1190,19 +1187,6 @@
             }
         ],
         "name": "setNewOwnerWithSettings",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "string",
-                "name": "_uri",
-                "type": "string"
-            }
-        ],
-        "name": "setOAUrl",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

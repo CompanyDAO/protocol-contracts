@@ -1036,24 +1036,6 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPool",
-                "name": "pool",
-                "type": "address"
-            },
-            {
-                "internalType": "string",
-                "name": "_uri",
-                "type": "string"
-            }
-        ],
-        "name": "setOAUrlForPool",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "internalType": "address",
                 "name": "beacon",
                 "type": "address"

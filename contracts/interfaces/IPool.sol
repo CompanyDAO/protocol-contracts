@@ -36,16 +36,6 @@ interface IPool is IGovernorProposals {
         address[] memory executor
     ) external;
 
-    function changePoolSecretary(
-        address[] memory addSecretary,
-        address[] memory removeSecretary
-    ) external;
-
-    function changePoolExecutor(
-        address[] memory addExecutor,
-        address[] memory removeExecutor
-    ) external;
-
     function owner() external view returns (address);
 
     function isDAO() external view returns (bool);
@@ -74,9 +64,15 @@ interface IPool is IGovernorProposals {
         IGovernanceSettings.NewGovernanceSettings memory settings
     ) external pure;
 
-    function setOAUrl(string memory _uri) external;
-
     function getPoolSecretary() external view returns (address[] memory);
 
     function getPoolExecutor() external view returns (address[] memory);
+
+    function setCompanyInfo(
+        uint256 _jurisdiction,
+        uint256 _entityType,
+        string memory _ein,
+        string memory _dateOfIncorporation,
+        string memory _OAuri
+    ) external;
 }

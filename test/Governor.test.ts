@@ -510,8 +510,8 @@ describe("Test Governor", function () {
                 .proposeGovernanceSettingsWithRoles(
                     pool.address,
                     createData[6],
-                    [third.address],[],
-                    [third.address],[],
+                    [third.address],
+                    [third.address],
                     "description",
                     "hash"
                 );
@@ -522,78 +522,15 @@ describe("Test Governor", function () {
             await pool.connect(donor).castVote(2, true);
             await mineBlock(5);
             // success execute Proposal
-
-            await pool.executeProposal(2);
+            
+            expect(await pool.isValidExecutor(owner.address)).to.equal(true);
+             await pool.executeProposal(2);
 
             expect(await pool.votingStartDelay()).to.equal(5);
                 
             expect(await pool.isPoolExecutor(third.address)).to.equal(true);
             expect(await pool.isPoolSecretary(third.address)).to.equal(true);
         });
-        it("Can propose and execute changePoolSecretary", async function () {
-            await customProposal
-                .connect(owner)
-                .proposePoolSecretary(
-                    pool.address,
-                    [owner.address, third.address],
-                    [],
-                    "description",
-                    "hash"
-                );
-
-            await mineBlock(11);
-
-            await pool.connect(owner).castVote(2, true);
-            await pool.connect(donor).castVote(2, true);
-            await mineBlock(5);
-            // success execute Proposal
-
-            await pool.executeProposal(2);
-        });
-
-        it("Can propose and execute changePoolExecutor", async function () {
-
-            await customProposal
-                .connect(owner)
-                .proposePoolExecutor(
-                    pool.address,
-                    [third.address],
-                    [],
-                    "description",
-                    "hash"
-                );
-
-            await mineBlock(11);
-
-            await pool.connect(owner).castVote(2, true);
-            await pool.connect(donor).castVote(2, true);
-            await mineBlock(5);
-            // success execute Proposal
-            await pool.executeProposal(2);
-
-            await customProposal
-                .connect(owner)
-                .proposePoolExecutor(
-                    pool.address,
-                    [third.address],
-                    [owner.address],
-                    "description",
-                    "hash"
-                );
-
-            await mineBlock(11);
-
-            await pool.connect(owner).castVote(3, true);
-            await pool.connect(donor).castVote(3, true);
-            await mineBlock(5);
-
-            await expect(
-                pool.connect(donor).executeProposal(3)
-            ).to.be.revertedWith(
-                Exceptions.NOT_VALID_EXECUTOR
-            );
-
-            await pool.connect(third).executeProposal(3);
-        });
+       
     });
 });

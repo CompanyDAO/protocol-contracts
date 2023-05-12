@@ -276,62 +276,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         return proposalId_;
     }
 
-    /**
-     * @notice A proposal that changes the PoolSecretary list.
-     * @param addSecretary add new address to pool secretary list
-     * @param removeSecretary remove address to pool secretary list
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
-     */
-    function proposePoolSecretary(
-        address pool,
-        address[] memory addSecretary,
-        address[] memory removeSecretary,
-        string memory description,
-        string memory metaHash
-    ) external returns (uint256 proposalId) {
-        // Validate
-        require(
-            addSecretary.length > 0 || removeSecretary.length > 0,
-            ExceptionsLibrary.EMPTY_ADDRESS
-        );
-
-        // Prepare proposal action
-        address[] memory targets = new address[](1);
-        targets[0] = pool;
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory callDatas = new bytes[](1);
-        callDatas[0] = abi.encodeWithSelector(
-            IPool.changePoolSecretary.selector,
-            addSecretary,
-            removeSecretary
-        );
-        // Propose
-        uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
-            3, // changePoolSecretary
-            IGovernor.ProposalCoreData({
-                targets: targets,
-                values: values,
-                callDatas: callDatas,
-                quorumThreshold: 0,
-                decisionThreshold: 0,
-                executionDelay: 0
-            }),
-            IGovernor.ProposalMetaData({
-                proposalType: IRecordsRegistry.EventType.GovernanceSettings,
-                description: description,
-                metaHash: metaHash
-            })
-        );
-
-        return proposalId_;
-    }
-
+   
     /**
      * @dev Propose custom transactions
      * @param targets Transfer recipients
@@ -386,63 +331,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         return proposalId_;
     }
 
-    /**
-     * @notice A proposal that changes the PoolExecutor list.
-     * @param addExecutor add new address to pool Executor list
-     * @param removeExecutor remove address to pool Executor list
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
-     */
-    function proposePoolExecutor(
-        address pool,
-        address[] memory addExecutor,
-        address[] memory removeExecutor,
-        string memory description,
-        string memory metaHash
-    ) external returns (uint256 proposalId) {
-        // Validate
-        require(
-            addExecutor.length > 0 || removeExecutor.length > 0,
-            ExceptionsLibrary.EMPTY_ADDRESS
-        );
-
-        // Prepare proposal action
-        address[] memory targets = new address[](1);
-        targets[0] = pool;
-
-        uint256[] memory values = new uint256[](1);
-        values[0] = 0;
-
-        bytes[] memory callDatas = new bytes[](1);
-        callDatas[0] = abi.encodeWithSelector(
-            IPool.changePoolExecutor.selector,
-            addExecutor,
-            removeExecutor
-        );
-        // Propose
-        uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
-            5, // PoolExecutor
-            IGovernor.ProposalCoreData({
-                targets: targets,
-                values: values,
-                callDatas: callDatas,
-                quorumThreshold: 0,
-                decisionThreshold: 0,
-                executionDelay: 0
-            }),
-            IGovernor.ProposalMetaData({
-                proposalType: IRecordsRegistry.EventType.GovernanceSettings,
-                description: description,
-                metaHash: metaHash
-            })
-        );
-
-        return proposalId_;
-    }
-
-
+    
     /**
      * @dev Proposal to launch a new token generation event (TGE) for ERC1155 preference tokens
      * @param tgeInfo TGE parameters
@@ -533,10 +422,8 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
      /**
      * @notice A proposal that changes the governance settings. First of all, the percentage of the total number of free votes changes, the achievement of which within the framework of voting leads to the achievement of a quorum (the vote will be considered to have taken place, that is, one of the conditions for a positive decision on the propositional is fulfilled). Further, the Decision Threshold can be changed, which is set as a percentage of the sum of the votes "for" and "against" for a specific proposal, at which the sum of the votes "for" ensures a positive decision-making. In addition, a set of delays (measured in blocks) is set, used for certain features of transactions submitted to the proposal. The duration of all subsequent votes is also set (measured in blocks) and the number of Governance tokens required for the address to create a proposal. All parameters are set in one transaction. To change one of the parameters, it is necessary to send the old values of the other settings along with the changed value of one setting. With Secretary and Executor Roles
      * @param settings New governance settings
-     * @param addSecretary add new address to pool secretary list
-     * @param removeSecretary remove address to pool secretary list
-     * @param addExecutor add new address to pool Executor list
-     * @param removeExecutor remove address to pool Executor list
+     * @param secretary add new address to pool secretary list
+     * @param executor add new address to pool Executor list
      * @param description Proposal description
      * @param metaHash Hash value of proposal metadata
      * @return proposalId Created proposal's ID
@@ -544,10 +431,8 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     function proposeGovernanceSettingsWithRoles(
         address pool,
         IGovernanceSettings.NewGovernanceSettings memory settings,
-        address[] memory addSecretary,
-        address[] memory removeSecretary,
-        address[] memory addExecutor,
-        address[] memory removeExecutor,
+        address[] memory secretary,
+        address[] memory executor,
         string memory description,
         string memory metaHash
     ) external returns (uint256 proposalId) {
@@ -562,33 +447,18 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         IPool(pool).validateGovernanceSettings(settings);
 
         // Prepare proposal action
-        address[] memory targets = new address[](3);
+        address[] memory targets = new address[](1);
         targets[0] = pool;
 
-        uint256[] memory values = new uint256[](3);
+        uint256[] memory values = new uint256[](1);
         values[0] = 0;
 
-        bytes[] memory callDatas = new bytes[](3);
+        bytes[] memory callDatas = new bytes[](1);
         callDatas[0] = abi.encodeWithSelector(
-            IGovernanceSettings.setGovernanceSettings.selector,
-            settings
-        );
-
-        //// secretary 
-        targets[1] = pool;
-        values[1] = 0;
-        callDatas[1] = abi.encodeWithSelector(
-            IPool.changePoolSecretary.selector,
-            addSecretary,
-            removeSecretary
-        );
-        //// executors
-        targets[2] = pool;
-        values[2] = 0;
-        callDatas[2] = abi.encodeWithSelector(
-            IPool.changePoolExecutor.selector,
-            addExecutor,
-            removeExecutor
+            IPool.setSettings.selector,
+            settings,
+            secretary,
+            executor
         );
 
         // Propose
