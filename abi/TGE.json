@@ -101,6 +101,81 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "forceDelegateBalanceOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "blockNumber",
+                "type": "uint256"
+            }
+        ],
+        "name": "forceDelegateForBlockBalanceOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "forceDelegateUnlocked",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "blockNumber",
+                "type": "uint256"
+            }
+        ],
+        "name": "forceDelegateUnlockedForBlock",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "getEnd",
         "outputs": [
@@ -214,6 +289,16 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],
@@ -378,6 +463,16 @@
                 "internalType": "uint256",
                 "name": "lockupTVL",
                 "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "forceDelegateAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "forceDelegateDuration",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -503,6 +598,16 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
+                        "type": "uint256"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -574,6 +679,30 @@
             }
         ],
         "name": "lockedBalanceOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "blockNumber",
+                "type": "uint256"
+            }
+        ],
+        "name": "lockedForBlockBalanceOf",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -782,6 +911,25 @@
     {
         "inputs": [],
         "name": "transferUnlocked",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "blockNumber",
+                "type": "uint256"
+            }
+        ],
+        "name": "transferUnlockedForBlock",
         "outputs": [
             {
                 "internalType": "bool",

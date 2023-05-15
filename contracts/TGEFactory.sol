@@ -97,8 +97,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         ITGE.TGEInfo memory tgeInfo,
         string memory metadataURI,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
-        address[] memory addSecretary,
-        address[] memory addExecutor
+        address[] memory secretary,
+        address[] memory executor
     ) external nonReentrant whenNotPaused {
         // Check that sender is pool owner
         IPool pool = IPool(poolAddress);
@@ -112,13 +112,10 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             address(pool.getGovernanceToken()) == address(0) || !pool.isDAO(),
             ExceptionsLibrary.GOVERNANCE_TOKEN_EXISTS
         );
-        address[] memory list;
         pool.setSettings(
             governanceSettings_,
-            addSecretary,
-            list,
-            addExecutor,
-            list
+            secretary,
+            executor
         );
 
         // Create TGE contract

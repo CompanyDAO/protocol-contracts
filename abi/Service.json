@@ -1253,6 +1253,76 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newowner",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "entityType",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "trademark",
+                "type": "string"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "proposalThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "quorumThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "decisionThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "transferValueForDelay",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256[4]",
+                        "name": "executionDelays",
+                        "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
+                "name": "governanceSettings",
+                "type": "tuple"
+            }
+        ],
+        "name": "transferPurchasedPoolByService",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "unpause",
         "outputs": [],
@@ -1358,6 +1428,16 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],

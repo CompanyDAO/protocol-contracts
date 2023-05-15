@@ -240,6 +240,16 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
+                        "type": "uint256"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -295,12 +305,12 @@
             },
             {
                 "internalType": "address[]",
-                "name": "addSecretary",
+                "name": "secretary",
                 "type": "address[]"
             },
             {
                 "internalType": "address[]",
-                "name": "addExecutor",
+                "name": "executor",
                 "type": "address[]"
             }
         ],
@@ -413,6 +423,16 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],
@@ -582,6 +602,16 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],

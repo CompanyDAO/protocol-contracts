@@ -382,22 +382,12 @@
             },
             {
                 "internalType": "address[]",
-                "name": "addSecretary",
+                "name": "secretary",
                 "type": "address[]"
             },
             {
                 "internalType": "address[]",
-                "name": "removeSecretary",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "addExecutor",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "removeExecutor",
+                "name": "executor",
                 "type": "address[]"
             },
             {
@@ -412,84 +402,6 @@
             }
         ],
         "name": "proposeGovernanceSettingsWithRoles",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "pool",
-                "type": "address"
-            },
-            {
-                "internalType": "address[]",
-                "name": "addExecutor",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "removeExecutor",
-                "type": "address[]"
-            },
-            {
-                "internalType": "string",
-                "name": "description",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "metaHash",
-                "type": "string"
-            }
-        ],
-        "name": "proposePoolExecutor",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "pool",
-                "type": "address"
-            },
-            {
-                "internalType": "address[]",
-                "name": "addSecretary",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "removeSecretary",
-                "type": "address[]"
-            },
-            {
-                "internalType": "string",
-                "name": "description",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "metaHash",
-                "type": "string"
-            }
-        ],
-        "name": "proposePoolSecretary",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -609,6 +521,16 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],
@@ -799,6 +721,16 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "forceDelegateAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],

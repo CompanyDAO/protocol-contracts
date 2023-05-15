@@ -304,6 +304,33 @@ contract Service is
         emit PoolPurchased(address(pool), address(0), address(0));
     }
 
+    /**
+     * @dev Method for purchasing a pool by the user. Among the data submitted for input, there are jurisdiction and Entity Type
+     * @param jurisdiction jurisdiction
+     * @param entityType entityType
+     */
+    function transferPurchasedPoolByService(
+        address newowner,
+        uint256 jurisdiction,
+        uint256 entityType,
+        string memory trademark,
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings
+    ) external onlyManager nonReentrant whenNotPaused {
+        // Lock company
+        IRegistry.CompanyInfo memory companyInfo = registry.lockCompany(
+            jurisdiction,
+            entityType
+        );
+        // Create pool
+        IPool pool = IPool(getPoolAddress(companyInfo));
+
+        // setNewOwnerWithSettings to pool contract
+        pool.setNewOwnerWithSettings(newowner, trademark, governanceSettings);
+
+        // Emit event
+        emit PoolPurchased(address(pool), address(0), address(0));
+    }
+
     // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL OR REGISTRY)
 
     /**
@@ -332,18 +359,6 @@ contract Service is
             proposalId,
             metaHash
         );
-    }
-
-    /**
-     * @dev set Operating Agreement Url for pool
-     * @param pool pool adress
-     * @param _uri Operating Agreement Url
-     */
-    function setOAUrlForPool(
-        IPool pool,
-        string calldata _uri
-    ) external onlyManager whenNotPaused {
-        pool.setOAUrl(_uri);
     }
 
     /**

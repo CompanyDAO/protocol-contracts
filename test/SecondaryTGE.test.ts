@@ -165,8 +165,8 @@ describe("Test secondary TGE", function () {
             expect(proposal.vote.startBlock).to.equal(receipt.blockNumber + 10);
             expect(proposal.vote.endBlock).to.equal(
                 receipt.blockNumber +
-                    +10 +
-                    Number.parseInt(createArgs[6].votingDuration.toString())
+                +10 +
+                Number.parseInt(createArgs[6].votingDuration.toString())
             ); // from create params
             expect(proposal.vote.forVotes).to.equal(0);
             expect(proposal.vote.againstVotes).to.equal(0);
@@ -394,7 +394,7 @@ describe("Test secondary TGE", function () {
             const info = await tge2.getInfo();
             expect(info.duration).to.equal(20);
             expect(info.softcap).to.equal(parseUnits("1000"));
-            expect(info.hardcap).to.equal(parseUnits("5000"));
+            expect(info.hardcap).to.equal(parseUnits("4000"));
         });
 
         it("Only pool can request creating TGEs and recording proposals on service", async function () {
@@ -437,6 +437,8 @@ describe("Test secondary TGE", function () {
             await tge2
                 .connect(owner)
                 .purchase(parseUnits("100"), { value: parseUnits("1") });
+
+
         });
 
         it("If anything is purchased (no softcap) than TGE is successful", async function () {
@@ -487,10 +489,10 @@ describe("Test secondary TGE", function () {
         it("Hardcap and protocolFee works", async function () {
             //waiting for voting start
             await mineBlock(10);
-            let cap =  (await token.cap())
-            let tswr =  await (await token.totalSupplyWithReserves())
-            let maxharcap =  cap.sub(tswr).mul(99).div(100)
-            
+            let cap = (await token.cap())
+            let tswr = await (await token.totalSupplyWithReserves())
+            let maxharcap = cap.sub(tswr).mul(99).div(100)
+
 
             // Create and success second proposal
             createArgs[3].hardcap = maxharcap;
@@ -504,7 +506,7 @@ describe("Test secondary TGE", function () {
             await pool.connect(other).castVote(2, true);
             await mineBlock(2);
             await mineBlock(100);
-           
+
             await mineBlock(2);
             await pool.executeProposal(2);
             const tgeRecord = await registry.contractRecords(4);
@@ -513,14 +515,55 @@ describe("Test secondary TGE", function () {
             // await tge2
             //     .connect(owner)
             //     .purchase( createArgs[3].maxPurchase.sub(1), { value: parseUnits("100") });
-            tswr =  await (await token.totalSupplyWithReserves())
+            tswr = await (await token.totalSupplyWithReserves())
         });
+
+
+        it("Force delegate works on TGE", async function () {
+
+            const startVotes = await token.getVotes(owner.address);
+            expect(startVotes).to.equal("500000000000000000000");
+
+            await mineBlock(100);
+
+            createArgs[3].forceDelegateAddress = owner.address;
+            createArgs[3].hardcap = parseUnits("200");
+            createArgs[3].softcap = parseUnits("100");
+            await customProposal.proposeTGE(pool.address, ...tgeArgs);
+
+            //waiting for voting start
+            await mineBlock(10);
+
+            await pool.connect(owner).castVote(2, true);
+            await pool.connect(other).castVote(2, true);
+            await mineBlock(2);
+            await mineBlock(100);
+
+            await mineBlock(2);
+            await pool.executeProposal(2);
+            const tgeRecord = await registry.contractRecords(4);
+            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
+
+
+
+            await tge2
+                .connect(third)
+                .purchase(parseUnits("100"), { value: parseUnits("1") });
+
+
+
+            await mineBlock(1);
+            const endVotes = await token.getVotes(owner.address);
+            expect(endVotes).to.equal("600000000000000000000");
+        });
+
+
         it("Secondary TGE's hardcap can't overflow remaining supply", async function () {
             await mineBlock(100);
 
-            let cap =  (await token.cap())
-            let tswr =  await (await token.totalSupplyWithReserves())
-            let maxharcap =  cap.sub(tswr).mul(100).div(100).add(1);
+            let cap = (await token.cap())
+            let tswr = await (await token.totalSupplyWithReserves())
+            let maxharcap = cap.sub(tswr).mul(100).div(100).add(1);
             createArgs[3].hardcap = maxharcap;
             await expect(
                 customProposal.proposeTGE(pool.address, ...tgeArgs)
@@ -530,6 +573,7 @@ describe("Test secondary TGE", function () {
         });
 
 
-        
+
+
     });
 });

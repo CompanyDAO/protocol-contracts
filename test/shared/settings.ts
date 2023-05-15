@@ -32,7 +32,7 @@ export async function makeCreateData(): Promise<CreateArgs> {
 
     const tgeData = {
         price: parseUnits("0.01"),
-        hardcap: parseUnits("5000"),
+        hardcap: parseUnits("4000"),
         softcap: parseUnits("1000"),
         minPurchase: parseUnits("10"),
         maxPurchase: parseUnits("3000"),
@@ -51,6 +51,8 @@ export async function makeCreateData(): Promise<CreateArgs> {
         duration: 20,
         userWhitelist: [owner.address, other.address],
         unitOfAccount: AddressZero,
+        forceDelegateAddress: AddressZero,
+        forceDelegateDuration: 50
     };
     const settings: NewGovernanceSettingsStruct = {
         proposalThreshold: 100000, // 10%
