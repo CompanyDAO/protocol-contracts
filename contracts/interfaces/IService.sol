@@ -82,4 +82,6 @@ interface IService is IAccessControlEnumerableUpgradeable {
     ) external view returns (address);
 
     function paused() external view returns (bool);
+
+    function addInvoiceEvent(address pool, uint256 invoiceId) external returns (uint256);
 }

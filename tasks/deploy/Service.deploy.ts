@@ -63,6 +63,10 @@ task("deploy:service", "Deploy Service").setAction(async function (
         tokenFactory.address,
         tgeFactory.address
     );
+    
+    await serviceContract.setInvoice(
+        invoice.address
+    );
 
     await serviceContract.setTokenERC1155Beacon(
         tokenERC1155Beacon.address

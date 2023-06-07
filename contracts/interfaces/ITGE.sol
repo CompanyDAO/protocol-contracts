@@ -19,8 +19,6 @@ interface ITGE {
         address unitOfAccount;
         uint256 lockupDuration;
         uint256 lockupTVL;
-        address forceDelegateAddress;
-        uint256 forceDelegateDuration;
     }
 
     function initialize(
@@ -48,10 +46,6 @@ interface ITGE {
 
     function transferUnlocked() external view returns (bool);
 
-    function transferUnlockedForBlock(
-        uint256 blockNumber
-    ) external view returns (bool);
-
     function purchaseOf(address user) external view returns (uint256);
 
     function redeemableBalanceOf(address user) external view returns (uint256);
@@ -63,24 +57,4 @@ interface ITGE {
     function totalPurchased() external view returns (uint256);
 
     function isERC1155TGE() external view returns (bool);
-
-    function lockedForBlockBalanceOf(
-        address account,
-        uint256 blockNumber
-    ) external view returns (uint256);
-
-    function forceDelegateUnlocked() external view returns (bool);
-
-    function forceDelegateUnlockedForBlock(
-        uint256 blockNumber
-    ) external view returns (bool);
-
-    function forceDelegateBalanceOf(
-        address account
-    ) external view returns (uint256);
-
-    function forceDelegateForBlockBalanceOf(
-        address account,
-        uint256 blockNumber
-    ) external view returns (uint256);
 }

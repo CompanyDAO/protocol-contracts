@@ -70,6 +70,9 @@ const config: HardhatUserConfig = {
     },
     mainnet: { ...networkConfig(process.env.MAINNET_RPC_URL!) },
     goerli: { ...networkConfig(process.env.GOERLI_RPC_URL!) },
+    mumbai: {
+      ...networkConfig(process.env.MUMBAI_RPC_URL!)
+    }
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,

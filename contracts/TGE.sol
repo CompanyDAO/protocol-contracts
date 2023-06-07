@@ -528,23 +528,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             lockupTVLReached && block.number >= createdAt + info.lockupDuration;
     }
 
-    function transferUnlockedForBlock(
-        uint256 blockNumber
-    ) public view returns (bool) {
-        return
-            lockupTVLReached && blockNumber >= createdAt + info.lockupDuration;
-    }
-
-    function forceDelegateUnlocked() public view returns (bool) {
-        return block.number >= createdAt + info.forceDelegateDuration;
-    }
-
-    function forceDelegateUnlockedForBlock(
-        uint256 blockNumber
-    ) public view returns (bool) {
-        return blockNumber >= createdAt + info.forceDelegateDuration;
-    }
-
     /**
      * @dev Shows the number of TGE tokens blocked in this contract. If the lockup is completed or has not been assigned, the method returns 0 (all tokens on the address balance are available for transfer). If the lockup period is still active, then the difference between the tokens purchased by the user and those in the vesting is shown (both parameters are only for this TGE).
      * @param account Account address
@@ -553,44 +536,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     function lockedBalanceOf(address account) external view returns (uint256) {
         return
             transferUnlocked()
-                ? 0
-                : (purchaseOf[account] -
-                    vesting.vestedBalanceOf(address(this), account));
-    }
-
-    /**
-     * @dev Shows the number of TGE tokens blocked in this contract for the specific blocknumber
-     * @param account Account address
-     * @param blockNumber Block number
-     * @return Locked balance
-     */
-    function lockedForBlockBalanceOf(
-        address account,
-        uint256 blockNumber
-    ) external view returns (uint256) {
-        return
-            lockupTVLReached && blockNumber >= createdAt + info.lockupDuration
-                ? 0
-                : (purchaseOf[account] -
-                    vesting.vestedBalanceOf(address(this), account));
-    }
-
-    function forceDelegateBalanceOf(
-        address account
-    ) external view returns (uint256) {
-        return
-            forceDelegateUnlocked()
-                ? 0
-                : (purchaseOf[account] -
-                    vesting.vestedBalanceOf(address(this), account));
-    }
-
-    function forceDelegateForBlockBalanceOf(
-        address account,
-        uint256 blockNumber
-    ) external view returns (uint256) {
-        return
-            forceDelegateUnlockedForBlock(blockNumber)
                 ? 0
                 : (purchaseOf[account] -
                     vesting.vestedBalanceOf(address(this), account));

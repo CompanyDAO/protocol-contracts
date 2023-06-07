@@ -22,8 +22,11 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     /// @notice last InvoiceId For Pool
     mapping(address => uint256) public lastInvoiceIdForPool;
 
-    /// @notice last InvoiceId For Pool
+    /// @notice Invoice Info
     mapping(address => mapping(uint256 => InvoiceInfo)) public invoices;
+
+    /// @notice Event Index
+    mapping(address => mapping(uint256 => uint256)) public eventIndex;
 
     // EVENTS
 
@@ -175,6 +178,9 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         //add invoice
         invoices[pool][invoiceId] = info;
         lastInvoiceIdForPool[pool]++;
+
+        uint256 index = registry.service().addInvoiceEvent(pool, invoiceId);
+        eventIndex[pool][invoiceId] = index;
 
         emit InvoiceCreated(pool, invoiceId);
     }

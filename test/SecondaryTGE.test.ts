@@ -519,43 +519,7 @@ describe("Test secondary TGE", function () {
         });
 
 
-        it("Force delegate works on TGE", async function () {
-
-            const startVotes = await token.getVotes(owner.address);
-            expect(startVotes).to.equal("500000000000000000000");
-
-            await mineBlock(100);
-
-            createArgs[3].forceDelegateAddress = owner.address;
-            createArgs[3].hardcap = parseUnits("200");
-            createArgs[3].softcap = parseUnits("100");
-            await customProposal.proposeTGE(pool.address, ...tgeArgs);
-
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(2, true);
-            await pool.connect(other).castVote(2, true);
-            await mineBlock(2);
-            await mineBlock(100);
-
-            await mineBlock(2);
-            await pool.executeProposal(2);
-            const tgeRecord = await registry.contractRecords(4);
-            const tge2: TGE = await getContractAt("TGE", tgeRecord.addr);
-
-
-
-            await tge2
-                .connect(third)
-                .purchase(parseUnits("100"), { value: parseUnits("1") });
-
-
-
-            await mineBlock(1);
-            const endVotes = await token.getVotes(owner.address);
-            expect(endVotes).to.equal("600000000000000000000");
-        });
+        
 
 
         it("Secondary TGE's hardcap can't overflow remaining supply", async function () {
