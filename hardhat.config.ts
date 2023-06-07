@@ -70,6 +70,7 @@ const config: HardhatUserConfig = {
     },
     mainnet: { ...networkConfig(process.env.MAINNET_RPC_URL!) },
     goerli: { ...networkConfig(process.env.GOERLI_RPC_URL!) },
+    polygon: { ...networkConfig(process.env.POLYGON_RPC_URL!) },
     mumbai: {
       ...networkConfig(process.env.MUMBAI_RPC_URL!)
     }
