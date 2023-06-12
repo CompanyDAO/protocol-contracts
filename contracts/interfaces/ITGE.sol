@@ -57,4 +57,8 @@ interface ITGE {
     function totalPurchased() external view returns (uint256);
 
     function isERC1155TGE() external view returns (bool);
+
+    function purchase(uint256 amount) external payable;
+
+    function transferFunds() external;
 }

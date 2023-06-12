@@ -61,6 +61,8 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         uint256 proposalId
     );
 
+    
+
     // PUBLIC FUNCTIONS
 
     /**
@@ -146,6 +148,8 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         emit EventRecordAdded(index, eventType, pool, proposalId);
     }
 
+   
+
     // VIRTUAL FUNCTIONS
 
     function setGlobalProposalId(
@@ -161,7 +165,7 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
      * @param addr Address of contract
      * @return Contract type
      */
-    function typeOf(address addr) external view returns (ContractType) {
+    function typeOf(address addr) public view returns (ContractType) {
         ContractIndex memory index = indexOfContract[addr];
         return
             index.exists

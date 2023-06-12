@@ -15,6 +15,7 @@ import "./interfaces/IPool.sol";
 import "./interfaces/IVesting.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+import "./interfaces/IPausable.sol";
 /// @title Token Generation Event
 /// @dev A contract whose purpose is to distribute Governance and Preference tokens and ensure their blocking according to the settings. This contract has an active period, after which the sale of tokens stops, but additional rules related to this token - Lockup and Vesting - begin to apply.    Such a contract is considered successful if at least softcap tokens have been sold using it in the allotted time. Dependencies of TGE contracts on each other for one token - 1) before there is at least one successfully completed TGE, each subsequent created TGE is considered primary (including the very first for the token), 2) if there was at least one successful TGE for an existing token before the launch of a new TGE, then the created TGE is called secondary (and does not have a softcap, that is, any purchase makes it successful).
 
@@ -260,6 +261,14 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Emit event
         emit Purchased(msg.sender, amount);
+
+        IToken(token).service().registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(ITGE.purchase.selector, amount)
+        );
+    
     }
 
     /**
@@ -414,6 +423,15 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Emit event
         emit FundsTransferred(balance);
+
+        
+
+        IToken(token).service().registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(ITGE.transferFunds.selector)
+        );
     }
 
     /// @dev Transfers protocol token fee in form of pool's governance tokens to protocol treasury
@@ -664,7 +682,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     modifier whenPoolNotPaused() {
         require(
-            !IPool(IToken(token).pool()).paused(),
+            !IPausable(IToken(token).pool()).paused(),
             ExceptionsLibrary.SERVICE_PAUSED
         );
         _;

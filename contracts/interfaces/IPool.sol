@@ -4,12 +4,14 @@ pragma solidity 0.8.17;
 
 import "./IToken.sol";
 import "./registry/IRegistry.sol";
+import "./registry/ICompaniesRegistry.sol";
+
 import "./governor/IGovernor.sol";
 import "./governor/IGovernanceSettings.sol";
 import "./governor/IGovernorProposals.sol";
 
 interface IPool is IGovernorProposals {
-    function initialize(IRegistry.CompanyInfo memory companyInfo_) external;
+    function initialize(ICompaniesRegistry.CompanyInfo memory companyInfo_) external;
 
     function setNewOwnerWithSettings(
         address owner_,
@@ -42,8 +44,6 @@ interface IPool is IGovernorProposals {
 
     function trademark() external view returns (string memory);
 
-    function paused() external view returns (bool);
-
     function getGovernanceToken() external view returns (IToken);
 
     function tokenExists(IToken token_) external view returns (bool);
@@ -74,5 +74,15 @@ interface IPool is IGovernorProposals {
         string memory _ein,
         string memory _dateOfIncorporation,
         string memory _OAuri
+    ) external;
+
+    function castVote(uint256 proposalId, bool support) external;
+
+    function executeProposal(uint256 proposalId) external;
+
+    function customTxByOwner(
+        address target,
+        uint256 value,
+        bytes calldata data
     ) external;
 }

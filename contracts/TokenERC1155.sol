@@ -13,6 +13,8 @@ import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+import "./interfaces/IPausable.sol";
+
 /// @title Company (Pool) Token
 /// @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
 contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
@@ -25,7 +27,7 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
 
     mapping(uint256 => uint256) public cap;
 
-    uint256 lastTokenId;
+    uint256 public lastTokenId;
 
     /// @dev Pool address
     address public pool;
@@ -218,9 +220,10 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
      * @return Is any TGE successful
      */
     function isPrimaryTGESuccessful(
-        uint256 tokenId
+        uint256 _tokenId
     ) external view returns (bool) {
-        return (ITGE(tgeList[tokenId][0]).state() == ITGE.State.Successful);
+        if (_tokenId > lastTokenId) return false;
+        return (ITGE(tgeList[_tokenId][0]).state() == ITGE.State.Successful);
     }
 
     /**
@@ -287,8 +290,21 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
     }
 
     function uri(uint256 tokenId) public view override returns (string memory) {
-        string memory tokenURI = _tokenURIs[tokenId];
-        return tokenURI;
+        return _tokenURIs[tokenId];
+    }
+
+    function isERC1155() external pure returns (bool) {
+        return true;
+    }
+
+    function getURIList(
+        uint256 limit,
+        uint offset
+    ) external view returns (string[] memory) {
+        string[] memory result = new string[](limit);
+        for (uint i = 0; i < limit && i <= lastTokenId; i++)
+            result[i] = _tokenURIs[offset + i + 1];
+        return result;
     }
 
     // INTERNAL FUNCTIONS
@@ -311,6 +327,16 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
         super._safeTransferFrom(from, to, tokenId, amount, "");
     }
 
+    function transfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 amount
+    ) external override whenPoolNotPaused {
+        // Execute transfer
+        _transfer(from, to, tokenId, amount);
+    }
+
     function _beforeTokenTransfer(
         address operator,
         address from,
@@ -329,6 +355,18 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
                 require(
                     amounts[i] <= unlockedBalanceOf(from, ids[i]),
                     ExceptionsLibrary.LOW_UNLOCKED_BALANCE
+                );
+                service.registry().log(
+                    msg.sender,
+                    address(this),
+                    0,
+                    abi.encodeWithSelector(
+                        ITokenERC1155.transfer.selector,
+                        from,
+                        to,
+                        ids[i],
+                        amounts[i]
+                    )
                 );
             }
         }
@@ -396,7 +434,7 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
     }
 
     modifier whenPoolNotPaused() {
-        require(!IPool(pool).paused(), ExceptionsLibrary.SERVICE_PAUSED);
+        require(!IPausable(pool).paused(), ExceptionsLibrary.SERVICE_PAUSED);
         _;
     }
 }

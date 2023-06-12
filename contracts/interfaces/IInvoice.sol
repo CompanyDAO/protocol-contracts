@@ -25,4 +25,12 @@ interface IInvoice {
         Expired,
         Canceled
     }
+
+    function createInvoice(address pool, InvoiceCore memory core) external;
+
+    function payInvoice(address pool, uint256 invoiceId) external payable;
+
+    function cancelInvoice(address pool, uint256 invoiceId) external;
+
+    function setInvoiceCanceled(address pool, uint256 invoiceId) external;
 }

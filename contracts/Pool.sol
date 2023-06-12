@@ -14,6 +14,7 @@ import "./interfaces/IToken.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/ICustomProposal.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
+import "./interfaces/registry/IRecordsRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
 /// @dev These contracts are instances of on-chain implementations of user companies. The shareholders of the companies work with them, their addresses are used in the Registry contract as tags that allow obtaining additional legal information (before the purchase of the company by the client). They store legal data (after the purchase of the company by the client). Among other things, the contract is also the owner of the Token and TGE contracts.
@@ -28,11 +29,13 @@ contract Pool is
 {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using AddressUpgradeable for address;
+    using AddressUpgradeable for address payable;
     /// @dev The company's trade mark, label, brand name. It also acts as the Name of all the Governance tokens created for this pool.
     string public trademark;
 
     /// @dev When a buyer acquires a company, its record disappears from the Registry contract, but before that, the company's legal data is copied to this variable.
-    IRegistry.CompanyInfo public companyInfo;
+    ICompaniesRegistry.CompanyInfo public companyInfo;
 
     /// @dev Mapping for Governance Token. There can be only one valid Governance token.
     mapping(IToken.TokenType => address) public tokens;
@@ -66,12 +69,6 @@ contract Pool is
 
     // EVENTS
 
-    /**
-     * @dev Special event that is released when the receive method is used. Thus, it is possible to make the receipt of ETH by the contract more noticeable.
-     * @param amount Amount of received ETH
-     */
-    event Received(uint256 amount);
-
     // MODIFIER
 
     /// @dev Is executed when the main contract is applied. It is used to transfer control of Registry and deployable user contracts for the final configuration of the company.
@@ -96,38 +93,10 @@ contract Pool is
         _;
     }
 
-    modifier onlyPool() {
-        require(msg.sender == address(this), ExceptionsLibrary.NOT_POOL);
-        _;
-    }
-
-    modifier onlyExecutor(uint256 proposalId) {
-        require(
-            isValidExecutor(msg.sender),
-            ExceptionsLibrary.NOT_VALID_EXECUTOR
-        );
-        _;
-    }
-
-    modifier onlyPropose() {
-        require(
-            msg.sender == address(service.customProposal()),
-            ExceptionsLibrary.NOT_VALID_PROPOSER
-        );
-        _;
-    }
-
-    modifier onlyValidProposer(address proposer) {
-        require(
-            isValidProposer(proposer),
-            ExceptionsLibrary.NOT_VALID_PROPOSER
-        );
-        _;
-    }
-
     // INITIALIZER AND CONFIGURATOR
 
     /// @custom:oz-upgrades-unsafe-allow constructor
+
     constructor() {
         _disableInitializers();
     }
@@ -137,10 +106,9 @@ contract Pool is
      * @param companyInfo_ Company info
      */
     function initialize(
-        IRegistry.CompanyInfo memory companyInfo_
+        ICompaniesRegistry.CompanyInfo memory companyInfo_
     ) external initializer {
         __Ownable_init();
-        __Pausable_init();
         __ReentrancyGuard_init();
         service = IService(msg.sender);
         companyInfo = companyInfo_;
@@ -209,6 +177,7 @@ contract Pool is
             poolExecutor.add(secretary[i]);
         }
     }
+
     /**
      * @dev sets new companyInfo and Operating Agreement Url
      * @param _jurisdiction Operating Agreement Url
@@ -237,9 +206,7 @@ contract Pool is
 
     // RECEIVE
     /// @dev Method for receiving an Ethereum contract that issues an event.
-    receive() external payable {
-        emit Received(msg.value);
-    }
+    receive() external payable {}
 
     // PUBLIC FUNCTIONS
 
@@ -253,6 +220,13 @@ contract Pool is
         bool support
     ) external nonReentrant whenNotPaused {
         _castVote(proposalId, support);
+
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(IPool.castVote.selector, proposalId, support)
+        );
     }
 
     // RESTRICTED PUBLIC FUNCTIONS
@@ -297,11 +271,21 @@ contract Pool is
      * @dev Execute proposal
      * @param proposalId Proposal ID
      */
-    function executeProposal(
-        uint256 proposalId
-    ) external whenNotPaused onlyExecutor(proposalId) {
+    function executeProposal(uint256 proposalId) external whenNotPaused {
+        require(
+            isValidExecutor(msg.sender),
+            ExceptionsLibrary.NOT_VALID_EXECUTOR
+        );
+
         lastExecutedProposalId = proposalId;
         _executeProposal(proposalId, service);
+
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(IPool.executeProposal.selector, proposalId)
+        );
     }
 
     /**
@@ -310,20 +294,6 @@ contract Pool is
      */
     function cancelProposal(uint256 proposalId) external onlyService {
         _cancelProposal(proposalId);
-    }
-
-    /**
-     * @dev Pause pool and corresponding TGEs and Tokens
-     */
-    function pause() public onlyServiceAdmin {
-        _pause();
-    }
-
-    /**
-     * @dev Unpause pool and corresponding TGEs and Tokens
-     */
-    function unpause() public onlyServiceAdmin {
-        _unpause();
     }
 
     /**
@@ -336,12 +306,13 @@ contract Pool is
         uint256 proposeType,
         IGovernor.ProposalCoreData memory core,
         IGovernor.ProposalMetaData memory meta
-    )
-        external
-        onlyPropose
-        onlyValidProposer(proposer)
-        returns (uint256 proposalId)
-    {
+    ) external returns (uint256 proposalId) {
+        require(
+            msg.sender == address(service.customProposal()) &&
+                isValidProposer(proposer),
+            ExceptionsLibrary.NOT_VALID_PROPOSER
+        );
+
         core.quorumThreshold = quorumThreshold;
         core.decisionThreshold = decisionThreshold;
         core.executionDelay = executionDelays[meta.proposalType];
@@ -354,6 +325,19 @@ contract Pool is
         lastProposalIdByType[proposeType] = proposalId_;
 
         _setLastProposalIdForAddress(proposer, proposalId_);
+
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IPool.propose.selector,
+                proposer,
+                proposeType,
+                core,
+                meta
+            )
+        );
 
         return proposalId_;
     }
@@ -395,7 +379,22 @@ contract Pool is
         }
     }
 
+    /**
+     * @dev Execute custom tx if the pool is not yet a  DAO
+     * @param target receiver addresss
+     * @param value transfer amount
+     * @param data input data of the transaction
+     */
+    function customTxByOwner(
+        address target,
+        uint256 value,
+        bytes calldata data
+    ) external onlyOwner {
+        //only if pool is yet DAO
+        require(!isDAO(), ExceptionsLibrary.IS_DAO);
 
+        target.functionCallWithValue(data, value);
+    }
 
     // PUBLIC VIEW FUNCTIONS
 
@@ -556,20 +555,6 @@ contract Pool is
         uint256 blockNumber
     ) internal view override returns (uint256) {
         return getGovernanceToken().getPastVotes(account, blockNumber);
-    }
-
-    /**
-     * @dev Return pool paused status
-     * @return Is pool paused
-     */
-    function paused()
-        public
-        view
-        override(IPool, PausableUpgradeable)
-        returns (bool)
-    {
-        // Pausable
-        return super.paused();
     }
 
     /**

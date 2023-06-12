@@ -9,9 +9,13 @@ import "./registry/IRecordsRegistry.sol";
 import "./registry/ICompaniesRegistry.sol";
 import "./registry/IRegistry.sol";
 import "./IToken.sol";
+import "./IInvoice.sol";
 import "./IVesting.sol";
 import "./ITokenFactory.sol";
 import "./ITGEFactory.sol";
+import "./IPool.sol";
+import "./governor/IGovernanceSettings.sol";
+
 interface IService is IAccessControlEnumerableUpgradeable {
     function ADMIN_ROLE() external view returns (bytes32);
 
@@ -45,6 +49,8 @@ interface IService is IAccessControlEnumerableUpgradeable {
     function tokenFactory() external view returns (ITokenFactory);
 
     function tgeFactory() external view returns (ITGEFactory);
+
+    function invoice() external view returns (IInvoice);
 
     function protocolTreasury() external view returns (address);
 
@@ -83,5 +89,23 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function paused() external view returns (bool);
 
-    function addInvoiceEvent(address pool, uint256 invoiceId) external returns (uint256);
+    function addInvoiceEvent(
+        address pool,
+        uint256 invoiceId
+    ) external returns (uint256);
+
+    function purchasePool(
+        uint256 jurisdiction,
+        uint256 entityType,
+        string memory trademark,
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings
+    ) external payable;
+
+    function transferPurchasedPoolByService(
+        address newowner,
+        uint256 jurisdiction,
+        uint256 entityType,
+        string memory trademark,
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings
+    ) external;
 }

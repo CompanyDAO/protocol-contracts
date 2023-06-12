@@ -13,6 +13,8 @@ import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+import "./interfaces/IPausable.sol";
+
 /// @title Company (Pool) Token
 /// @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
 contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
@@ -273,6 +275,10 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         return _totalSupplyWithReserves;
     }
 
+    function isERC1155() public pure returns (bool) {
+        return false;
+    }
+
     // INTERNAL FUNCTIONS
 
     /**
@@ -316,6 +322,53 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         uint256 amount
     ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._afterTokenTransfer(from, to, amount);
+    }
+
+    // function delegate(
+    //     address delegatee
+    // ) public override(ERC20VotesUpgradeable, VotesUpgradeable) {
+    //     service.registry().log(
+    //         msg.sender,
+    //         address(this),
+    //         0,
+    //         abi.encodeWithSelector(IToken.delegate.selector, delegatee)
+    //     );
+
+    //     super.delegate(delegatee);
+    // }
+
+    function transfer(
+        address to,
+        uint256 amount
+    ) public override(ERC20Upgradeable, IToken) returns (bool) {
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(IToken.transfer.selector, to, amount)
+        );
+
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public override(ERC20Upgradeable, IToken) returns (bool) {
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IToken.transferFrom.selector,
+                from,
+                to,
+                amount
+            )
+        );
+
+        return super.transferFrom(from, to, amount);
     }
 
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
@@ -391,7 +444,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     }
 
     modifier whenPoolNotPaused() {
-        require(!IPool(pool).paused(), ExceptionsLibrary.SERVICE_PAUSED);
+        require(!IPausable(pool).paused(), ExceptionsLibrary.SERVICE_PAUSED);
         _;
     }
 }

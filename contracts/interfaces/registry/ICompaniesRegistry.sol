@@ -18,4 +18,8 @@ interface ICompaniesRegistry {
         uint256 jurisdiction,
         uint256 entityType
     ) external returns (CompanyInfo memory);
+
+    function createCompany(
+        CompanyInfo calldata info
+    ) external;
 }
