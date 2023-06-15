@@ -401,7 +401,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         // Propose
         uint256 proposalId_ = IPool(pool).propose(
             msg.sender,
-            1,
+            6,
             IGovernor.ProposalCoreData({
                 targets: targets,
                 values: values,

@@ -10,6 +10,7 @@ import "./registry/TokensRegistry.sol";
 contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
     /// @dev Mapping of pool contracts and local proposal ids to their global ids
     mapping(address => mapping(uint256 => uint256)) public globalProposalIds;
+    event Log(address sender, address receiver, uint256 value, bytes data);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -52,5 +53,27 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
         uint256 proposalId
     ) public view returns (uint256) {
         return globalProposalIds[pool][proposalId];
+    }
+
+    function log(
+        address sender,
+        address receiver,
+        uint256 value,
+        bytes memory data
+    ) external {
+        require(
+            msg.sender == address(this) ||
+                msg.sender == service ||
+                msg.sender == address(IService(service).tgeFactory()) ||
+                msg.sender == address(IService(service).invoice()) ||
+                typeOf(msg.sender) == IRecordsRegistry.ContractType.Pool ||
+                typeOf(msg.sender) == IRecordsRegistry.ContractType.TGE ||
+                typeOf(msg.sender) ==
+                IRecordsRegistry.ContractType.GovernanceToken ||
+                typeOf(msg.sender) == IRecordsRegistry.ContractType.PreferenceToken,
+            ExceptionsLibrary.INVALID_USER
+        );
+        // Emit event
+        emit Log(sender, receiver, value, data);
     }
 }

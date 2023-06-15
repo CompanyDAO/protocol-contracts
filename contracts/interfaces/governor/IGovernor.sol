@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.17;
 
-import "../../interfaces/registry/IRegistry.sol";
+import "../../interfaces/registry/IRecordsRegistry.sol";
 
 interface IGovernor {
     /**
@@ -30,7 +30,7 @@ interface IGovernor {
      * @param metaHash Metadata hash
      */
     struct ProposalMetaData {
-        IRegistry.EventType proposalType;
+        IRecordsRegistry.EventType proposalType;
         string description;
         string metaHash;
     }

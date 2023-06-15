@@ -16,4 +16,11 @@ interface IRegistry is ITokensRegistry, ICompaniesRegistry, IRecordsRegistry {
         bytes32 role,
         address account
     ) external view returns (bool);
+
+    function log(
+        address sender,
+        address receiver,
+        uint256 value, 
+        bytes memory data
+    ) external;
 }

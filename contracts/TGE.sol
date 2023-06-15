@@ -15,6 +15,7 @@ import "./interfaces/IPool.sol";
 import "./interfaces/IVesting.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+import "./interfaces/IPausable.sol";
 /// @title Token Generation Event
 /// @dev A contract whose purpose is to distribute Governance and Preference tokens and ensure their blocking according to the settings. This contract has an active period, after which the sale of tokens stops, but additional rules related to this token - Lockup and Vesting - begin to apply.    Such a contract is considered successful if at least softcap tokens have been sold using it in the allotted time. Dependencies of TGE contracts on each other for one token - 1) before there is at least one successfully completed TGE, each subsequent created TGE is considered primary (including the very first for the token), 2) if there was at least one successful TGE for an existing token before the launch of a new TGE, then the created TGE is called secondary (and does not have a softcap, that is, any purchase makes it successful).
 
@@ -260,6 +261,14 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Emit event
         emit Purchased(msg.sender, amount);
+
+        IToken(token).service().registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(ITGE.purchase.selector, amount)
+        );
+    
     }
 
     /**
@@ -414,6 +423,15 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
         // Emit event
         emit FundsTransferred(balance);
+
+        
+
+        IToken(token).service().registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(ITGE.transferFunds.selector)
+        );
     }
 
     /// @dev Transfers protocol token fee in form of pool's governance tokens to protocol treasury
@@ -528,23 +546,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             lockupTVLReached && block.number >= createdAt + info.lockupDuration;
     }
 
-    function transferUnlockedForBlock(
-        uint256 blockNumber
-    ) public view returns (bool) {
-        return
-            lockupTVLReached && blockNumber >= createdAt + info.lockupDuration;
-    }
-
-    function forceDelegateUnlocked() public view returns (bool) {
-        return block.number >= createdAt + info.forceDelegateDuration;
-    }
-
-    function forceDelegateUnlockedForBlock(
-        uint256 blockNumber
-    ) public view returns (bool) {
-        return blockNumber >= createdAt + info.forceDelegateDuration;
-    }
-
     /**
      * @dev Shows the number of TGE tokens blocked in this contract. If the lockup is completed or has not been assigned, the method returns 0 (all tokens on the address balance are available for transfer). If the lockup period is still active, then the difference between the tokens purchased by the user and those in the vesting is shown (both parameters are only for this TGE).
      * @param account Account address
@@ -553,44 +554,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     function lockedBalanceOf(address account) external view returns (uint256) {
         return
             transferUnlocked()
-                ? 0
-                : (purchaseOf[account] -
-                    vesting.vestedBalanceOf(address(this), account));
-    }
-
-    /**
-     * @dev Shows the number of TGE tokens blocked in this contract for the specific blocknumber
-     * @param account Account address
-     * @param blockNumber Block number
-     * @return Locked balance
-     */
-    function lockedForBlockBalanceOf(
-        address account,
-        uint256 blockNumber
-    ) external view returns (uint256) {
-        return
-            lockupTVLReached && blockNumber >= createdAt + info.lockupDuration
-                ? 0
-                : (purchaseOf[account] -
-                    vesting.vestedBalanceOf(address(this), account));
-    }
-
-    function forceDelegateBalanceOf(
-        address account
-    ) external view returns (uint256) {
-        return
-            forceDelegateUnlocked()
-                ? 0
-                : (purchaseOf[account] -
-                    vesting.vestedBalanceOf(address(this), account));
-    }
-
-    function forceDelegateForBlockBalanceOf(
-        address account,
-        uint256 blockNumber
-    ) external view returns (uint256) {
-        return
-            forceDelegateUnlockedForBlock(blockNumber)
                 ? 0
                 : (purchaseOf[account] -
                     vesting.vestedBalanceOf(address(this), account));
@@ -719,7 +682,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
 
     modifier whenPoolNotPaused() {
         require(
-            !IPool(IToken(token).pool()).paused(),
+            !IPausable(IToken(token).pool()).paused(),
             ExceptionsLibrary.SERVICE_PAUSED
         );
         _;

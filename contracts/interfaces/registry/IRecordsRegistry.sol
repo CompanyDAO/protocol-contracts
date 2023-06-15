@@ -79,4 +79,6 @@ interface IRecordsRegistry {
     ) external returns (uint256 index);
 
     function typeOf(address addr) external view returns (ContractType);
+
+     
 }

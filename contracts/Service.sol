@@ -302,6 +302,18 @@ contract Service is
 
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
+        registry.log(
+            msg.sender,
+            address(this),
+            msg.value,
+            abi.encodeWithSelector(
+                IService.purchasePool.selector,
+                jurisdiction,
+                entityType,
+                trademark,
+                governanceSettings
+            )
+        );
     }
 
     /**
@@ -329,6 +341,20 @@ contract Service is
 
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
+
+        registry.log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IService.transferPurchasedPoolByService.selector,
+                newowner,
+                jurisdiction,
+                entityType,
+                trademark,
+                governanceSettings
+            )
+        );
     }
 
     // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL OR REGISTRY)
@@ -359,6 +385,25 @@ contract Service is
             proposalId,
             metaHash
         );
+    }
+
+    function addInvoiceEvent(
+        address pool,
+        uint256 invoiceId
+    ) external whenNotPaused returns (uint256) {
+        require(
+            msg.sender == address(invoice),
+            ExceptionsLibrary.NOT_INVOICE_MANAGER
+        );
+
+        return
+            registry.addEventRecord(
+                pool,
+                IRecordsRegistry.EventType.Transfer,
+                msg.sender,
+                invoiceId,
+                ""
+            );
     }
 
     /**

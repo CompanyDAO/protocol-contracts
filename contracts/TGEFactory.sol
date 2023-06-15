@@ -112,11 +112,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             address(pool.getGovernanceToken()) == address(0) || !pool.isDAO(),
             ExceptionsLibrary.GOVERNANCE_TOKEN_EXISTS
         );
-        pool.setSettings(
-            governanceSettings_,
-            secretary,
-            executor
-        );
+        pool.setSettings(governanceSettings_, secretary, executor);
 
         // Create TGE contract
         ITGE tge = _createTGE(metadataURI, address(pool));
@@ -143,6 +139,22 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             service.protocolTokenFee()
         );
         emit PrimaryTGECreated(address(pool), address(tge), address(token));
+
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                ITGEFactory.createPrimaryTGE.selector,
+                poolAddress,
+                tokenInfo,
+                tgeInfo,
+                metadataURI,
+                governanceSettings_,
+                secretary,
+                executor
+            )
+        );
     }
 
     /**
@@ -228,10 +240,10 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
                 metadataURI
             );
         }
-        if(ITokenERC1155(token).cap(tokenId)==0){
-            ITokenERC1155(token).setTokenIdCap(tokenId,tokenInfo.cap);
+        if (ITokenERC1155(token).cap(tokenId) == 0) {
+            ITokenERC1155(token).setTokenIdCap(tokenId, tokenInfo.cap);
         }
-        
+
         // Add proposal id to TGE
         IPool(msg.sender).setProposalIdToTGE(address(tge));
 

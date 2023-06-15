@@ -13,6 +13,8 @@ import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+import "./interfaces/IPausable.sol";
+
 /// @title Company (Pool) Token
 /// @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
 contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
@@ -273,78 +275,8 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         return _totalSupplyWithReserves;
     }
 
-    function getVotes(
-        address account
-    )
-        public
-        view
-        virtual
-        override(ERC20VotesUpgradeable, IVotesUpgradeable)
-        returns (uint256)
-    {
-        uint256 accountVotes = super.getVotes(account);
-
-        // Iterate through TGE With Locked Tokens List to get locked balance
-        address[] memory _tgeWithLockedTokensList = tgeWithLockedTokensList;
-        uint256 totalLocked = 0;
-        uint totalDelegated = 0;
-        for (uint256 i; i < _tgeWithLockedTokensList.length; i++) {
-            if (
-                ITGE(_tgeWithLockedTokensList[i])
-                    .getInfo()
-                    .forceDelegateAddress != address(0)
-            ) {
-                totalLocked += ITGE(_tgeWithLockedTokensList[i])
-                    .forceDelegateBalanceOf(account);
-
-                if (
-                    ITGE(_tgeWithLockedTokensList[i])
-                        .getInfo()
-                        .forceDelegateAddress ==
-                    account &&
-                    !ITGE(_tgeWithLockedTokensList[i]).forceDelegateUnlocked()
-                ) {
-                    totalDelegated += ITGE(_tgeWithLockedTokensList[i])
-                        .totalPurchased();
-                }
-            }
-        }
-        return accountVotes - totalLocked + totalDelegated;
-    }
-
-    function getPastVotes(
-        address account,
-        uint256 blockNumber
-    )
-        public
-        view
-        virtual
-        override(ERC20VotesUpgradeable, IVotesUpgradeable)
-        returns (uint256)
-    {
-        uint256 accountPastVotes = super.getPastVotes(account, blockNumber);
-        // Iterate through TGE With Locked Tokens List to get locked balance
-        address[] memory _tgeList = tgeList;
-        uint256 pastTotalLocked = 0;
-        uint256 pastTotalDelegated = 0;
-        for (uint256 i; i < _tgeList.length; i++) {
-            if (
-                ITGE(_tgeList[i]).getInfo().forceDelegateAddress != address(0)
-            ) {
-                pastTotalLocked += ITGE(_tgeList[i]).forceDelegateForBlockBalanceOf(
-                    account,
-                    blockNumber
-                );
-                if (
-                    ITGE(_tgeList[i]).getInfo().forceDelegateAddress ==
-                    account &&
-                    !ITGE(_tgeList[i]).forceDelegateUnlockedForBlock(blockNumber)
-                ) {
-                    pastTotalDelegated += ITGE(_tgeList[i]).totalPurchased();
-                }
-            }
-        }
-        return accountPastVotes - pastTotalLocked + pastTotalDelegated;
+    function isERC1155() public pure returns (bool) {
+        return false;
     }
 
     // INTERNAL FUNCTIONS
@@ -390,6 +322,53 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         uint256 amount
     ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._afterTokenTransfer(from, to, amount);
+    }
+
+    // function delegate(
+    //     address delegatee
+    // ) public override(ERC20VotesUpgradeable, VotesUpgradeable) {
+    //     service.registry().log(
+    //         msg.sender,
+    //         address(this),
+    //         0,
+    //         abi.encodeWithSelector(IToken.delegate.selector, delegatee)
+    //     );
+
+    //     super.delegate(delegatee);
+    // }
+
+    function transfer(
+        address to,
+        uint256 amount
+    ) public override(ERC20Upgradeable, IToken) returns (bool) {
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(IToken.transfer.selector, to, amount)
+        );
+
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) public override(ERC20Upgradeable, IToken) returns (bool) {
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IToken.transferFrom.selector,
+                from,
+                to,
+                amount
+            )
+        );
+
+        return super.transferFrom(from, to, amount);
     }
 
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
@@ -465,7 +444,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     }
 
     modifier whenPoolNotPaused() {
-        require(!IPool(pool).paused(), ExceptionsLibrary.SERVICE_PAUSED);
+        require(!IPausable(pool).paused(), ExceptionsLibrary.SERVICE_PAUSED);
         _;
     }
 }

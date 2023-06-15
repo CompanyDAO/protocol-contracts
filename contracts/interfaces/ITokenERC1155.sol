@@ -66,4 +66,11 @@ interface ITokenERC1155 is IERC1155Upgradeable {
     function setURI(uint256 tokenId, string memory tokenURI) external;
 
     function setTokenIdCap(uint256 _tokenId, uint256 _cap) external;
+
+    function transfer(
+        address from,
+        address to,
+        uint256 tokenId,
+        uint256 amount
+    ) external;
 }

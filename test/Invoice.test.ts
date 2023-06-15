@@ -134,6 +134,11 @@ describe("Test Invoice", function () {
                     pool.address,
                     invoiceCore
                 );
+            await invoice
+                .createInvoice(
+                    pool.address,
+                    invoiceCore
+                );
         });
 
 
@@ -147,7 +152,9 @@ describe("Test Invoice", function () {
                 await (await invoice.invoices(pool.address, 0)).core.amount
             ).to.equal(parseUnits("0.01"));
 
-
+            expect(
+                await invoice.eventIndex(pool.address, 1)
+            ).to.equal(2);
 
         });
 
@@ -162,7 +169,7 @@ describe("Test Invoice", function () {
             expect(
                 await invoice.invoiceState(pool.address, 0)
             ).to.equal(2);
-
+            await mineBlock(120);
             await expect(invoice.payInvoice(pool.address, 1)).to.be.revertedWith(
                 Exceptions.WRONG_STATE
             );

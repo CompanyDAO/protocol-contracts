@@ -9,7 +9,7 @@ import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IInvoice.sol";
-
+import "./interfaces/IPausable.sol";
 contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -22,8 +22,11 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     /// @notice last InvoiceId For Pool
     mapping(address => uint256) public lastInvoiceIdForPool;
 
-    /// @notice last InvoiceId For Pool
+    /// @notice Invoice Info
     mapping(address => mapping(uint256 => InvoiceInfo)) public invoices;
+
+    /// @notice Event Index
+    mapping(address => mapping(uint256 => uint256)) public eventIndex;
 
     // EVENTS
 
@@ -69,7 +72,8 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     }
 
     modifier whenPoolNotPaused(address pool) {
-        require(!IPool(pool).paused(), ExceptionsLibrary.POOL_PAUSED);
+        require(!IPausable(pool).paused(), ExceptionsLibrary.POOL_PAUSED);
+        
         _;
     }
 
@@ -144,6 +148,16 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         }
 
         _setInvoicePaid(pool, invoiceId);
+        registry.log(
+            msg.sender,
+            address(this),
+            msg.value,
+            abi.encodeWithSelector(
+                IInvoice.payInvoice.selector,
+                pool,
+                invoiceId
+            )
+        );
     }
 
     /**
@@ -165,8 +179,9 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         validateInvoiceCore(core);
 
         InvoiceInfo memory info;
-        info.core = core;
         info.createdBy = msg.sender;
+        info.core = core;
+        
 
         //set invoiceId
         uint256 invoiceId = lastInvoiceIdForPool[pool];
@@ -176,7 +191,17 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         invoices[pool][invoiceId] = info;
         lastInvoiceIdForPool[pool]++;
 
+        uint256 index = registry.service().addInvoiceEvent(pool, invoiceId);
+        eventIndex[pool][invoiceId] = index;
+
         emit InvoiceCreated(pool, invoiceId);
+
+        registry.log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(IInvoice.createInvoice.selector, pool, core)
+        );
     }
 
     /**
@@ -189,6 +214,17 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         uint256 invoiceId
     ) external onlyValidInvoiceManager(pool) {
         _setInvoiceCanceled(pool, invoiceId);
+
+        registry.log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IInvoice.cancelInvoice.selector,
+                pool,
+                invoiceId
+            )
+        );
     }
 
     /**
@@ -213,6 +249,17 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         uint256 invoiceId
     ) external onlyManager {
         _setInvoiceCanceled(pool, invoiceId);
+
+        registry.log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IInvoice.setInvoiceCanceled.selector,
+                pool,
+                invoiceId
+            )
+        );
     }
 
     // PUBLIC VIEW FUNCTIONS
@@ -267,11 +314,12 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         address account
     ) public view returns (bool) {
         if (
-            IPool(pool).isPoolSecretary(account) ||
             registry.service().hasRole(
                 registry.service().SERVICE_MANAGER_ROLE(),
                 account
-            )
+            ) ||
+            IPool(pool).isPoolSecretary(account)
+            
         ) return true;
         if (!IPool(pool).isDAO() && account == IPool(pool).owner()) return true;
         return false;

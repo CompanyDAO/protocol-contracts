@@ -95,6 +95,13 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
 
         //Create PoolContract
         IService(service).createPool(info);
+        
+        IRegistry(address(this)).log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(ICompaniesRegistry.createCompany.selector, info)
+        );
     }
 
     /**

@@ -40,6 +40,7 @@ abstract contract GovernorProposals is
         // 3 - PoolSecretary
         // 4 - CustomTx
         // 5 - PoolExecutor
+        // 6 - proposeTGEERC1155
     }
 
     /// @notice Storage gap (for future upgrades)

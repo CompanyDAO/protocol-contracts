@@ -63,6 +63,10 @@ task("deploy:service", "Deploy Service").setAction(async function (
         tokenFactory.address,
         tgeFactory.address
     );
+    
+    await serviceContract.setInvoice(
+        invoice.address
+    );
 
     await serviceContract.setTokenERC1155Beacon(
         tokenERC1155Beacon.address
@@ -78,7 +82,19 @@ task("deploy:service", "Deploy Service").setAction(async function (
     );
     await customProposalContract.setService(service.address);
 
-   
+    await serviceContract.setInvoice(
+        invoice.address
+    );
+    let safe_address = process.env.SAFE || deployer;
+    await serviceContract.grantRole(
+        await serviceContract.DEFAULT_ADMIN_ROLE(),
+        safe_address
+    );
 
+    await registryContract.grantRole(
+        await registryContract.DEFAULT_ADMIN_ROLE(),
+        safe_address
+    );
+    
     return service;
 });

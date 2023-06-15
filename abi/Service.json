@@ -440,6 +440,30 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "invoiceId",
+                "type": "uint256"
+            }
+        ],
+        "name": "addInvoiceEvent",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "uint256",
                 "name": "proposalId",
                 "type": "uint256"
@@ -1428,16 +1452,6 @@
                     {
                         "internalType": "uint256",
                         "name": "lockupTVL",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "forceDelegateAddress",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "forceDelegateDuration",
                         "type": "uint256"
                     }
                 ],
