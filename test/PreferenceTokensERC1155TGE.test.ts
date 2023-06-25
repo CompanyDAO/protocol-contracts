@@ -292,6 +292,8 @@ describe("Test TGE for Preference Tokens ERC1155", function () {
             expect(await pToken.description()).to.equal(
                 "This is a preference token ERC1155"
             );
+            //console.log(await pToken.getURIList(10,0));
+            
         });
 
         it("Can create several Preference Tokens TGE", async function () {

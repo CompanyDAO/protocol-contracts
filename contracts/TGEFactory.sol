@@ -176,7 +176,6 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             address(token) == address(0)
         ) {
             (token, tge) = _createInitialPreferenceTGE(
-                token,
                 0,
                 "",
                 tgeInfo,
@@ -223,7 +222,6 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         // Check whether it's initial preference TGE or any secondary token
         if (address(token) == address(0)) {
             (token, tge) = _createInitialPreferenceTGE(
-                token,
                 tokenId,
                 uri,
                 tgeInfo,
@@ -313,7 +311,6 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     }
 
     function _createInitialPreferenceTGE(
-        address token,
         uint256 tokenId,
         string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
@@ -322,7 +319,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     ) internal returns (address, ITGE) {
         // Create TGE
         ITGE tge = _createTGE(metadataURI, msg.sender);
-
+        address token;
         if (tokenId != 0) {
             // Create token contract
             token = address(

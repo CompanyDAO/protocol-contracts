@@ -80,9 +80,4 @@ interface IPool is IGovernorProposals {
 
     function executeProposal(uint256 proposalId) external;
 
-    function customTxByOwner(
-        address target,
-        uint256 value,
-        bytes calldata data
-    ) external;
 }

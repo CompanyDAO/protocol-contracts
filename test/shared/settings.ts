@@ -50,7 +50,9 @@ export async function makeCreateData(): Promise<CreateArgs> {
         lockupTVL: parseUnits("20"),
         duration: 20,
         userWhitelist: [owner.address, other.address],
-        unitOfAccount: AddressZero
+        unitOfAccount: AddressZero,
+        forceDelegateAddress: AddressZero,
+        forceDelegateDuration: 50
     };
     const settings: NewGovernanceSettingsStruct = {
         proposalThreshold: 100000, // 10%
