@@ -89,31 +89,6 @@
                 "type": "uint256"
             }
         ],
-        "name": "Recall",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "tge",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
         "name": "Vested",
         "type": "event"
     },

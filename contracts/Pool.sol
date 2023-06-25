@@ -110,6 +110,7 @@ contract Pool is
     ) external initializer {
         __Ownable_init();
         __ReentrancyGuard_init();
+        __Pausable_init();
         service = IService(msg.sender);
         companyInfo = companyInfo_;
     }
@@ -327,7 +328,7 @@ contract Pool is
         _setLastProposalIdForAddress(proposer, proposalId_);
 
         service.registry().log(
-            msg.sender,
+            proposer,
             address(this),
             0,
             abi.encodeWithSelector(
@@ -378,24 +379,6 @@ contract Pool is
             );
         }
     }
-
-    /**
-     * @dev Execute custom tx if the pool is not yet a  DAO
-     * @param target receiver addresss
-     * @param value transfer amount
-     * @param data input data of the transaction
-     */
-    function customTxByOwner(
-        address target,
-        uint256 value,
-        bytes calldata data
-    ) external onlyOwner {
-        //only if pool is yet DAO
-        require(!isDAO(), ExceptionsLibrary.IS_DAO);
-
-        target.functionCallWithValue(data, value);
-    }
-
     // PUBLIC VIEW FUNCTIONS
 
     /**
@@ -448,22 +431,22 @@ contract Pool is
 
     /// @dev This getter to show list of current pool Secretary
     function getPoolSecretary() external view returns (address[] memory) {
-        return poolSecretary.values();
+        return isDAO() ? poolSecretary.values() : new address[](0);
     }
 
     /// @dev This getter to show list of current pool executor
     function getPoolExecutor() external view returns (address[] memory) {
-        return poolExecutor.values();
+        return isDAO() ? poolExecutor.values() : new address[](0);
     }
 
     /// @dev This getter shows if address is pool Secretary
     function isPoolSecretary(address account) public view returns (bool) {
-        return poolSecretary.contains(account);
+        return isDAO() ? poolSecretary.contains(account) : false;
     }
 
     /// @dev This getter shows if address is pool executor
     function isPoolExecutor(address account) public view returns (bool) {
-        return poolExecutor.contains(account);
+        return isDAO() ? poolExecutor.contains(account) : false;
     }
 
     /// @dev This getter check if address can propose
@@ -513,6 +496,15 @@ contract Pool is
             return
                 _getBlockTotalVotes(proposals[proposalId].vote.startBlock - 1);
         else return _getBlockTotalVotes(block.number - 1);
+    }
+
+    /**
+     * @dev Return pool paused status
+     * @return Is pool paused
+     */
+    function paused() public view override returns (bool) {
+        // Pausable
+        return super.paused();
     }
 
     // INTERNAL FUNCTIONS

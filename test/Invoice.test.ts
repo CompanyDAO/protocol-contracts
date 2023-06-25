@@ -169,7 +169,8 @@ describe("Test Invoice", function () {
             expect(
                 await invoice.invoiceState(pool.address, 0)
             ).to.equal(2);
-            await mineBlock(120);
+
+            await mineBlock(121);
             await expect(invoice.payInvoice(pool.address, 1)).to.be.revertedWith(
                 Exceptions.WRONG_STATE
             );

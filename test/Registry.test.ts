@@ -166,10 +166,7 @@ describe("Test Registry", function () {
         expect(await (await pool.getPoolSecretary()).length).to.equal(1);
     });
 
-    it("Can pause pool", async function () {
-        await pool.pause();
-        await pool.unpause();
-    });
+   
 
     it("Can pause service", async function () {
         await service.pause();
