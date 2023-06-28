@@ -70,7 +70,7 @@ task("deploy:update", "Deploy Proxy")
             
         }
 
-        const implementationss = ['Token','Pool','Registry','Service', 'TGEFactory', 'CustomProposal','Invoice']
+        const implementationss = ['Token','Pool','Registry', 'TGEFactory', 'CustomProposal','Vesting']
         for(let i = 0; i < implementationss.length; i++) {
             contractName = implementationss[i]
             await sleep(20000);

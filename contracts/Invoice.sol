@@ -10,22 +10,40 @@ import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IInvoice.sol";
 import "./interfaces/IPausable.sol";
+
+    /**
+    * @title Invoice Contract
+    * @notice This contract is designed for managing invoices issued by pools for payment.
+    * @dev It supports both trusted (payment confirmation off-chain by an authorized address) and trustless (on-chain payment) modes of operation.
+     *Regardless of the presence of Governance tokens in delegation or balance, and regardless of the owner/creator pool status, any address can act as an invoice payer. The following conditions must be met:
+    *
+    * - The structure Invoice.sol:invoices for the selected invoice number stores either an empty InvoiceInfo.core.whitelist[] (public invoice), or it contains the payer's address
+    * - The structure Invoice.sol:invoices for the selected invoice number has the values false in the fields InvoiceInfo.isPaid and InvoiceInfo.isCanceled (the invoice has not been canceled or paid by anyone yet)
+    * - The current network block is less than the InvoiceInfo.core.expirationBlock stored in the structure Invoice.sol:invoices for the selected invoice number
+    *
+    * When paying the invoice, the amount specified by the invoice creator is debited in the units they have chosen (ERC20 tokens or ETH).
+    *
+    *@dev _Note. All the above is valid for on-chain invoice payments. For off-chain invoice payments, a 3rd party backend solution is used to verify the payment of the specified invoice and has its mechanisms for allowing or disallowing the user to pay, including KYC. There is no such blockchain payer in this approach; the invoice is marked as paid by the address assigned the role of SERVICE_MANAGER in the Service contract._ 
+     */
 contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // STORAGE
 
-    /// @notice Registry contract
+    /// @notice Адрес контракта Registry
     IRegistry public registry;
 
-    /// @notice last InvoiceId For Pool
+    /// @notice Последние созданные пулами инвойсы 
+    /// @dev Маппинг, содержащий последний (максимальный) номер инвойса для каждого пула
     mapping(address => uint256) public lastInvoiceIdForPool;
 
-    /// @notice Invoice Info
+    /// @notice Invoice data (including their state)
+    /// @dev Mapping that stores nested mappings of invoice structures for each pool (pool address is used as the key)
     mapping(address => mapping(uint256 => InvoiceInfo)) public invoices;
 
-    /// @notice Event Index
+    /// @notice Global enumeration of invoices
+    /// @dev For each pool and for each invoice issued by the pool, the mapping contains global event IDs under which the invoices were registered in the Registry contract.
     mapping(address => mapping(uint256 => uint256)) public eventIndex;
 
     // EVENTS
@@ -52,6 +70,10 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     event InvoicePaid(address pool, uint256 invoiceId);
 
     // MODIFIERS
+    /**
+    * @notice Modifier that allows creating and canceling invoices for a given pool.
+    * @dev The logic of the modifier is described in the isValidInvoiceManager method. The modifier forwards the arguments to this method and uses its boolean output.
+    */
     modifier onlyValidInvoiceManager(address pool) {
         require(
             isValidInvoiceManager(pool, msg.sender),
@@ -60,6 +82,9 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         _;
     }
 
+    /**
+    * @dev Modifier to allow only the service manager to call a function.
+    */
     modifier onlyManager() {
         require(
             registry.service().hasRole(
@@ -71,12 +96,18 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         _;
     }
 
+    /**
+    * @dev Modifier to check if the pool is not paused.
+    */
     modifier whenPoolNotPaused(address pool) {
         require(!IPausable(pool).paused(), ExceptionsLibrary.POOL_PAUSED);
         
         _;
     }
 
+    /**
+    *@notice Modifier that allows manipulation with an existing invoice only if it has the "Active" status.
+    */
     modifier onlyActive(address pool, uint256 invoiceId) {
         require(
             invoiceState(pool, invoiceId) == InvoiceState.Active,
@@ -87,15 +118,22 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
 
     // INITIALIZER AND CONSTRUCTOR
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
+    /**
+     * @notice Contract constructor.
+     * @dev This contract uses OpenZeppelin upgrades and has no need for a constructor function.
+     * The constructor is replaced with an initializer function.
+     * This method disables the initializer feature of the OpenZeppelin upgrades plugin, preventing the initializer methods from being misused.
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor() {
         _disableInitializers();
     }
 
     /**
-     * @notice Contract initializer
-     * @param registry_ Protocol registry address
-     */
+    * @notice Contract initializer
+    * @dev This method replaces the constructor for upgradeable contracts. It also sets the registry contract address in the contract's storage.
+    * @param registry_ Protocol registry address
+    */
     function initialize(IRegistry registry_) external initializer {
         registry = registry_;
     }
@@ -103,10 +141,13 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     // PUBLIC FUNCTIONS
 
     /**
-     * @notice Pay Invoice
-     * @param pool Pool address
-     * @param invoiceId InvoiceId
-     */
+    * @notice On-chain payment of an invoice (trustless scenario)
+    * @dev In addition to the specified modifiers, there is also a check for the payer's wallet to be included in the whitelist of invoice payers.
+    * @dev To allow the invoice to be paid by any wallet, the whitelist field should be left empty when creating the invoice.
+    * @dev After successful payment, the invoice receives an irreversible "Paid" status.
+    * @param pool Address of the pool contract that issued the invoice
+    * @param invoiceId Identifier of the invoice being paid
+    */
     function payInvoice(
         address pool,
         uint256 invoiceId
@@ -148,23 +189,15 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         }
 
         _setInvoicePaid(pool, invoiceId);
-        registry.log(
-            msg.sender,
-            address(this),
-            msg.value,
-            abi.encodeWithSelector(
-                IInvoice.payInvoice.selector,
-                pool,
-                invoiceId
-            )
-        );
     }
 
     /**
-     * @notice create Invoice for given pool (only PoolSecretary)
-     * @param pool Pool address
-     * @param core InvoiceCore
-     */
+    * @notice Create an invoice by a specified pool
+    * @dev The onlyValidInvoiceManager modifier determines which accounts can create an invoice for the specified pool.
+    * @dev After creation, the invoice receives an "Active" status.
+    * @param pool Address of the pool contract that issues the invoice
+    * @param core Invoice payment data (described in the interface)
+    */
     function createInvoice(
         address pool,
         InvoiceCore memory core
@@ -205,10 +238,12 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     }
 
     /**
-     * @notice Cancel Invoice by invoice id (only PoolSecretary)
-     * @param pool Pool address
-     * @param invoiceId invoiceId
-     */
+    * @notice Cancel an invoice
+    * @dev To cancel an invoice, the request must pass the onlyValidInvoiceManager modifier, which regulates who can manipulate the pool's invoices on behalf of the pool.
+    * @dev After cancellation, the invoice receives an irreversible "Canceled" status.
+    * @param pool Address of the pool contract that issued the invoice
+    * @param invoiceId Invoice identifier
+    */
     function cancelInvoice(
         address pool,
         uint256 invoiceId
@@ -228,10 +263,12 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     }
 
     /**
-     * @notice Set invoice paid for manual confirmation of payment
-     * @param pool Pool address
-     * @param invoiceId invoiceId
-     */
+    * @notice Off-chain payment of an invoice (trusted scenario)
+    * @dev Addresses that have the "SERVICE_MANAGER" role in the Service contract can change the status of any active invoice of any pool to "Paid", indicating a successful payment of the invoice through an off-chain payment method.
+    * @dev After successful payment, the invoice receives an irreversible "Paid" status.
+    * @param pool Address of the pool contract that issued the invoice
+    * @param invoiceId Invoice identifier
+    */
     function setInvoicePaid(
         address pool,
         uint256 invoiceId
@@ -240,10 +277,12 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     }
 
     /**
-     * @notice Set invoice paid for manual invoice cancellation
-     * @param pool Pool address
-     * @param invoiceId invoiceId
-     */
+    * @notice Canceling an invoice by the manager
+    * @dev Addresses that have the "SERVICE_MANAGER" role in the Service contract can cancel any active invoice of any pool.
+    * @dev After cancellation, the invoice receives an irreversible "Canceled" status.
+    * @param pool Address of the pool contract that issued the invoice
+    * @param invoiceId Invoice identifier
+    */
     function setInvoiceCanceled(
         address pool,
         uint256 invoiceId
@@ -265,10 +304,14 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
     // PUBLIC VIEW FUNCTIONS
 
     /**
-     * @notice Validates invoice params
-     * @param core Invoice params
-     * @return True if params are valid (reverts otherwise)
-     */
+    * @notice This method checks the validity of invoice data during its creation
+    * @dev An invoice is considered valid if it meets the following criteria:
+    - Non-zero payment amount (in any token, including the native network coin)
+    - The expiration block has not yet been reached
+    - The specified token for payment is a valid ERC20 contract
+    * @param core Invoice data represented by the structure described in the InvoiceCore interface
+    * @return True if the parameters are valid (reverts otherwise)
+    */
     function validateInvoiceCore(
         InvoiceCore memory core
     ) public view returns (bool) {
@@ -286,12 +329,12 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         );
         return true;
     }
-
+    
     /**
-     * @dev This method returns invoice state
-     * @param invoiceId Invoice ID
-     * @return Invoice State
-     */
+    * @dev This method returns the state of an invoice
+    * @param pool The address of the pool contract that issued the invoice
+    * @param invoiceId The identifier of the invoice
+    */
     function invoiceState(
         address pool,
         uint256 invoiceId
@@ -308,7 +351,16 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         return InvoiceState.Active;
     }
 
-    /// @dev This getter check if address is Valid Invoice Manager
+    /**
+
+    * @notice This method checks the account's authority to manipulate pool invoices
+    * @dev In order to create and cancel pool invoices, the account address must:
+    - be listed in the pool's secretaries OR
+    - have the "SERVICE_MANAGER" role in the Service contract OR
+    - be the owner of the pool if the pool has not yet obtained DAO status
+    *@param pool The address of the pool contract
+    *@param account The account address
+    */
     function isValidInvoiceManager(
         address pool,
         address account
@@ -327,6 +379,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
 
     //PRIVATE
 
+    /// @dev Implementation of the function that changes the status of an active invoice to "Paid"
     function _setInvoicePaid(
         address pool,
         uint256 invoiceId
@@ -335,6 +388,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         emit InvoicePaid(pool, invoiceId);
     }
 
+    /// @dev Implementation of the function that cancels an active invoice and sets its status to "Canceled"
     function _setInvoiceCanceled(
         address pool,
         uint256 invoiceId

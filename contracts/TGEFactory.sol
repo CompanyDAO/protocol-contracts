@@ -12,36 +12,41 @@ import "./interfaces/ITGEFactory.sol";
 import "./interfaces/governor/IGovernanceSettings.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+/**
+ * @title TGE Factory contract
+ * @notice Event emitted on creation of primary TGE.
+ * @dev Deployment of a TGE can occur both within the execution of transactions prescribed by a proposal, and during the execution of a transaction initiated by the pool owner, who has not yet become a DAO.
+ */
 contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     // STORAGE
 
-    /// @notice Service contract
+    /// @notice Service contract address
     IService public service;
 
     // EVENTS
 
     /**
-     * @dev Event emitted on creation of primary TGE.
-     * @param pool Pool address
-     * @param tge Secondary TGE address
-     * @param token Preference token address
+     * @dev Event emitted when the primary TGE contract is deployed.
+     * @param pool Address of the pool for which the TGE is launched.
+     * @param tge Address of the deployed TGE contract.
+     * @param token Address of the token contract.
      */
     event PrimaryTGECreated(address pool, address tge, address token);
 
     /**
-     * @dev Event emitted on creation of secondary TGE.
-     * @param pool Pool address
-     * @param tge Secondary TGE address
-     * @param token Preference token address
+     * @dev Event emitted when a secondary TGE contract operating with ERC20 tokens is deployed.
+     * @param pool Address of the pool for which the TGE is launched.
+     * @param tge Address of the deployed TGE contract.
+     * @param token Address of the ERC20 token contract.
      */
     event SecondaryTGECreated(address pool, address tge, address token);
 
     /**
-     * @dev Event emitted on creation of secondary TGE.
-     * @param pool Pool address
-     * @param tge Secondary TGE address
-     * @param token Preference token address
-     * @param token Preference tokenId
+     * @dev Event emitted when a secondary TGE contract operating with ERC1155 tokens is * deployed.
+     * @param pool Address of the pool for which the TGE is launched.*
+     * @param tge Address of the deployed TGE contract.*
+     * @param token Address of the ERC1155 token contract.*
+     * @param tokenId Identifier of the ERC1155 token collection.
      */
     event SecondaryTGEERC1155Created(
         address pool,
@@ -51,7 +56,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     );
 
     // MODIFIERS
-
+    /// @notice Modifier that allows the method to be called only by the Pool contract.
     modifier onlyPool() {
         require(
             service.registry().typeOf(msg.sender) ==
@@ -60,7 +65,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         );
         _;
     }
-
+    /// @notice Modifier that allows the method to be called only if the Service contract is not paused.
     modifier whenNotPaused() {
         require(!service.paused(), ExceptionsLibrary.SERVICE_PAUSED);
         _;
@@ -68,14 +73,21 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
 
     // INITIALIZER
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
+    /**
+     * @notice Contract constructor.
+     * @dev This contract uses OpenZeppelin upgrades and has no need for a constructor function.
+     * The constructor is replaced with an initializer function.
+     * This method disables the initializer feature of the OpenZeppelin upgrades plugin, preventing the initializer methods from being misused.
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor() {
         _disableInitializers();
     }
 
     /**
-     * @dev Initializer function, can only be called once
-     * @param service_ Service address
+     * @notice Contract initializer
+     * @dev This method replaces the constructor for upgradeable contracts. It also sets the address of the Service contract in the contract's storage.
+     * @param service_ The address of the Service contract.
      */
     function initialize(IService service_) external initializer {
         __ReentrancyGuard_init();
@@ -85,11 +97,15 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     // EXTERNAL FUNCTIONS
 
     /**
-     * @dev Method for launching primary TGE for tokens
+     * @dev This method is used to launch the primary TGE of the Governance token. When launching such a TGE, a new Token contract is deployed with TokenType = "Governance". If this TGE is successful, it will no longer be possible to repeat such a launch, and the created token will irreversibly become the Governance token of the pool.
+     * @dev Simultaneously with contract deployment, Governance Settings and lists of secretaries and executors are set.
      * @param poolAddress Pool address.
      * @param tokenInfo New token parameters (token type, decimals & description are ignored)
      * @param tgeInfo Pool TGE parameters
      * @param metadataURI Metadata URI
+     * @param governanceSettings_ Set of Governance settings
+     * @param secretary Secretary address
+     * @param executor Executor address
      */
     function createPrimaryTGE(
         address poolAddress,
@@ -158,7 +174,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     }
 
     /**
-     * @dev Method for launching secondary TGE (i.e. without reissuing the token) for Governance tokens, as well as for creating and launching TGE for Preference tokens. It can be started only as a result of the execution of the proposal on behalf of the pool.
+     * @dev This method allows users to launch primary and secondary TGEs for Governance and Preference tokens deployed based on the ERC20 contract. The creation of a token occurs if the TGE involves the distribution of a previously nonexistent Preference token. Launch is only possible by executing a successful proposal.
+     * @param token ERC20 token address for distribution in the TGE
      * @param tgeInfo TGE parameters
      * @param tokenInfo Token parameters
      * @param metadataURI Metadata URI
@@ -201,7 +218,10 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     }
 
     /**
-     * @dev Method for launching secondary TGE for ERC1155.
+     * @dev This method launches a secondary TGE for a specified series of ERC1155 Preference tokens. If an unused series is being used, the maximum cap for this series is determined within this transaction. If no token address is specified, a new ERC1155 Preference token contract is deployed.
+     * @param token ERC1155 token address for distribution in the TGE
+     * @param tokenId ERC1155 token collection address for distribution of units in the TGE
+     * @param uri Metadata URI according to the ERC1155 specification
      * @param tgeInfo TGE parameters
      * @param tokenInfo Token parameters
      * @param metadataURI Metadata URI
@@ -229,6 +249,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
                 metadataURI
             );
         } else {
+            if (tokenId == 0) tokenId = ITokenERC1155(token).lastTokenId();
             (token, tge) = _createSecondaryTGE(
                 token,
                 tokenId,
@@ -275,7 +296,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         // Check that there is no active TGE
         if (tokenId != 0) {
             require(
-                ITGE(ITokenERC1155(token).lastTGE(tokenId)).state() !=
+                ITokenERC1155(token).cap(tokenId) == 0 ||
+                    ITGE(ITokenERC1155(token).lastTGE(tokenId)).state() !=
                     ITGE.State.Active,
                 ExceptionsLibrary.ACTIVE_TGE_EXISTS
             );
@@ -289,8 +311,11 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         ITGE tge = _createTGE(metadataURI, msg.sender);
 
         // Add TGE to token's list
-        IToken(token).addTGE(address(tge));
-
+        if (tokenId != 0) {
+            ITokenERC1155(token).addTGE(address(tge), tokenId);
+        } else {
+            IToken(token).addTGE(address(tge));
+        }
         // Get protocol fee
         uint256 protocolTokenFee = tokenInfo.tokenType ==
             IToken.TokenType.Governance
@@ -310,6 +335,14 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         return (token, tge);
     }
 
+    /**
+     * @dev This internal method implements the logic of launching a TGE for Preference tokens that do not yet have their own contract.
+     * @param tokenId ERC1155 token collection address for distribution of units in the TGE
+     * @param uri Metadata URI according to the ERC1155 specification
+     * @param tgeInfo TGE parameters
+     * @param tokenInfo Token parameters
+     * @param metadataURI Metadata URI
+     */
     function _createInitialPreferenceTGE(
         uint256 tokenId,
         string memory uri,
@@ -350,7 +383,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     }
 
     /**
-     * @dev Create TGE contract
+     * @dev This method deploys the TGE contract and returns its address after creation.
      * @param metadataURI TGE metadata URI
      * @param pool Pool address
      * @return tge TGE contract

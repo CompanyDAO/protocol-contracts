@@ -4,7 +4,11 @@ pragma solidity 0.8.17;
 
 import "./RegistryBase.sol";
 import "../interfaces/registry/IRecordsRegistry.sol";
-
+/**
+*  @title Registry Contract
+*  @notice This contract complements the Registry and serves as a storage or all entities created by users of the protocol.
+* @dev Unlike the Companies Registry, this contract is managed solely by other protocol contracts without operator intervention, and logs all deployed contracts and their associated events.
+*/
 abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
     // STORAGE
 
@@ -60,8 +64,6 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         address pool,
         uint256 proposalId
     );
-
-    
 
     // PUBLIC FUNCTIONS
 
@@ -147,8 +149,6 @@ abstract contract RecordsRegistry is RegistryBase, IRecordsRegistry {
         // Emit event
         emit EventRecordAdded(index, eventType, pool, proposalId);
     }
-
-   
 
     // VIRTUAL FUNCTIONS
 

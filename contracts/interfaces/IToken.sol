@@ -7,6 +7,16 @@ import "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.s
 import "./IService.sol";
 
 interface IToken is IVotesUpgradeable, IERC20Upgradeable {
+    /**
+    * @notice This structure is used to define the parameters of ERC20 tokens issued by the protocol for pools.
+    * @dev This structure is suitable for both Governance and Preference tokens if they are based on ERC20.
+    * @param tokenType Numeric code for the token type
+    * @param name Full name of the token
+    * @param symbol Ticker symbol (short name) of the token
+    * @param description Description of the token
+    * @param cap Maximum allowable token issuance
+    * @param decimals Number of decimal places for the token (precision)
+    */
     struct TokenInfo {
         TokenType tokenType;
         string name;
@@ -15,7 +25,9 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
         uint256 cap;
         uint8 decimals;
     }
-
+    /**
+    * @notice Token type encoding
+    */
     enum TokenType {
         None,
         Governance,
@@ -72,4 +84,8 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
     ) external returns (bool);
 
     function transfer(address to, uint256 amount) external returns (bool);
+
+    function delegate(
+        address delegatee
+    ) external; 
 }

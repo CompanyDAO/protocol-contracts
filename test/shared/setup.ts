@@ -29,6 +29,10 @@ export async function setup() {
         owner.address
     );
 
+    await service.grantRole(
+        await service.EXECUTOR_ROLE(),
+        owner.address
+    );
     // Mint tokens
     await token1.mint(owner.address, parseUnits("100000"));
 
