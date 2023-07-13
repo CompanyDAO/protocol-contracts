@@ -309,6 +309,19 @@
     {
         "inputs": [
             {
+                "internalType": "uint256",
+                "name": "index",
+                "type": "uint256"
+            }
+        ],
+        "name": "activateCompany",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "address",
                 "name": "addr",
                 "type": "address"
@@ -432,6 +445,25 @@
                 "internalType": "uint256",
                 "name": "fee",
                 "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "companyAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
             }
         ],
         "stateMutability": "view",
@@ -720,35 +752,6 @@
     {
         "inputs": [
             {
-                "internalType": "uint256",
-                "name": "jurisdiction",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "entityType",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "id",
-                "type": "uint256"
-            }
-        ],
-        "name": "getCompanyPoolAddress",
-        "outputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "internalType": "address",
                 "name": "pool",
                 "type": "address"
@@ -765,6 +768,25 @@
                 "internalType": "uint256",
                 "name": "",
                 "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "index",
+                "type": "uint256"
+            }
+        ],
+        "name": "getPoolAddressByIndex",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
             }
         ],
         "stateMutability": "view",
@@ -1163,44 +1185,6 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPool",
-                "name": "pool",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_jurisdiction",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "_entityType",
-                "type": "uint256"
-            },
-            {
-                "internalType": "string",
-                "name": "_ein",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "_dateOfIncorporation",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "_OAuri",
-                "type": "string"
-            }
-        ],
-        "name": "setCompanyInfoForPool",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "internalType": "address",
                 "name": "service_",
                 "type": "address"
@@ -1253,26 +1237,43 @@
         "inputs": [
             {
                 "internalType": "uint256",
-                "name": "jurisdiction",
+                "name": "index",
                 "type": "uint256"
             },
             {
-                "internalType": "uint256",
-                "name": "entityType",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "id",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "fee",
-                "type": "uint256"
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "jurisdiction",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "entityType",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "ein",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "dateOfIncorporation",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "fee",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct ICompaniesRegistry.CompanyInfo",
+                "name": "_info",
+                "type": "tuple"
             }
         ],
-        "name": "updateCompanyFee",
+        "name": "updateCompanyInfo",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

@@ -22,7 +22,6 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
     Methods:
     - CompaniesRegistry.sol:createCompany(CompanyInfo calldata info) - creating a company with specified immutable data and its price in ETH, deploying the contract with a temporary owner in the form of the Registry contract proxy address. After calling such a method, the company immediately becomes available for purchase.
     - CompaniesRegistry.sol:deleteCompany(uint256 jurisdiction, uint256 entityType, uint256 id) - deleting a company record (removing it from sale without the possibility of recovery).
-    - CompaniesRegistry.sol:updateCompanyFee(uint256 jurisdiction, uint256 entityType, uint256 id, uint256 fee) - changing the price of an unsold company (prices are set in ETH).
     - Pool.sol:setOAUrl(string memory _uri) - changing the link to the pool's operating agreement.
     Storage, assignment, and revocation of the role are carried out using the standard methods of the AccessControl model from OpenZeppelin: grantRole, revokeRole, setRole. The holder of the standard ADMIN_ROLE of this contract can manage this role (by default - the address that deployed the contract).
     */
@@ -101,14 +100,13 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         // Add record to list
         companies[index] = info;
 
-        // Add record to queue
-        queue[info.jurisdiction][info.entityType].push(index);
+        //Create PoolContract
+        address poolAddress = IService(service).createPool(info);
 
         // Emit event
-        emit CompanyCreated(index, IService(service).getPoolAddress(info));
+        emit CompanyCreated(index, poolAddress);
 
-        //Create PoolContract
-        IService(service).createPool(info);
+        _setIndexAddress(index, poolAddress);
 
         IRegistry(address(this)).log(
             msg.sender,
@@ -118,6 +116,34 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
                 ICompaniesRegistry.createCompany.selector,
                 info
             )
+        );
+    }
+
+    function updateCompanyInfo(
+        uint256 index,
+        CompanyInfo memory _info
+    ) public onlyRole(COMPANIES_MANAGER_ROLE) {
+        address companyAddress = IRegistry(address(this)).getPoolAddressByIndex(
+            index
+        );
+
+        _setCompanyInfoForPool(
+            address(companyAddress),
+            _info.jurisdiction,
+            _info.entityType,
+            _info.ein,
+            _info.dateOfIncorporation,
+            ""
+        );
+
+        companies[index] = _info;
+    }
+
+    function activateCompany(
+        uint256 index
+    ) public onlyRole(COMPANIES_MANAGER_ROLE) {
+        queue[companies[index].jurisdiction][companies[index].entityType].push(
+            index
         );
     }
 
@@ -185,19 +211,6 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
      * @param id Queue index.
      *@ param fee Fee to update.
      */
-    function updateCompanyFee(
-        uint256 jurisdiction,
-        uint256 entityType,
-        uint256 id,
-        uint256 fee
-    ) external onlyRole(COMPANIES_MANAGER_ROLE) {
-        // Update fee
-        uint256 index = queue[jurisdiction][entityType][id];
-        companies[index].fee = fee;
-
-        // Emit event
-        emit CompanyFeeUpdated(jurisdiction, entityType, id, fee);
-    }
 
     // PUBLIC VIEW FUNCTIONS
 
@@ -212,22 +225,6 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         uint256 entityType
     ) external view returns (bool) {
         return queue[jurisdiction][entityType].length > 0;
-    }
-
-    /**
-     * @dev Get company pool address by metadata
-     * @param jurisdiction Jurisdiction
-     * @param entityType Entity type
-     * @param id Queue id
-     * @return Future company's pool address
-     */
-    function getCompanyPoolAddress(
-        uint256 jurisdiction,
-        uint256 entityType,
-        uint256 id
-    ) public view returns (address) {
-        uint256 index = queue[jurisdiction][entityType][id];
-        return IService(service).getPoolAddress(companies[index]);
     }
 
     /**
@@ -265,32 +262,42 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         // Get index
         uint256 index = queue[jurisdiction][entityType][queueLength - 1];
 
-        address companyAddress = IService(service).getPoolAddress(
-            companies[index]
+        address companyAddress = IRegistry(address(this)).getPoolAddressByIndex(
+            index
         );
 
         return companyAddress;
     }
 
+    function _setIndexAddress(
+        uint256 index,
+        address poolAddress
+    ) internal virtual;
+
     /**
      * @notice Method for replacing the reference to the Operating Agreement and legal data of a company in the contract's memory.
      * @dev This is a special method for the manager to service contracts of already acquired companies. To correct data in a company that has not been acquired yet, the record should be deleted and a new one created.
-     * @param pool The contract pool address.
+     * @param _pool The contract pool address.
      * @param _jurisdiction The digital code of the jurisdiction.
      * @param _entityType The digital code of the organization type.
      * @param _ein The government registration number.
      * @param _dateOfIncorporation The date of incorporation.
      * @param _OAuri Operating Agreement URL.
      */
-    function setCompanyInfoForPool(
-        IPool pool,
+    function _setCompanyInfoForPool(
+        address _pool,
         uint256 _jurisdiction,
         uint256 _entityType,
         string memory _ein,
         string memory _dateOfIncorporation,
         string memory _OAuri
-    ) external onlyRole(COMPANIES_MANAGER_ROLE) {
-        pool.setCompanyInfo(
+    ) private onlyRole(COMPANIES_MANAGER_ROLE) {
+        require(
+            bytes(IPool(_pool).trademark()).length == 0,
+            ExceptionsLibrary.ALREADY_SET
+        );
+
+        IPool(_pool).setCompanyInfo(
             _jurisdiction,
             _entityType,
             _ein,

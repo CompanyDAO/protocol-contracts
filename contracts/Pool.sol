@@ -16,7 +16,7 @@ import "./interfaces/ICustomProposal.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
-    /**
+/**
     * @title Pool Contract
     * @notice These contracts are instances of on-chain implementations of user companies. The shareholders of the companies work with them, their addresses are used in the Registry contract as tags that allow obtaining additional legal information (before the purchase of the company by the client). They store legal data (after the purchase of the company by the client). Among other things, the contract is also the owner of the Token and TGE contracts.
     * @dev There can be an unlimited number of such contracts, including for one company owner. The contract can be in three states:
@@ -54,7 +54,7 @@ contract Pool is
     /// @dev last proposal id for address. This method returns the proposal Id for the last proposal created by the specified address.
     mapping(address => uint256) public lastProposalIdForAddress;
 
-   /// @dev Mapping that stores the blocks of proposal creation for this pool. The main information about the proposal is stored in variables provided by the Governor.sol contract, which is inherited by this contract.
+    /// @dev Mapping that stores the blocks of proposal creation for this pool. The main information about the proposal is stored in variables provided by the Governor.sol contract, which is inherited by this contract.
     mapping(uint256 => uint256) public proposalCreatedAt;
 
     /// @dev A list of tokens belonging to this pool. There can be only one valid Governance token and several Preference tokens with different settings. The mapping key is the token type (token type encoding is specified in the IToken.sol interface). The value is an array of token identifiers.
@@ -64,9 +64,9 @@ contract Pool is
     mapping(address => IToken.TokenType) public tokenTypeByAddress;
 
     /**
-    * @notice This collection of addresses is part of the simplified role model of the pool and stores the addresses of accounts that have been assigned the role of pool secretary.
-    * @dev Pool secretary is an internal pool role with responsibilities that include working with invoices and creating proposals. This role serves to give authority, similar to a shareholder, to an account that does not have Governance Tokens (e.g., a hired employee).
-    */
+     * @notice This collection of addresses is part of the simplified role model of the pool and stores the addresses of accounts that have been assigned the role of pool secretary.
+     * @dev Pool secretary is an internal pool role with responsibilities that include working with invoices and creating proposals. This role serves to give authority, similar to a shareholder, to an account that does not have Governance Tokens (e.g., a hired employee).
+     */
     EnumerableSetUpgradeable.AddressSet poolSecretary;
 
     /// @dev Identifier of the last executed proposal
@@ -76,13 +76,14 @@ contract Pool is
     mapping(uint256 => address) public proposalIdToTGE;
 
     /**
-    * @notice This collection of addresses is part of the simplified role model of the pool and stores the addresses of accounts that have been assigned the role of pool executor.
-    * @dev Pool Executor is an internal pool role with responsibilities that include executing proposals that have ended with a "for" decision in voting and have completed their time in the delayed state.
-    */
+     * @notice This collection of addresses is part of the simplified role model of the pool and stores the addresses of accounts that have been assigned the role of pool executor.
+     * @dev Pool Executor is an internal pool role with responsibilities that include executing proposals that have ended with a "for" decision in voting and have completed their time in the delayed state.
+     */
     EnumerableSetUpgradeable.AddressSet poolExecutor;
 
     /// @dev Operating Agreement Url
     string public OAurl;
+
 
     // EVENTS
 
@@ -101,15 +102,6 @@ contract Pool is
         require(
             msg.sender == address(service.tgeFactory()),
             ExceptionsLibrary.NOT_TGE_FACTORY
-        );
-        _;
-    }
-
-    /// @notice Modifier that allows the method to be called only by an account that has the ADMIN role in the Service contract.
-    modifier onlyServiceAdmin() {
-        require(
-            service.hasRole(service.ADMIN_ROLE(), msg.sender),
-            ExceptionsLibrary.NOT_SERVICE_OWNER
         );
         _;
     }
@@ -151,20 +143,24 @@ contract Pool is
         string memory trademark_,
         NewGovernanceSettings memory governanceSettings_
     ) external onlyService {
+        require(
+            bytes(trademark).length == 0,
+            ExceptionsLibrary.ALREADY_SET
+        );
         _transferOwnership(address(newowner));
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
     }
 
     /**
-    * @notice Changing the governance settings of the pool as a result of voting or the owner's initial pool setup
-    * @dev This method can be called in one of two cases:
-    * - The pool has attained DAO status, and a proposal including a transaction calling this method has been executed
-    * - The pool has not yet attained DAO status, and the pool owner initiates the initial TGE with new governance settings as arguments
-    * @param governanceSettings_ Governance settings
-    * @param secretary List of secretary addresses
-    * @param executor List of executor addresses
-    */
+     * @notice Changing the governance settings of the pool as a result of voting or the owner's initial pool setup
+     * @dev This method can be called in one of two cases:
+     * - The pool has attained DAO status, and a proposal including a transaction calling this method has been executed
+     * - The pool has not yet attained DAO status, and the pool owner initiates the initial TGE with new governance settings as arguments
+     * @param governanceSettings_ Governance settings
+     * @param secretary List of secretary addresses
+     * @param executor List of executor addresses
+     */
     function setSettings(
         NewGovernanceSettings memory governanceSettings_,
         address[] memory secretary,
@@ -208,14 +204,14 @@ contract Pool is
     }
 
     /**
-    * @notice Setting legal data for the corresponding company pool
-    * @dev This method is executed as part of the internal transaction in the setCompanyInfoForPool method of the Registry contract
-    * @param _jurisdiction Digital code of the jurisdiction
-    * @param _entityType Digital code of the organization type
-    * @param _ein Government registration number of the company
-    * @param _dateOfIncorporation Date of incorporation of the company
-    * @param _OAuri Operating Agreement URL
-    */
+     * @notice Setting legal data for the corresponding company pool
+     * @dev This method is executed as part of the internal transaction in the setCompanyInfoForPool method of the Registry contract
+     * @param _jurisdiction Digital code of the jurisdiction
+     * @param _entityType Digital code of the organization type
+     * @param _ein Government registration number of the company
+     * @param _dateOfIncorporation Date of incorporation of the company
+     * @param _OAuri Operating Agreement URL
+     */
     function setCompanyInfo(
         uint256 _jurisdiction,
         uint256 _entityType,
@@ -241,12 +237,12 @@ contract Pool is
     // PUBLIC FUNCTIONS
 
     /**
-    * @notice Method for voting "for" or "against" a given proposal
-    * @dev This method calls the _castVote function defined in the Governor.sol contract.
-    * @dev Since proposals in the CompanyDAO protocol can be prematurely finalized, after each successful invocation of this method, a check is performed for the occurrence of such conditions.
-    * @param proposalId Pool proposal ID
-    * @param support "True" for voting "for", "False" for voting "against"
-    */
+     * @notice Method for voting "for" or "against" a given proposal
+     * @dev This method calls the _castVote function defined in the Governor.sol contract.
+     * @dev Since proposals in the CompanyDAO protocol can be prematurely finalized, after each successful invocation of this method, a check is performed for the occurrence of such conditions.
+     * @param proposalId Pool proposal ID
+     * @param support "True" for voting "for", "False" for voting "against"
+     */
     function castVote(
         uint256 proposalId,
         bool support
@@ -292,9 +288,9 @@ contract Pool is
     }
 
     /**
-    * @dev This method adds a record to the proposalIdToTGE mapping indicating that a TGE contract with the specified address was deployed as a result of executing the proposal with the lastExecutedProposalId identifier.
-    * @param tge TGE address
-    */
+     * @dev This method adds a record to the proposalIdToTGE mapping indicating that a TGE contract with the specified address was deployed as a result of executing the proposal with the lastExecutedProposalId identifier.
+     * @param tge TGE address
+     */
     function setProposalIdToTGE(address tge) external onlyTGEFactory {
         proposalIdToTGE[lastExecutedProposalId] = tge;
     }
@@ -324,9 +320,9 @@ contract Pool is
     }
 
     /**
-    * @notice Method for emergency cancellation of a proposal.
-    * @dev Cancel a proposal, callable only by the Service contract.
-    * @param proposalId Proposal ID
+     * @notice Method for emergency cancellation of a proposal.
+     * @dev Cancel a proposal, callable only by the Service contract.
+     * @param proposalId Proposal ID
      */
     function cancelProposal(uint256 proposalId) external onlyService {
         _cancelProposal(proposalId);
@@ -379,12 +375,12 @@ contract Pool is
     }
 
     /**
-    * @notice Transfers funds from the pool's account to a specified address.
-    * @dev This method can only be called by the pool owner and only during the period before the pool becomes a DAO.
-    * @param to The recipient's address
-    * @param amount The transfer amount
-    * @param unitOfAccount The unit of account (token contract address or address(0) for ETH)
-    */
+     * @notice Transfers funds from the pool's account to a specified address.
+     * @dev This method can only be called by the pool owner and only during the period before the pool becomes a DAO.
+     * @param to The recipient's address
+     * @param amount The transfer amount
+     * @param unitOfAccount The unit of account (token contract address or address(0) for ETH)
+     */
     function transferByOwner(
         address to,
         uint256 amount,
@@ -415,6 +411,7 @@ contract Pool is
             );
         }
     }
+
     // PUBLIC VIEW FUNCTIONS
 
     /**
@@ -428,6 +425,10 @@ contract Pool is
         } else {
             return getGovernanceToken().isPrimaryTGESuccessful();
         }
+    }
+
+    function getCompanyFee() public view returns (uint256) {
+        return companyInfo.fee;
     }
 
     /**
@@ -450,7 +451,7 @@ contract Pool is
      */
     function getTokens(
         IToken.TokenType tokenType
-        ) external view returns (address[] memory) {
+    ) external view returns (address[] memory) {
         return tokensFullList[tokenType];
     }
 
@@ -514,13 +515,12 @@ contract Pool is
      * @return True if the address is a valid proposer, false otherwise.
      */
     function isValidProposer(address account) public view returns (bool) {
-        if (
-            _getCurrentVotes(account) >= proposalThreshold ||
-            isPoolSecretary(account) ||
-            service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender)
-        ) return true;
-
-        return false;
+        uint256 currentVotes = _getCurrentVotes(account);
+        bool isValid = currentVotes > 0 &&
+            (currentVotes > proposalThreshold ||
+                isPoolSecretary(account) ||
+                service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender));
+        return isValid;
     }
 
     /**
@@ -543,7 +543,7 @@ contract Pool is
      * @param type_ The type of proposal.
      * @return True if the last proposal of the given type is active, false otherwise.
      */
-     function isLastProposalIdByTypeActive(
+    function isLastProposalIdByTypeActive(
         uint256 type_
     ) public view returns (bool) {
         if (proposalState(lastProposalIdByType[type_]) == ProposalState.Active)

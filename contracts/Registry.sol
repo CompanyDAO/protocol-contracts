@@ -16,7 +16,9 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
     mapping(address => mapping(uint256 => uint256)) public globalProposalIds;
     event Log(address sender, address receiver, uint256 value, bytes data);
 
-        /**
+    mapping(uint256 => address) public companyAddress;
+
+    /**
      * @notice Contract constructor.
      * @dev This contract uses OpenZeppelin upgrades and has no need for a constructor function.
      * The constructor is replaced with an initializer function.
@@ -51,7 +53,18 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
         globalProposalIds[pool][proposalId] = globalProposalId;
     }
 
+    function _setIndexAddress(uint256 index, address poolAddress) internal override {
+
+        companyAddress[index] = poolAddress;
+    }
+
     // VIEW FUNCTIONS
+
+    function getPoolAddressByIndex(
+        uint256 index
+    ) public view returns (address) {
+        return companyAddress[index];
+    }
 
     /**
      * @dev Return global proposal ID
@@ -82,7 +95,8 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
                 typeOf(msg.sender) == IRecordsRegistry.ContractType.TGE ||
                 typeOf(msg.sender) ==
                 IRecordsRegistry.ContractType.GovernanceToken ||
-                typeOf(msg.sender) == IRecordsRegistry.ContractType.PreferenceToken,
+                typeOf(msg.sender) ==
+                IRecordsRegistry.ContractType.PreferenceToken,
             ExceptionsLibrary.INVALID_USER
         );
         // Emit event

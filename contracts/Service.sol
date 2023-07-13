@@ -22,14 +22,13 @@ import "./interfaces/ICustomProposal.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
-
 /**
-   * @title Service Contract
-   * @notice The main contract of the protocol, the starting point of interaction for new clients.
-   * @dev This contract deploys the core OZ Access Control model, where the distribution of accounts determines the behavior of most modifiers.
-   * @dev The address of this contract is specified in all other contracts, and this contract also stores the addresses of those contracts. The mutual references between contracts implement a system of "own-foreign" recognition.
-   * @dev This contract is responsible for updating itself and all other protocol contracts, including user contracts.
-    */
+ * @title Service Contract
+ * @notice The main contract of the protocol, the starting point of interaction for new clients.
+ * @dev This contract deploys the core OZ Access Control model, where the distribution of accounts determines the behavior of most modifiers.
+ * @dev The address of this contract is specified in all other contracts, and this contract also stores the addresses of those contracts. The mutual references between contracts implement a system of "own-foreign" recognition.
+ * @dev This contract is responsible for updating itself and all other protocol contracts, including user contracts.
+ */
 contract Service is
     Initializable,
     AccessControlEnumerableUpgradeable,
@@ -124,45 +123,45 @@ contract Service is
     // EVENTS
 
     /**
-    * @dev Event emitted upon deployment of a pool contract (i.e., creation of a pool)
-    * @param pool Address of the Pool contract
-    * @param token Address of the pool's token contract (usually 0, as the pool and token contracts are deployed separately)
-    * @param tge Address of the TGE contract (usually 0, as the pool and TGE contracts are deployed separately)
-    */
+     * @dev Event emitted upon deployment of a pool contract (i.e., creation of a pool)
+     * @param pool Address of the Pool contract
+     * @param token Address of the pool's token contract (usually 0, as the pool and token contracts are deployed separately)
+     * @param tge Address of the TGE contract (usually 0, as the pool and TGE contracts are deployed separately)
+     */
     event PoolCreated(address pool, address token, address tge);
 
     /**
-    * @dev Event emitted upon the purchase of a pool
-    * @param pool Address of the purchased pool
-    * @param token Address of the pool's token contract (usually 0, as the pool does not have any tokens at the time of purchase)
-    * @param tge Address of the TGE contract (usually 0)
-    */
+     * @dev Event emitted upon the purchase of a pool
+     * @param pool Address of the purchased pool
+     * @param token Address of the pool's token contract (usually 0, as the pool does not have any tokens at the time of purchase)
+     * @param tge Address of the TGE contract (usually 0)
+     */
     event PoolPurchased(address pool, address token, address tge);
 
     /**
-    * @dev Event emitted when the balance of the Protocol Treasury changes due to transfers of pool tokens collected as protocol fees.
-    * @param protocolTreasury Address of the Protocol Treasury
-    */
+     * @dev Event emitted when the balance of the Protocol Treasury changes due to transfers of pool tokens collected as protocol fees.
+     * @param protocolTreasury Address of the Protocol Treasury
+     */
     event ProtocolTreasuryChanged(address protocolTreasury);
 
     /**
-    * @dev Event emitted when the protocol changes the token fee collected from pool tokens.
-    * @param protocolTokenFee New protocol token fee
-    */
+     * @dev Event emitted when the protocol changes the token fee collected from pool tokens.
+     * @param protocolTokenFee New protocol token fee
+     */
     event ProtocolTokenFeeChanged(uint256 protocolTokenFee);
 
     /**
-    * @dev Event emitted when the service fees are transferred to another address
-    * @param to Transfer recipient
-    * @param amount Amount of ETH transferred
-    */
+     * @dev Event emitted when the service fees are transferred to another address
+     * @param to Transfer recipient
+     * @param amount Amount of ETH transferred
+     */
     event FeesTransferred(address to, uint256 amount);
 
     /**
-    * @dev Event emitted when a proposal is canceled by an account with the Service Manager role
-    * @param pool Pool address
-    * @param proposalId Pool local proposal id
-    */
+     * @dev Event emitted when a proposal is canceled by an account with the Service Manager role
+     * @param pool Pool address
+     * @param proposalId Pool local proposal id
+     */
     event ProposalCancelled(address pool, uint256 proposalId);
 
     /**
@@ -328,24 +327,21 @@ contract Service is
         string memory trademark,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings
     ) external payable nonReentrant whenNotPaused {
-        // Lock company
-        IRegistry.CompanyInfo memory companyInfo = registry.lockCompany(
-            jurisdiction,
-            entityType
+        // Create pool
+        
+        IPool pool = IPool(
+            registry.getAvailableCompanyAddress(jurisdiction, entityType)
         );
-
+        
         // Check fee
         require(
-            msg.value == companyInfo.fee,
+            msg.value == pool.getCompanyFee(),
             ExceptionsLibrary.INCORRECT_ETH_PASSED
         );
 
-        // Create pool
-        IPool pool = IPool(getPoolAddress(companyInfo));
-
         // setNewOwnerWithSettings to pool contract
         pool.setNewOwnerWithSettings(msg.sender, trademark, governanceSettings);
-
+        registry.lockCompany(jurisdiction, entityType);
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
         registry.log(
@@ -363,13 +359,13 @@ contract Service is
     }
 
     /**
-    * @notice Method for manually transferring the company to a new owner.
-    * @dev This method can be used when paying for the company's cost (protocol fee) through any other means (off-chain payment).
-    * @param jurisdiction Digital code of the jurisdiction.
-    * @param entityType Digital code of the entity type.
-    * @param trademark Company's trademark.
-    * @param governanceSettings Initial Governance settings.
-    */
+     * @notice Method for manually transferring the company to a new owner.
+     * @dev This method can be used when paying for the company's cost (protocol fee) through any other means (off-chain payment).
+     * @param jurisdiction Digital code of the jurisdiction.
+     * @param entityType Digital code of the entity type.
+     * @param trademark Company's trademark.
+     * @param governanceSettings Initial Governance settings.
+     */
     function transferPurchasedPoolByService(
         address newowner,
         uint256 jurisdiction,
@@ -377,20 +373,18 @@ contract Service is
         string memory trademark,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings
     ) external onlyManager nonReentrant whenNotPaused {
-        // Lock company
-        IRegistry.CompanyInfo memory companyInfo = registry.lockCompany(
-            jurisdiction,
-            entityType
-        );
         // Create pool
-        IPool pool = IPool(getPoolAddress(companyInfo));
+        IPool pool = IPool(
+            registry.getAvailableCompanyAddress(jurisdiction, entityType)
+        );
 
         // setNewOwnerWithSettings to pool contract
+        
         pool.setNewOwnerWithSettings(newowner, trademark, governanceSettings);
-
+        
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
-
+        registry.lockCompany(jurisdiction, entityType);
         registry.log(
             msg.sender,
             address(this),
@@ -409,22 +403,22 @@ contract Service is
     // PUBLIC INDIRECT FUNCTIONS (CALLED THROUGH POOL OR REGISTRY)
 
     /**
-    * @notice Adding a new record of a proposal to the Registry.
-    * @dev To ensure the security and consistency of the contract architecture, user contracts do not directly interact with the Registry.
-    * @dev Due to the complexity of the role model for creating proposals, registering a new record is performed from the central contract.
-    * @param proposalId Proposal ID.
-    */
+     * @notice Adding a new record of a proposal to the Registry.
+     * @dev To ensure the security and consistency of the contract architecture, user contracts do not directly interact with the Registry.
+     * @dev Due to the complexity of the role model for creating proposals, registering a new record is performed from the central contract.
+     * @param proposalId Proposal ID.
+     */
     function addProposal(uint256 proposalId) external onlyPool whenNotPaused {
         registry.addProposalRecord(msg.sender, proposalId);
     }
 
     /**
-    * @notice Adding a new record of an event to the Registry.
-    * @dev To ensure the security and consistency of the contract architecture, user contracts do not directly interact with the Registry.
-    * @param eventType Event type.
-    * @param proposalId Proposal ID.
-    * @param metaHash Hash value of event metadata.
-    */
+     * @notice Adding a new record of an event to the Registry.
+     * @dev To ensure the security and consistency of the contract architecture, user contracts do not directly interact with the Registry.
+     * @param eventType Event type.
+     * @param proposalId Proposal ID.
+     * @param metaHash Hash value of event metadata.
+     */
     function addEvent(
         IRegistry.EventType eventType,
         uint256 proposalId,
@@ -459,13 +453,13 @@ contract Service is
     }
 
     /**
-    * @notice Method for deploying a pool contract.
-    * @dev When working with the Registry contract, the address that has the COMPANIES_MANAGER role in that contract can deploy the pool contract by sending a transaction with the company's legal data as an argument.
-    * @param companyInfo Company info.
-    */
+     * @notice Method for deploying a pool contract.
+     * @dev When working with the Registry contract, the address that has the COMPANIES_MANAGER role in that contract can deploy the pool contract by sending a transaction with the company's legal data as an argument.
+     * @param companyInfo Company info.
+     */
     function createPool(
         IRegistry.CompanyInfo memory companyInfo
-    ) external onlyRegistry nonReentrant whenNotPaused {
+    ) external onlyRegistry nonReentrant whenNotPaused returns (address) {
         // Create pool
         IPool pool = _createPool(companyInfo);
 
@@ -474,14 +468,15 @@ contract Service is
 
         // Emit event
         emit PoolCreated(address(pool), address(0), address(0));
+        return address(pool);
     }
 
     // RESTRICTED FUNCTIONS
 
     /**
-    * @dev Transfer the collected protocol fees obtained from the sale of pools to the specified address.
-    * @param to The transfer recipient.
-    */
+     * @dev Transfer the collected protocol fees obtained from the sale of pools to the specified address.
+     * @param to The transfer recipient.
+     */
     function transferCollectedFees(
         address to
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -506,11 +501,11 @@ contract Service is
     }
 
     /**
-    * @notice Method to account for the collected protocol fees.
-    * @dev This method is called after each successful Governance Token Generation Event (TGE) and increases the record of the collected Governance Tokens for this pool.
-    * @param _token The address of the token contract.
-    * @param _protocolTokenFee The amount of tokens collected as protocol fees.
-    */
+     * @notice Method to account for the collected protocol fees.
+     * @dev This method is called after each successful Governance Token Generation Event (TGE) and increases the record of the collected Governance Tokens for this pool.
+     * @param _token The address of the token contract.
+     * @param _protocolTokenFee The amount of tokens collected as protocol fees.
+     */
     function setProtocolCollectedFee(
         address _token,
         uint256 _protocolTokenFee
@@ -519,9 +514,9 @@ contract Service is
     }
 
     /**
-    * @dev Set a new address for the protocol treasury, where the Governance tokens collected as protocol fees will be transferred.
-    * @param _protocolTreasury The new address of the protocol treasury.
-    */
+     * @dev Set a new address for the protocol treasury, where the Governance tokens collected as protocol fees will be transferred.
+     * @param _protocolTreasury The new address of the protocol treasury.
+     */
     function setProtocolTreasury(
         address _protocolTreasury
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -535,10 +530,10 @@ contract Service is
     }
 
     /**
-    * @dev Set a new value for the protocol token fee percentage.
-    * @param _protocolTokenFee The new protocol token fee percentage value with 4 decimals.
-    * Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000.
-    */
+     * @dev Set a new value for the protocol token fee percentage.
+     * @param _protocolTokenFee The new protocol token fee percentage value with 4 decimals.
+     * Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000.
+     */
     function setProtocolTokenFee(
         uint256 _protocolTokenFee
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -664,11 +659,11 @@ contract Service is
     }
 
     /**
-    * @notice Cancel a proposal by the administrator.
-    * @dev This method is used for emergency cancellation of any proposal by an address with the ADMIN role in this contract. It is used to prevent the execution of transactions prescribed by the proposal if there are doubts about their safety.
-    * @param pool The address of the pool contract.
-    * @param proposalId The ID of the proposal.
-    */
+     * @notice Cancel a proposal by the administrator.
+     * @dev This method is used for emergency cancellation of any proposal by an address with the ADMIN role in this contract. It is used to prevent the execution of transactions prescribed by the proposal if there are doubts about their safety.
+     * @param pool The address of the pool contract.
+     * @param proposalId The ID of the proposal.
+     */
     function cancelProposal(
         address pool,
         uint256 proposalId
@@ -706,30 +701,30 @@ contract Service is
     }
 
     /**
-    * @notice This method returns the minimum soft cap accepted in the protocol.
-    * @dev Due to the fact that each issuance of Governance tokens involves collecting a portion of the tokens as a fee, this calculation is used to avoid conflicts related to rounding.
-    * @return The minimum soft cap.
-    */
+     * @notice This method returns the minimum soft cap accepted in the protocol.
+     * @dev Due to the fact that each issuance of Governance tokens involves collecting a portion of the tokens as a fee, this calculation is used to avoid conflicts related to rounding.
+     * @return The minimum soft cap.
+     */
     function getMinSoftCap() public view returns (uint256) {
         return (DENOM + protocolTokenFee - 1) / protocolTokenFee;
     }
 
     /**
-    * @notice This method returns the size of the protocol fee charged for issuing Governance tokens.
-    * @dev The calculation is based on DENOM and the current fee rate, allowing the fee to be calculated for any amount of tokens planned for distribution.
-    * @param amount The token amount.
-    * @return The size of the fee in tokens.
-    */
+     * @notice This method returns the size of the protocol fee charged for issuing Governance tokens.
+     * @dev The calculation is based on DENOM and the current fee rate, allowing the fee to be calculated for any amount of tokens planned for distribution.
+     * @param amount The token amount.
+     * @return The size of the fee in tokens.
+     */
     function getProtocolTokenFee(uint256 amount) public view returns (uint256) {
         require(amount >= getMinSoftCap(), ExceptionsLibrary.INVALID_VALUE);
         return (amount * protocolTokenFee + (DENOM - 1)) / DENOM;
     }
 
     /**
-    * @notice This method returns the amount of Governance tokens collected as a protocol fee for each pool.
-    * @param token_ The address of the token contract.
-    * @return The amount of collected protocol fee.
-    */
+     * @notice This method returns the amount of Governance tokens collected as a protocol fee for each pool.
+     * @param token_ The address of the token contract.
+     * @return The amount of collected protocol fee.
+     */
     function getProtocolCollectedFee(
         address token_
     ) external view returns (uint256) {
@@ -737,11 +732,11 @@ contract Service is
     }
 
     /**
-    * @notice This method returns the maximum number of Governance tokens that can be issued in all subsequent TGEs for the pool.
-    * @dev Due to the protocol fee mechanism, which involves minting new token units as a protocol fee, calculating this maximum can be more complex than it seems at first glance. This method takes into account reserved and potential token units and calculates the hardcap accordingly.
-    * @param _pool The address of the pool contract for which the calculation is required.
-    * @return The maximum hardcap value.
-    */
+     * @notice This method returns the maximum number of Governance tokens that can be issued in all subsequent TGEs for the pool.
+     * @dev Due to the protocol fee mechanism, which involves minting new token units as a protocol fee, calculating this maximum can be more complex than it seems at first glance. This method takes into account reserved and potential token units and calculates the hardcap accordingly.
+     * @param _pool The address of the pool contract for which the calculation is required.
+     * @return The maximum hardcap value.
+     */
     function getMaxHardCap(address _pool) public view returns (uint256) {
         if (
             registry.typeOf(_pool) == IRecordsRegistry.ContractType.Pool &&
@@ -794,26 +789,15 @@ contract Service is
         }
     }
 
-    /**
-    * @dev This method calculates the address of the pool contract using the create2 algorithm.
-    * @param info Company info
-    * @return Pool contract address
-    */
-    function getPoolAddress(
-        IRegistry.CompanyInfo memory info
-    ) public view returns (address) {
-        (bytes32 salt, bytes memory bytecode) = _getCreate2Data(info);
-        return Create2Upgradeable.computeAddress(salt, keccak256(bytecode));
-    }
 
     // INTERNAL FUNCTIONS
 
     /**
-    * @dev Intermediate calculation for the create2 algorithm
-    * @param info Company info
-    * @return salt Create2 salt
-    * @return deployBytecode Deployed bytecode
-    */
+     * @dev Intermediate calculation for the create2 algorithm
+     * @param info Company info
+     * @return salt Create2 salt
+     * @return deployBytecode Deployed bytecode
+     */
     function _getCreate2Data(
         IRegistry.CompanyInfo memory info
     ) internal view returns (bytes32 salt, bytes memory deployBytecode) {
@@ -831,9 +815,9 @@ contract Service is
     }
 
     /**
-    * @dev Creating and initializing a pool
-    * @return pool Pool contract address
-    */
+     * @dev Creating and initializing a pool
+     * @return pool Pool contract address
+     */
     function _createPool(
         IRegistry.CompanyInfo memory info
     ) internal returns (IPool pool) {

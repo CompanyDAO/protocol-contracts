@@ -278,7 +278,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 amount
     )
         external
-        onlyExecutor
+        onlyManager
         onlyState(State.Active)
         nonReentrant
         whenPoolNotPaused
@@ -839,10 +839,10 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         _;
     }
 
-    modifier onlyExecutor() {
-        IService service = IToken(token).service();
+    modifier onlyCompanyManager() {
+        IRegistry registry = IToken(token).service().registry();
         require(
-            service.hasRole(service.EXECUTOR_ROLE(), msg.sender),
+            registry.hasRole(registry.COMPANIES_MANAGER_ROLE(), msg.sender),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;

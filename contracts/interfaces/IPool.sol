@@ -82,4 +82,5 @@ interface IPool is IGovernorProposals {
 
     function executeProposal(uint256 proposalId) external;
 
+    function getCompanyFee() external returns (uint256);
 }

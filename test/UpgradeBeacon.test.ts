@@ -61,11 +61,7 @@ describe("Upgrade beacon test", function () {
 
     describe("Uprade tests", function () {
         it("Create company, upgrade beacon and check implementation and pool address", async function () {
-            const companyPoolAddress = await registry.getCompanyPoolAddress(
-                1,
-                1,
-                1
-            );
+           
             // const receipt = await tx.wait();
 
             // const event = receipt.events!.filter((e) => e.event == "PoolCreated")[0];
@@ -96,9 +92,7 @@ describe("Upgrade beacon test", function () {
             //     })
             // ).to.be.reverted;
 
-            expect(await registry.getCompanyPoolAddress(1, 1, 1)).to.be.equal(
-                companyPoolAddress
-            );
+            
         });
     });
 });

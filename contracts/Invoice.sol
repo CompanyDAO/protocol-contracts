@@ -370,7 +370,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
                 registry.service().SERVICE_MANAGER_ROLE(),
                 account
             ) ||
-            IPool(pool).isPoolSecretary(account)
+            IPool(pool).isValidProposer(account)
             
         ) return true;
         if (!IPool(pool).isDAO() && account == IPool(pool).owner()) return true;
