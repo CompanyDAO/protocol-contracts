@@ -178,6 +178,16 @@ describe("Test TGE for Preference Tokens", function () {
             expect(await pTGE.state()).to.equal(1);
         });
 
+        it("External Purchase works", async function () {
+
+            await pTGE.externalPurchase(second.address,parseUnits("100", 6));
+
+            expect(await pToken.balanceOf(second.address)).to.equal(
+                parseUnits("50", 6)
+            );
+        });
+
+
         it("Can't start TGE if Active TGE exists", async function () {
             // Start new TGE
             tgeArgs = await makeTGEArgs(await pTGE.token(), createArgs[3], {

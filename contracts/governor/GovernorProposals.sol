@@ -17,7 +17,11 @@ import "../interfaces/ITGE.sol";
 import "../interfaces/IToken.sol";
 import "../interfaces/ICustomProposal.sol";
 import "../libraries/ExceptionsLibrary.sol";
-
+/**
+* @title Governor Proposals Contract
+* @notice Contract for tracking and typing the created proposals.
+* @dev The final implementation of the voting logic is placed in this module, which inherits from the Governor contract and is inherited by pool contracts.
+*/
 abstract contract GovernorProposals is
     Initializable,
     Governor,
@@ -26,13 +30,14 @@ abstract contract GovernorProposals is
 {
     // STORAGE
 
-    /// @dev Service address
+    /// @dev The address of the Service contract.
     IService public service;
 
     /// @dev last Proposal Id By Type for state checking
     mapping(uint256 => uint256) public lastProposalIdByType;
 
-    /// @notice Proposal Type
+    /// @notice Numerical codes to determine the type of proposals being created.
+    /// @dev The code describes the nature and degree of impact on the pool of a set of transactions that should be executed as a result of a successful vote.
     enum ProposalType {
         Transfer,
         TGE,

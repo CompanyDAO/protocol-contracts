@@ -46,5 +46,5 @@ export default class Exceptions {
     static readonly NOT_VALID_PROPOSER: string = "NOT_VALID_PROPOSER";
     static readonly GOVERNANCE_TOKEN_EXISTS: string = "GOVERNANCE_TOKEN_EXISTS";
     static readonly NOT_VALID_EXECUTOR: string = "NOT_VALID_EXECUTOR";
-
+    static readonly INVALID_PURCHASE_AMOUNT: string = "INVALID_PURCHASE_AMOUNT";
 }

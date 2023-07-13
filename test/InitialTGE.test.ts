@@ -125,7 +125,7 @@ describe("Test initial TGE", function () {
     it("Can't purchase less than min purchase", async function () {
       await expect(
         tge.connect(other).purchase(1, { value: parseUnits("0.05") })
-      ).to.be.revertedWith(Exceptions.MIN_PURCHASE_UNDERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Can't purchase with wrong ETH value passed", async function () {
@@ -141,7 +141,7 @@ describe("Test initial TGE", function () {
         tge
           .connect(other)
           .purchase(parseUnits("4000"), { value: parseUnits("40") })
-      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Can't purchase over max purchase in several tx", async function () {
@@ -153,7 +153,7 @@ describe("Test initial TGE", function () {
         tge
           .connect(other)
           .purchase(parseUnits("2000"), { value: parseUnits("20") })
-      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Can't purchase over hardcap", async function () {
@@ -163,7 +163,7 @@ describe("Test initial TGE", function () {
 
       await expect(
         tge.purchase(parseUnits("3000"), { value: parseUnits("30") })
-      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Mint can't be called on token directly, should be done though TGE", async function () {
@@ -229,7 +229,7 @@ describe("Test initial TGE", function () {
         tge
           .connect(other)
           .purchase(parseUnits("4000"), { value: parseUnits("40") })
-      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Can't purchase over max purchase in several tx", async function () {
@@ -241,7 +241,7 @@ describe("Test initial TGE", function () {
         tge
           .connect(other)
           .purchase(parseUnits("2000"), { value: parseUnits("20") })
-      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Can't purchase over hardcap", async function () {
@@ -251,7 +251,7 @@ describe("Test initial TGE", function () {
 
       await expect(
         tge.purchase(parseUnits("3000"), { value: parseUnits("30") })
-      ).to.be.revertedWith(Exceptions.MAX_PURCHASE_OVERFLOW);
+      ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
     it("Mint can't be called on token directly, should be done though TGE", async function () {

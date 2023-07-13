@@ -31,6 +31,8 @@ interface ITokenERC1155 is IERC1155Upgradeable {
 
     function decimals() external view returns (uint8);
 
+    function lastTokenId() external view returns (uint256);
+
     function symbol() external view returns (string memory);
 
     function tokenType() external view returns (IToken.TokenType);
@@ -73,4 +75,6 @@ interface ITokenERC1155 is IERC1155Upgradeable {
         uint256 tokenId,
         uint256 amount
     ) external;
+
+    function setLastTokenId(uint256 tokenId) external;
 }

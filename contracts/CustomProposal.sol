@@ -19,19 +19,28 @@ import "./interfaces/ITGE.sol";
 import "./interfaces/IToken.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+/**
+ * @title Custom Proposal Contract
+ * @notice This contract is designed for constructing proposals from user input. The methods generate calldata from the input arguments and pass it to the specified pool as a proposal.
+ * @dev It is a supporting part of the protocol that takes user input arguments and constructs OZ Governor-compatible structures describing the transactions to be executed upon successful voting on the proposal. It does not store user input, but only passes it on in a transformed format to the specified pool contract.
+ */
 contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     // STORAGE
 
-    /// @dev Service address
+    /// @dev The address of the Service contract.
     IService public service;
 
     // MODIFIERS
 
+    /// @notice Modifier that makes the function callable only by the Service contract.
+    /// @dev Allows the function to be executed only if the address sending the transaction is equal to the address of the Service contract stored in the memory of this contract.
     modifier onlyService() {
         require(msg.sender == address(service), ExceptionsLibrary.NOT_SERVICE);
         _;
     }
 
+    /// @notice Modifier that checks the existence of a pool at the given address.
+    /// @dev Checks the existence of the pool for which the proposal is being constructed. The pool should store the same Service contract address as stored in the Custom Proposal contract and be registered in the Registry contract with the corresponding type.
     modifier onlyForPool(address pool) {
         //check if pool registry record exists
         require(
@@ -44,13 +53,20 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
     // INITIALIZER
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
+    /**
+     * @notice Contract constructor.
+     * @dev This contract uses OpenZeppelin upgrades and has no need for a constructor function.
+     * The constructor is replaced with an initializer function.
+     * This method disables the initializer feature of the OpenZeppelin upgrades plugin, preventing the initializer methods from being misused.
+     * @custom:oz-upgrades-unsafe-allow constructor
+     */
     constructor() {
         _disableInitializers();
     }
 
     /**
-     * @dev Initializer
+     * @notice Contract initializer
+     * @dev This method replaces the constructor for upgradeable contracts.
      */
     function initialize() public initializer {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -58,6 +74,10 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
     // PUBLIC FUNCTIONS
 
+    /**
+     * @dev Stores a new address of the Service contract in the memory of this contract.
+     * @param service_ The new address of the Service contract.
+     */
     function setService(
         address service_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -65,13 +85,15 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     }
 
     /**
-     * @dev Propose transfer of assets
-     * @param asset Asset to transfer (address(0) for ETH transfers)
-     * @param recipients Transfer recipients
-     * @param amounts Transfer amounts
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
+     * @notice This proposal is the only way to withdraw funds from the pool account.
+     * @dev This function prepares a proposal from the list of recipients and corresponding amounts and submits it to the pool for a vote to transfer those amounts to the specified recipients. The asset type is specified as a separate argument, which is the same for all recipients.
+     * @param pool The address of the pool on behalf of which this proposal will be launched and from whose balance the values will be transferred.
+     * @param asset Asset to transfer (address(0) for ETH transfers).
+     * @param recipients Transfer recipients.
+     * @param amounts Transfer amounts.
+     * @param description Proposal description.
+     * @param metaHash Hash value of proposal metadata.
+     * @return proposalId The ID of the created proposal.
      */
     function proposeTransfer(
         address pool,
@@ -82,10 +104,9 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         string memory metaHash
     ) external returns (uint256 proposalId) {
         // Check lengths
-        
+
         require(
-            recipients.length > 0 &&
-            recipients.length == amounts.length,
+            recipients.length > 0 && recipients.length == amounts.length,
             ExceptionsLibrary.INVALID_VALUE
         );
 
@@ -132,13 +153,15 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     }
 
     /**
-     * @dev Proposal to launch a new token generation event (TGE), can be created only if the maximum supply threshold value for an existing token has not been reached or if a new token is being created, in which case, a new token contract will be deployed simultaneously with the TGE contract.
-     * @param tgeInfo TGE parameters
-     * @param tokenInfo Token parameters
-     * @param metadataURI TGE metadata URI
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
+     * @notice This proposal is launched when there is a need to issue additional tokens (both Governance and Preference) for an existing pool. In other words, the issuance of tokens for any DAO is possible only through the creation of such a proposal.
+     * @dev Proposal to launch a new token generation event (TGE). It can only be created if the maximum supply threshold value for an existing token has not been reached or if a new token is being created, in which case a new token contract will be deployed simultaneously with the TGE contract.
+     * @param pool The address of the pool on behalf of which this proposal will be launched and for which the TGE event will be launched.
+     * @param tgeInfo TGE parameters.
+     * @param tokenInfo Token parameters.
+     * @param metadataURI TGE metadata URI.
+     * @param description Proposal description.
+     * @param metaHash Hash value of proposal metadata.
+     * @return proposalId The ID of the created proposal.
      */
     function proposeTGE(
         address pool,
@@ -219,11 +242,13 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     }
 
     /**
-     * @notice A proposal that changes the governance settings. First of all, the percentage of the total number of free votes changes, the achievement of which within the framework of voting leads to the achievement of a quorum (the vote will be considered to have taken place, that is, one of the conditions for a positive decision on the propositional is fulfilled). Further, the Decision Threshold can be changed, which is set as a percentage of the sum of the votes "for" and "against" for a specific proposal, at which the sum of the votes "for" ensures a positive decision-making. In addition, a set of delays (measured in blocks) is set, used for certain features of transactions submitted to the proposal. The duration of all subsequent votes is also set (measured in blocks) and the number of Governance tokens required for the address to create a proposal. All parameters are set in one transaction. To change one of the parameters, it is necessary to send the old values of the other settings along with the changed value of one setting.
-     * @param settings New governance settings
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
+     * @notice Proposal to replace Governance settings. One of the two methods to change voting parameters.
+     * @dev The main parameter should be a structure of type NewGovernanceSettings, which includes the Governance Threshold, Decision Threshold, Proposal Threshold, and execution delay lists for proposals.
+     * @param pool The address of the pool on behalf of which this proposal will be launched and for which the Governance settings will be changed.
+     * @param settings New governance settings.
+     * @param description Proposal description.
+     * @param metaHash Hash value of proposal metadata.
+     * @return proposalId The ID of the created proposal.
      */
     function proposeGovernanceSettings(
         address pool,
@@ -276,15 +301,16 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         return proposalId_;
     }
 
-   
     /**
-     * @dev Propose custom transactions
-     * @param targets Transfer recipients
-     * @param values Transfer amounts for payable
-     * @param callDatas raw calldatas
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
+     * @notice Creating a custom proposal.
+     * @dev This tool can be useful for creating a transaction with arbitrary parameters and putting it to a vote for execution on behalf of the pool.
+     * @param pool The address of the pool on behalf of which this proposal will be launched.
+     * @param targets Transfer recipients.
+     * @param values Transfer amounts for payable.
+     * @param callDatas Raw calldatas.
+     * @param description Proposal description.
+     * @param metaHash Hash value of proposal metadata.
+     * @return proposalId The ID of the created proposal.
      */
     function proposeCustomTx(
         address pool,
@@ -331,17 +357,17 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         return proposalId_;
     }
 
-    
     /**
-     * @dev Proposal to launch a new token generation event (TGE) for ERC1155 preference tokens
-     * @param tgeInfo TGE parameters
-     * @param tokenId TokenId
-     * @param tokenIdMetadataURI tokenIdMetadataURI
-     * @param tokenInfo Token parameters
-     * @param metadataURI TGE metadata URI
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
+     * @notice This proposal is launched when there is a need to issue ERC1155 Preference tokens, additional collections, and token units in existing collections for an existing ERC1155 token. In other words, the issuance of tokens of this format for any DAO is possible only through the creation of such a proposal.
+     * @dev Proposal to launch a new token generation event (TGE) for ERC1155 preference tokens.
+     * @param tgeInfo TGE parameters.
+     * @param tokenId Token ID.
+     * @param tokenIdMetadataURI Token ID metadata URI.
+     * @param tokenInfo Token parameters.
+     * @param metadataURI TGE metadata URI.
+     * @param description Proposal description.
+     * @param metaHash Hash value of proposal metadata.
+     * @return proposalId The ID of the created proposal.
      */
     function proposeTGEERC1155(
         address pool,
@@ -363,9 +389,17 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
                 IPool(pool).tokenExists(IToken(token)),
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
-
+        
+            require(
+                    address(token) == address(0) ||
+                    ITokenERC1155(token).cap(tokenId)==0 ||
+                    ITGE(ITokenERC1155(token).lastTGE(tokenId)).state() !=
+                    ITGE.State.Active,
+                ExceptionsLibrary.ACTIVE_TGE_EXISTS
+            );
+        
         if (token != address(0)) {
-            if (ITokenERC1155(token).isPrimaryTGESuccessful(tokenId)) {
+            if (tokenId!=0 && ITokenERC1155(token).isPrimaryTGESuccessful(tokenId)) {
                 tokenInfo.cap = ITokenERC1155(token).cap(tokenId);
                 totalSupplyWithReserves = ITokenERC1155(token)
                     .totalSupplyWithReserves(tokenId);
@@ -419,14 +453,17 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         return proposalId_;
     }
-     /**
-     * @notice A proposal that changes the governance settings. First of all, the percentage of the total number of free votes changes, the achievement of which within the framework of voting leads to the achievement of a quorum (the vote will be considered to have taken place, that is, one of the conditions for a positive decision on the propositional is fulfilled). Further, the Decision Threshold can be changed, which is set as a percentage of the sum of the votes "for" and "against" for a specific proposal, at which the sum of the votes "for" ensures a positive decision-making. In addition, a set of delays (measured in blocks) is set, used for certain features of transactions submitted to the proposal. The duration of all subsequent votes is also set (measured in blocks) and the number of Governance tokens required for the address to create a proposal. All parameters are set in one transaction. To change one of the parameters, it is necessary to send the old values of the other settings along with the changed value of one setting. With Secretary and Executor Roles
-     * @param settings New governance settings
-     * @param secretary add new address to pool secretary list
-     * @param executor add new address to pool Executor list
-     * @param description Proposal description
-     * @param metaHash Hash value of proposal metadata
-     * @return proposalId Created proposal's ID
+
+    /**
+     * @notice Proposal to replace Governance settings and change the pool's list of secretaries and executors. One of the two methods to change voting parameters. The only way for a DAO to modify the lists of secretaries and executors.
+     * @dev The main parameter should be a structure of type NewGovernanceSettings, which includes the Governance Threshold, Decision Threshold, Proposal Threshold, execution delay lists for proposals, as well as two sets of addresses: one for the new list of secretaries and another for the new list of executors.
+     * @param pool The address of the pool on behalf of which this proposal will be launched and for which the Governance settings will be changed.
+     * @param settings New governance settings.
+     * @param secretary Add a new address to the pool's secretary list.
+     * @param executor Add a new address to the pool's executor list.
+     * @param description Proposal description.
+     * @param metaHash Hash value of the proposal metadata.
+     * @return proposalId The ID of the created proposal.
      */
     function proposeGovernanceSettingsWithRoles(
         address pool,

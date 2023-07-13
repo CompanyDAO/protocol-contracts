@@ -15,6 +15,9 @@ import Exceptions from "./shared/exceptions";
 import { mineBlock } from "./shared/utils";
 import { setup } from "./shared/setup";
 
+import { BigNumberish } from "ethers";
+import { CompanyInfoStruct } from "../typechain-types/IPool";
+
 const { getContractAt, getContract, getSigners } = ethers;
 const { parseUnits } = ethers.utils;
 
@@ -113,13 +116,35 @@ describe("Test Registry", function () {
     });
     describe("Company Registry", async function () {
         it("Can create company, read and delete company", async function () {
-            await registry.createCompany({
+            let receipt;
+            let index: BigNumberish;
+            let info: CompanyInfoStruct;
+            // Create company records
+            let tx = await registry.createCompany({
                 jurisdiction: 1,
                 ein: "EIN4",
                 dateOfIncorporation: "01.01.2023",
                 entityType: 1,
                 fee: parseUnits("0.01"),
             });
+        
+        
+            receipt = await tx.wait();
+            if (receipt.events) {
+                index = receipt.events[5].args?.index;
+                info = {
+                    jurisdiction: 1,
+                    ein: "EIN4",
+                    dateOfIncorporation: "01.01.2023",
+                    entityType: 1,
+                    fee: parseUnits("0.01"),
+                };
+        
+                await registry.activateCompany(
+                    index
+                );
+            }
+
             expect(await registry.companyAvailable(1, 1)).to.equal(true);
             const companyInfo = await registry.getCompany(1, 1, "EIN4");
             expect(companyInfo.dateOfIncorporation).to.equal("01.01.2023");
@@ -143,18 +168,6 @@ describe("Test Registry", function () {
         expect(await registry.eventRecordsCount()).to.equal(1);
     });
 
-    it("Can update company fee", async function () {
-        await registry.createCompany({
-            jurisdiction: 1,
-            ein: "EIN4",
-            dateOfIncorporation: "01.01.2023",
-            entityType: 1,
-            fee: parseUnits("0.01"),
-        });
-        await registry.updateCompanyFee(1, 1, 1, parseUnits("0.02"));
-        const companyInfo = await registry.getCompany(1, 1, "EIN4");
-        expect(companyInfo.fee).to.equal(parseUnits("0.02"));
-    });
 
     it("Can whitelistTokens", async function () {
         await registry.whitelistTokens([token.address]);

@@ -67,6 +67,8 @@ describe("Test custom proposals", function () {
         const record = await Registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
+        
+        const newCompanyAddress = await Registry.getAvailableCompanyAddress(1,1);
 
         await tgeFactory.createPrimaryTGE(
             pool.address,

@@ -8,14 +8,27 @@ import "./interfaces/IService.sol";
 import "./interfaces/ITokenFactory.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
+/**
+ * @title TokenFactory
+ * @dev A factory for token contracts, utilizing the Beacon Proxy pattern for creating new contracts. 
+ * Each new contract is a "proxy" pointing to a "beacon" that stores the implementation logic.
+ * This enables cheaper creation of new contracts and easier updating of all contracts at once.
+ * The contract can also be upgraded, meaning the contract's logic can be replaced while retaining the same contract address and state variables.
+ */
 contract TokenFactory is Initializable, ITokenFactory {
     // STORAGE
 
-    /// @notice Service contract
+    /**
+     * @notice Service contract
+     */
     IService public service;
 
     // MODIFIERS
 
+    /**
+     * @notice Modifier restricting function call to TGEFactory contract only
+     * @dev Throws an exception if the caller is not the TGEFactory contract's address
+     */
     modifier onlyTGEFactory() {
         require(
             msg.sender == address(service.tgeFactory()),
@@ -26,21 +39,27 @@ contract TokenFactory is Initializable, ITokenFactory {
 
     // INITIALIZER
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
+    /**
+     * @notice Contract constructor
+     * @dev Disables the usage of initializers
+     */
     constructor() {
         _disableInitializers();
     }
 
     /**
      * @dev Initializer function, can only be called once
-     * @param service_ Service address
+     * @param service_ Address of the service contract
      */
     function initialize(IService service_) external initializer {
         service = service_;
     }
 
     /**
-     * @dev Create token contract
+     * @dev Creates a token contract
+     * @param pool Address of the pool
+     * @param info Token information
+     * @param primaryTGE Address of the primary TGE
      * @return token Token contract
      */
     function createToken(
@@ -65,7 +84,10 @@ contract TokenFactory is Initializable, ITokenFactory {
     }
 
     /**
-     * @dev Create token contract ERC1155
+     * @dev Creates a ERC1155 token contract
+     * @param pool Address of the pool
+     * @param info Token information
+     * @param primaryTGE Address of the primary TGE
      * @return token Token contract
      */
     function createTokenERC1155(

@@ -27,7 +27,7 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function createPool(
         ICompaniesRegistry.CompanyInfo memory companyInfo
-    ) external;
+    ) external returns(address);
 
     function addProposal(uint256 proposalId) external;
 
@@ -83,9 +83,6 @@ interface IService is IAccessControlEnumerableUpgradeable {
         IToken.TokenType tokenType
     ) external view;
 
-    function getPoolAddress(
-        ICompaniesRegistry.CompanyInfo memory info
-    ) external view returns (address);
 
     function paused() external view returns (bool);
 

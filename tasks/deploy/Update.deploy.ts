@@ -39,7 +39,7 @@ task("deploy:update", "Deploy Proxy")
 
         let implementation:any;
         let beacon:any;
-        const beacons = ['TGE','TokenERC1155']
+        const beacons:any = ['TGE']
         let contractName
         for(let i = 0; i < beacons.length; i++) {
             contractName = beacons[i]   
@@ -70,7 +70,7 @@ task("deploy:update", "Deploy Proxy")
             
         }
 
-        const implementationss = ['Token','Pool','Registry','Service', 'TGEFactory', 'CustomProposal','Invoice']
+        const implementationss = ['Pool','Registry', 'Service', 'Invoice']
         for(let i = 0; i < implementationss.length; i++) {
             contractName = implementationss[i]
             await sleep(20000);

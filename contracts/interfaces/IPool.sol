@@ -11,7 +11,9 @@ import "./governor/IGovernanceSettings.sol";
 import "./governor/IGovernorProposals.sol";
 
 interface IPool is IGovernorProposals {
-    function initialize(ICompaniesRegistry.CompanyInfo memory companyInfo_) external;
+    function initialize(
+        ICompaniesRegistry.CompanyInfo memory companyInfo_
+    ) external;
 
     function setNewOwnerWithSettings(
         address owner_,
@@ -80,4 +82,5 @@ interface IPool is IGovernorProposals {
 
     function executeProposal(uint256 proposalId) external;
 
+    function getCompanyFee() external returns (uint256);
 }

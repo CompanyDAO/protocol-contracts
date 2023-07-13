@@ -20,7 +20,14 @@ interface IRegistry is ITokensRegistry, ICompaniesRegistry, IRecordsRegistry {
     function log(
         address sender,
         address receiver,
-        uint256 value, 
+        uint256 value,
         bytes memory data
     ) external;
+
+    function getPoolAddressByIndex(uint256 index) external view returns (address);
+
+    function getAvailableCompanyAddress(
+        uint256 jurisdiction,
+        uint256 entityType
+    ) external view returns (address);
 }

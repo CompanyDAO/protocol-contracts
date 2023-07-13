@@ -4,13 +4,15 @@ pragma solidity 0.8.17;
 
 interface IGovernanceSettings {
     /**
-     * @notice Governance settings
-     * @param proposalThreshold_ Proposal threshold
-     * @param quorumThreshold_ Quorum threshold
-     * @param decisionThreshold_ Decision threshold
-     * @param votingDuration_ Voting duration
-     * @param transferValueForDelay_ Transfer value for delay
-     * @param executionDelays_ List of execution delays for all proposal types
+     * @notice This structure specifies and stores the Governance settings for each individual pool.
+     * @dev More information on the thresholds (proposal, quorum, decision) and creating proposals can be found in the "Other Entities" section.
+     * @param proposalThreshold_ The proposal threshold (specified in token units with decimals taken into account)
+     * @param quorumThreshold_ The quorum threshold (specified as a percentage)
+     * @param decisionThreshold_ The decision threshold (specified as a percentage)
+     * @param votingDuration_ The duration of the voting period (specified in blocks)
+     * @param transferValueForDelay_ The minimum amount in USD for which a transfer from the pool wallet will be subject to a del
+     * @param executionDelays_ List of execution delays specified in blocks for different types of proposals
+     * @param votingStartDelay The delay before voting starts for newly created proposals, specified in blocks
      */
     struct NewGovernanceSettings {
         uint256 proposalThreshold;

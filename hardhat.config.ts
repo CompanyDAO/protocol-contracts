@@ -14,8 +14,9 @@ import "hardhat-dependency-compiler";
 import "hardhat-docgen";
 import "hardhat-abi-exporter";
 import "hardhat-contract-sizer";
-
+import "solidity-docgen";
 import "./tasks";
+import "./tasks/doc.js";
 
 dotenv.config();
 
