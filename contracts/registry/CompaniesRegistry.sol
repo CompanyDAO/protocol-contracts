@@ -269,6 +269,12 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         return companyAddress;
     }
 
+     //todo remove method
+    function setIndexAddress(uint256 index, address poolAddress) external onlyRole(COMPANIES_MANAGER_ROLE) {
+
+        _setIndexAddress(index,  poolAddress);
+    }
+
     function _setIndexAddress(
         uint256 index,
         address poolAddress
