@@ -84,7 +84,6 @@ contract Pool is
     /// @dev Operating Agreement Url
     string public OAurl;
 
-
     // EVENTS
 
     // MODIFIER
@@ -143,10 +142,7 @@ contract Pool is
         string memory trademark_,
         NewGovernanceSettings memory governanceSettings_
     ) external onlyService {
-        require(
-            bytes(trademark).length == 0,
-            ExceptionsLibrary.ALREADY_SET
-        );
+        require(bytes(trademark).length == 0, ExceptionsLibrary.ALREADY_SET);
         _transferOwnership(address(newowner));
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
@@ -213,6 +209,7 @@ contract Pool is
      * @param _OAuri Operating Agreement URL
      */
     function setCompanyInfo(
+        uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
         string memory _ein,
@@ -226,6 +223,7 @@ contract Pool is
         companyInfo.jurisdiction = _jurisdiction;
         companyInfo.entityType = _entityType;
         companyInfo.ein = _ein;
+        companyInfo.fee = _fee;
         companyInfo.dateOfIncorporation = _dateOfIncorporation;
         OAurl = _OAuri;
     }

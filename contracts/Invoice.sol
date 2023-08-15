@@ -365,6 +365,8 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
         address pool,
         address account
     ) public view returns (bool) {
+        if (!IPool(pool).isDAO() && account == IPool(pool).owner()) return true;
+        
         if (
             registry.service().hasRole(
                 registry.service().SERVICE_MANAGER_ROLE(),
@@ -373,7 +375,7 @@ contract Invoice is Initializable, ReentrancyGuardUpgradeable, IInvoice {
             IPool(pool).isValidProposer(account)
             
         ) return true;
-        if (!IPool(pool).isDAO() && account == IPool(pool).owner()) return true;
+        
         return false;
     }
 

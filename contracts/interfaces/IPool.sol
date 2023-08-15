@@ -71,6 +71,7 @@ interface IPool is IGovernorProposals {
     function getPoolExecutor() external view returns (address[] memory);
 
     function setCompanyInfo(
+        uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
         string memory _ein,
