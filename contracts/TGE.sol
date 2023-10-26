@@ -15,6 +15,7 @@ import "./interfaces/IPool.sol";
 import "./interfaces/IVesting.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/IPausable.sol";
+import "./utils/CustomContext.sol";
 
 /**
     * @title Token Generation Event Contract
@@ -41,7 +42,7 @@ import "./interfaces/IPausable.sol";
     - In case of failure of a primary TGE for any token, that token is not considered to have any application within the protocol. It is no longer possible to conduct a TGE for such a token.
     */
 
-contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
+contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -215,8 +216,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         vesting = IService(_service).vesting();
         token = _token;
 
-        info = _info;
+        
         protocolFee = _protocolFee;
+        info = _info;
         lockupTVLReached = (_info.lockupTVL == 0);
 
         for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
@@ -227,6 +229,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     }
 
     // PUBLIC FUNCTIONS
+    receive() external payable {}
 
     /**
     * @notice This method is used for purchasing pool tokens.
@@ -258,12 +261,12 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
             );
         } else {
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
-                msg.sender,
+                _msgSender(),
                 address(this),
                 purchasePrice
             );
         }
-        this.proceedPurchase(msg.sender, amount);
+        this.proceedPurchase(_msgSender(), amount);
     }
 
     /**
@@ -294,10 +297,10 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     function _refund(address account, uint256 amount) private {
         uint256 refundValue = (amount * info.price + (1 ether - 1)) / 1 ether;
         if (info.unitOfAccount == address(0)) {
-            payable(msg.sender).sendValue(refundValue);
+            payable(_msgSender()).sendValue(refundValue);
         } else {
             IERC20Upgradeable(info.unitOfAccount).safeTransfer(
-                msg.sender,
+                _msgSender(),
                 refundValue
             );
         }
@@ -318,21 +321,21 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     {
         // User can't claim more than he bought in this event (in case somebody else has transferred him tokens)
         require(
-            purchaseOf[msg.sender] > 0,
+            purchaseOf[_msgSender()] > 0,
             ExceptionsLibrary.ZERO_PURCHASE_AMOUNT
         );
 
         uint256 refundAmount = 0;
 
         // Calculate redeem from vesting
-        uint256 vestedBalance = vesting.vested(address(this), msg.sender);
+        uint256 vestedBalance = vesting.vested(address(this), _msgSender());
         if (vestedBalance > 0) {
             // Account vested tokens
-            purchaseOf[msg.sender] -= vestedBalance;
+            purchaseOf[_msgSender()] -= vestedBalance;
             refundAmount += vestedBalance;
 
             // Cancel vesting
-            vesting.cancel(address(this), msg.sender);
+            vesting.cancel(address(this), _msgSender());
 
             // Decrease reserved tokens
             if (isERC1155TGE()) {
@@ -352,22 +355,22 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 balanceToRedeem;
         if (isERC1155TGE()) {
             balanceToRedeem = MathUpgradeable.min(
-                ITokenERC1155(token).balanceOf(msg.sender, tokenId),
-                purchaseOf[msg.sender]
+                ITokenERC1155(token).balanceOf(_msgSender(), tokenId),
+                purchaseOf[_msgSender()]
             );
         } else {
             balanceToRedeem = MathUpgradeable.min(
-                IToken(token).balanceOf(msg.sender),
-                purchaseOf[msg.sender]
+                IToken(token).balanceOf(_msgSender()),
+                purchaseOf[_msgSender()]
             );
         }
         if (balanceToRedeem > 0) {
-            purchaseOf[msg.sender] -= balanceToRedeem;
+            purchaseOf[_msgSender()] -= balanceToRedeem;
             refundAmount += balanceToRedeem;
             if (isERC1155TGE()) {
-                ITokenERC1155(token).burn(msg.sender, tokenId, balanceToRedeem);
+                ITokenERC1155(token).burn(_msgSender(), tokenId, balanceToRedeem);
             } else {
-                IToken(token).burn(msg.sender, balanceToRedeem);
+                IToken(token).burn(_msgSender(), balanceToRedeem);
             }
         }
 
@@ -378,10 +381,10 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         uint256 refundValue = (refundAmount * info.price + (1 ether - 1)) /
             1 ether;
         if (info.unitOfAccount == address(0)) {
-            payable(msg.sender).sendValue(refundValue);
+            payable(_msgSender()).sendValue(refundValue);
         } else {
             IERC20Upgradeable(info.unitOfAccount).safeTransfer(
-                msg.sender,
+                _msgSender(),
                 refundValue
             );
         }
@@ -404,7 +407,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         }
 
         // Emit event
-        emit Redeemed(msg.sender, refundValue);
+        emit Redeemed(_msgSender(), refundValue);
     }
 
     /// @dev Set the flag that the condition for achieving the pool balance of the value specified in the lockup settings is met. The action is irreversible.
@@ -461,7 +464,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
         emit FundsTransferred(balance);
 
         IToken(token).service().registry().log(
-            msg.sender,
+            _msgSender(),
             address(this),
             0,
             abi.encodeWithSelector(ITGE.transferFunds.selector)
@@ -730,7 +733,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     //PRIVATE FUNCTIONS
 
     function proceedPurchase(address account, uint256 amount) public {
-        require(msg.sender == address(this), ExceptionsLibrary.INVALID_USER);
+        require(_msgSender() == address(this), ExceptionsLibrary.INVALID_USER);
 
         require(
             validatePurchase(account, amount),
@@ -814,7 +817,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     /// @notice Modifier that allows the method to be called only by an account that is whitelisted for the TGE or if the TGE is created as public.
     modifier onlyWhitelistedUser() {
         require(
-            isUserWhitelisted(msg.sender),
+            isUserWhitelisted(_msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;
@@ -824,7 +827,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     modifier onlyManager() {
         IService service = IToken(token).service();
         require(
-            service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender),
+            service.hasRole(service.SERVICE_MANAGER_ROLE(), _msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;
@@ -842,9 +845,20 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE {
     modifier onlyCompanyManager() {
         IRegistry registry = IToken(token).service().registry();
         require(
-            registry.hasRole(registry.COMPANIES_MANAGER_ROLE(), msg.sender),
+            registry.hasRole(registry.COMPANIES_MANAGER_ROLE(), _msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;
+    }
+
+    function getTrustedForwarder() public view override returns (address) {
+        return IToken(token).service().getTrustedForwarder();
+    }
+     function _msgSender() internal view override returns (address sender) {
+       return super._msgSender();
+    }
+
+    function _msgData() internal view override returns (bytes calldata) {
+        return super._msgData();
     }
 }

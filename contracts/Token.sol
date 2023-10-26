@@ -46,6 +46,8 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /// @dev A list of TGE contract addresses that have been launched to distribute this token. If any of the elements in the list have a "Successful" state, it means that the token is valid and used by the pool. If there are no such TGEs, the token can be considered unsuccessful, meaning it is detached from the pool.
     address[] public tgeList;
 
+   
+
     /// @notice Token decimals
     /// @dev This parameter is mandatory for all ERC20 tokens and is set to 18 by default. It indicates the precision applied when calculating a particular token. It can also be said that 10 raised to the power of minus decimal is the minimum indivisible amount of the token.
     uint8 private _decimals;
@@ -58,6 +60,9 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
 
     /// @dev Total amount of tokens reserved for the minting protocol fee
     uint256 private totalProtocolFeeReserved;
+
+    mapping(address => address[]) public tseList;
+
 
     // INITIALIZER AND CONSTRUCTOR
 
@@ -145,6 +150,10 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     function addTGE(address tge) external onlyTGEFactory {
         tgeList.push(tge);
         tgeWithLockedTokensList.push(tge);
+    }
+
+    function addTSE(address account, address tse) external onlyTGEFactory {
+        tseList[account].push(tse);
     }
 
     /**

@@ -1,6 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
-import { ContractTransaction } from "ethers";
+import { BigNumber, ContractTransaction } from "ethers";
 import { deployments, ethers, network } from "hardhat";
 import {
     ERC20Mock,
@@ -10,51 +10,67 @@ import {
     Token,
     Registry,
     CustomProposal,
+    Vesting,
     TGEFactory,
 } from "../typechain-types";
 import Exceptions from "./shared/exceptions";
-import { CreateArgs, makeCreateData } from "./shared/settings";
+import {
+    CreateArgs,
+    makeCreateData,
+    TGEArgs,
+    makeTGEArgs,
+} from "./shared/settings";
 import { mineBlock } from "./shared/utils";
 import { setup } from "./shared/setup";
 
-const { getContractAt, getContract, getSigners, provider } = ethers;
+const { getContractAt, getContract, getSigners } = ethers;
 const { parseUnits } = ethers.utils;
 const { AddressZero } = ethers.constants;
 
-describe("Test custom proposals", function () {
+describe("Test secondary TGE", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
+        second: SignerWithAddress,
         third: SignerWithAddress,
         fourth: SignerWithAddress;
     let service: Service,
-        Registry: Registry,
+        registry: Registry,
+        vesting: Vesting,
         customProposal: CustomProposal,
         tgeFactory: TGEFactory;
     let pool: Pool, tge: TGE, token: Token;
     let token1: ERC20Mock;
     let snapshotId: any;
     let createArgs: CreateArgs;
+    let tgeArgs: TGEArgs;
     let tx: ContractTransaction;
 
     before(async function () {
         // Get accounts
-        [owner, other, third, fourth] = await getSigners();
+        [owner, other, second, third, fourth] = await getSigners();
 
         // Fixture
         await deployments.fixture();
 
         // Get contracts
         service = await getContract("Service");
-        Registry = await getContract("Registry");
+        registry = await getContract("Registry");
+        vesting = await getContract("Vesting");
         token1 = await getContract("ONE");
         customProposal = await getContract("CustomProposal");
         tgeFactory = await getContract("TGEFactory");
+
         // Setup
         await setup();
 
         // Create TGE
         createArgs = await makeCreateData();
-        createArgs[3].userWhitelist = [owner.address, other.address, third.address];
+        createArgs[3].userWhitelist = [
+            owner.address,
+            other.address,
+            second.address,
+            third.address,
+        ];
         await service.purchasePool(
             createArgs[4],
             createArgs[5],
@@ -64,11 +80,9 @@ describe("Test custom proposals", function () {
                 value: parseUnits("0.01"),
             }
         );
-        const record = await Registry.contractRecords(1);
+        const record = await registry.contractRecords(1);
 
         pool = await getContractAt("Pool", record.addr);
-        
-        const newCompanyAddress = await Registry.getAvailableCompanyAddress(1,1);
 
         await tgeFactory.createPrimaryTGE(
             pool.address,
@@ -88,10 +102,7 @@ describe("Test custom proposals", function () {
         );
 
         token = await getContractAt("Token", await pool.getGovernanceToken());
-        
         tge = await getContractAt("TGE", await token.tgeList(0));
-
-        
 
         // Finalize TGE
         await tge.purchase(parseUnits("1000"), { value: parseUnits("10") });
@@ -118,65 +129,62 @@ describe("Test custom proposals", function () {
         });
     });
 
-    describe("Transfer ETH", function () {
+    describe("TSE for governance token", async function () {
+        this.beforeEach(async function () {
+            // Propose secondary TGE
+
+            tgeArgs = await makeTGEArgs(token.address, createArgs[3]);
+            await mineBlock(5);
+            tx = await customProposal.proposeTGE(pool.address, ...tgeArgs);
+        });
+
+      
+
+        it.only("Can create TSE", async function () {
+            
+            await mineBlock(100);
+            await tge.setLockupTVLReached();
+            expect(await tge.transferUnlocked()).to.equal(true);
+
+            let amount = (await token.unlockedBalanceOf(owner.address)).div(2)
+
+            await token.approve(tgeFactory.address,amount)
+
+            await tgeFactory.createTSE(
+                token.address,
+                0,
+                {
+                    amount: amount,
+                    unitOfAccount: AddressZero,
+                    price: 100,
+                    minPurchase: 0,
+                    maxPurchase: amount,
+                    duration: 20,
+                    userWhitelist: [owner.address, other.address],
+                },
+                ""
+              );
+
+            let tseAddress = await token.tseList(owner.address,0)
+            let tse = await getContractAt("TSE", tseAddress);
+
+
+            await tse.connect(other).purchase(amount.div(2), { value: parseUnits("1")});
+
+            console.log((await token.balanceOf(tseAddress)).toString());
+            console.log((await token.balanceOf(owner.address)).toString());
+            console.log(tseAddress)
+           
+            await tse.finishTSE();
+
+            console.log((await token.balanceOf(tseAddress)).toString());
+            console.log((await token.balanceOf(owner.address)).toString());
+
+        });
 
         
 
 
-        this.beforeEach(async function () {
 
-            console.log(await customProposal.getTrustedForwarder());
-            tx = await customProposal
-                .connect(other)
-                .proposeTransfer(
-                    pool.address,
-                    AddressZero,
-                    [third.address, fourth.address],
-                    [parseUnits("0.1"), parseUnits("0.1")],
-                    "Let's give them money",
-                    "#"
-                );
-        });
-
-        it("Getting/Setting GlobalProposalId works", async function () {
-            console.log(await customProposal.getTrustedForwarder());
-            await customProposal
-                .connect(other)
-                .proposeTransfer(
-                    pool.address,
-                    AddressZero,
-                    [third.address, fourth.address],
-                    [parseUnits("0.1"), parseUnits("0.1")],
-                    "Let's give them money",
-                    "#"
-                );
-            console.log(await Registry.getGlobalProposalId(pool.address, 1));
-            expect(await Registry.getGlobalProposalId(pool.address, 1)).to.equal(0);
-            expect(await Registry.getGlobalProposalId(pool.address, 2)).to.equal(1);
-        });
-
-        it("Executing succeeded transfer proposals should work", async function () {
-            //waiting for voting start
-            await mineBlock(10);
-
-            await pool.connect(owner).castVote(1, true);
-            await pool.connect(other).castVote(1, true);
-            await mineBlock(2);
-            await owner.sendTransaction({
-                to: pool.address,
-                value: parseUnits("10"),
-            });
-
-            const thirdBefore = await provider.getBalance(third.address);
-            const fourthBefore = await provider.getBalance(fourth.address);
-            await pool.executeProposal(1);
-            const thirdAfter = await provider.getBalance(third.address);
-            const fourthAfter = await provider.getBalance(fourth.address);
-            expect(await provider.getBalance(pool.address)).to.equal(
-                parseUnits("9.8")
-            );
-            expect(thirdAfter.sub(thirdBefore)).to.equal(parseUnits("0.1"));
-            expect(fourthAfter.sub(fourthBefore)).to.equal(parseUnits("0.1"));
-        });
     });
 });

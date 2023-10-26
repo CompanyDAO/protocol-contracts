@@ -8,6 +8,7 @@ const deployFunction: DeployFunction = async function ({
     await run("deploy:beacon", { contract: "Token" });
     await run("deploy:beacon", { contract: "TokenERC1155" });
     await run("deploy:beacon", { contract: "TGE" });
+    await run("deploy:beacon", { contract: "TSE" });
 };
 
 export default deployFunction;

@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts-upgradeable/utils/Create2Upgradeable.sol";
+import "./utils/CustomContext.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IToken.sol";
@@ -34,7 +35,8 @@ contract Service is
     AccessControlEnumerableUpgradeable,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
-    IService
+    IService,
+    ERC2771Context
 {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     using AddressUpgradeable for address;
@@ -119,6 +121,10 @@ contract Service is
 
     /// @dev Address of the Token beacon contract (for ERC1155 tokens)
     address public tokenERC1155Beacon;
+
+    address public trustedForwarder;
+
+    address public tseBeacon;
 
     // EVENTS
 
@@ -212,7 +218,15 @@ contract Service is
      * @param proxy Proxy address
      */
     event VestingChanged(address proxy);
+
+    /**
+     * @dev Event emitted on TSEBeacon change.
+     * @param beacon Beacon address
+     */
+    event TSEBeaconChanged(address beacon);
     // MODIFIERS
+
+    
 
     /// @notice Modifier that allows the method to be called only by the Pool contract.
     modifier onlyPool() {
@@ -328,11 +342,11 @@ contract Service is
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings
     ) external payable nonReentrant whenNotPaused {
         // Create pool
-        
+
         IPool pool = IPool(
             registry.getAvailableCompanyAddress(jurisdiction, entityType)
         );
-        
+
         // Check fee
         require(
             msg.value == pool.getCompanyFee(),
@@ -379,9 +393,9 @@ contract Service is
         );
 
         // setNewOwnerWithSettings to pool contract
-        
+
         pool.setNewOwnerWithSettings(newowner, trademark, governanceSettings);
-        
+
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
         registry.lockCompany(jurisdiction, entityType);
@@ -645,6 +659,17 @@ contract Service is
         tokenERC1155Beacon = beacon;
     }
 
+    function setTrustForwarder(
+        address _trustedForwarder
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(
+            _trustedForwarder != address(0),
+            ExceptionsLibrary.ADDRESS_ZERO
+        );
+
+        trustedForwarder = _trustedForwarder;
+    }
+
     /**
      * @dev Sets new TGE beacon
      * @param beacon Beacon address
@@ -658,18 +683,56 @@ contract Service is
         emit TGEBeaconChanged(address(tgeBeacon));
     }
 
+    function setTSEBeacon(
+        address beacon
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
+
+        tseBeacon = beacon;
+        emit TSEBeaconChanged(address(tseBeacon));
+    }
+
     /**
      * @notice Cancel a proposal by the administrator.
      * @dev This method is used for emergency cancellation of any proposal by an address with the ADMIN role in this contract. It is used to prevent the execution of transactions prescribed by the proposal if there are doubts about their safety.
      * @param pool The address of the pool contract.
      * @param proposalId The ID of the proposal.
      */
-    function cancelProposal(
+    // function cancelProposal(
+    //     address pool,
+    //     uint256 proposalId
+    // ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    //     IPool(pool).cancelProposal(proposalId);
+    //     emit ProposalCancelled(pool, proposalId);
+    // }
+
+    function externalCastVote(
         address pool,
-        uint256 proposalId
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        IPool(pool).cancelProposal(proposalId);
-        emit ProposalCancelled(pool, proposalId);
+        uint256 proposalId,
+        bool support
+    ) external {
+        
+        IPool(pool).externalCastVote(_msgSender(), proposalId, support);
+
+        registry.log(
+            _msgSender(),
+            pool,
+            0,
+            abi.encodeWithSelector(IPool.castVote.selector, proposalId, support)
+        );
+    }
+
+    function externalTransferByOwner(
+        address pool,
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) external {
+        require(
+            IPool(pool).owner() == _msgSender(),
+            ExceptionsLibrary.NOT_POOL_OWNER
+        );
+        IPool(pool).externalTransferByOwner(to, amount, unitOfAccount);
     }
 
     /**
@@ -706,7 +769,11 @@ contract Service is
      * @return The minimum soft cap.
      */
     function getMinSoftCap() public view returns (uint256) {
-        return (DENOM + protocolTokenFee - 1) / protocolTokenFee;
+        if(protocolTokenFee>0){
+            return (DENOM + protocolTokenFee - 1) / protocolTokenFee;
+        }else{
+            return protocolTokenFee;
+        }
     }
 
     /**
@@ -789,7 +856,6 @@ contract Service is
         }
     }
 
-
     // INTERNAL FUNCTIONS
 
     /**
@@ -831,5 +897,32 @@ contract Service is
             IRecordsRegistry.ContractType.Pool,
             ""
         );
+    }
+
+    function getTrustedForwarder()
+        public
+        view
+        override(ERC2771Context, IService)
+        returns (address)
+    {
+        return trustedForwarder;
+    }
+
+    function _msgSender()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771Context)
+        returns (address sender)
+    {
+        return super._msgSender();
+    }
+
+    function _msgData()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771Context)
+        returns (bytes calldata)
+    {
+        return super._msgData();
     }
 }

@@ -70,6 +70,8 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function tgeBeacon() external view returns (address);
 
+    function tseBeacon() external view returns (address);
+
     function tokenBeacon() external view returns (address);
 
     function tokenERC1155Beacon() external view returns (address);
@@ -105,4 +107,6 @@ interface IService is IAccessControlEnumerableUpgradeable {
         string memory trademark,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings
     ) external;
+
+    function getTrustedForwarder() external view returns (address);
 }

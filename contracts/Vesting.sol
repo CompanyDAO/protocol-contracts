@@ -8,6 +8,7 @@ import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IVesting.sol";
+import "./utils/CustomContext.sol";
     /**
     * @title Vesting contract
     * @notice The Vesting contract exists in a single instance and helps manage the vesting processes for all successful TGEs.
@@ -19,7 +20,7 @@ import "./interfaces/IVesting.sol";
     @dev For each TGE, a list of Resolvers can be assigned, i.e., addresses that can stop the vesting program for a specific user. 
     The list of resolvers is immutable for each individual TGE and is set at the time of its launch (it can be stored in the proposal data for creating the TGE beforehand).
     */
-contract Vesting is Initializable, IVesting {
+contract Vesting is Initializable, IVesting, ERC2771Context {
     using SafeERC20Upgradeable for IToken;
 
     // CONSTANTS
@@ -91,7 +92,7 @@ contract Vesting is Initializable, IVesting {
     /// @dev This modifier is commonly used for calling the `vest` method, which registers the arrival of new token units into vesting as a result of a successful `purchase` method call in the TGE contract.
     modifier onlyTGE() {
         require(
-            registry.typeOf(msg.sender) == IRecordsRegistry.ContractType.TGE,
+            registry.typeOf(_msgSender()) == IRecordsRegistry.ContractType.TGE,
             ExceptionsLibrary.NOT_TGE
         );
         _;
@@ -102,7 +103,7 @@ contract Vesting is Initializable, IVesting {
     modifier onlyManager() {
         IService service = registry.service();
         require(
-            service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender),
+            service.hasRole(service.SERVICE_MANAGER_ROLE(), _msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;
@@ -110,14 +111,14 @@ contract Vesting is Initializable, IVesting {
 
     /// @notice Modifier allows the method to be called only by an account whose address is specified in the list of resolvers for a given TGE.
     modifier onlyResolverOrTGE(address tge) {
-        if (msg.sender != tge) {
+        if (_msgSender() != tge) {
             address[] memory resolvers = ITGE(tge)
                 .getInfo()
                 .vestingParams
                 .resolvers;
             bool isResolver;
             for (uint256 i = 0; i < resolvers.length; i++) {
-                if (resolvers[i] == msg.sender) {
+                if (resolvers[i] == _msgSender()) {
                     isResolver = true;
                     break;
                 }
@@ -158,10 +159,10 @@ contract Vesting is Initializable, IVesting {
     * @param amount Amount of tokens to vest
      */
     function vest(address to, uint256 amount) external onlyTGE {
-        totalVested[msg.sender] += amount;
-        vested[msg.sender][to] += amount;
+        totalVested[_msgSender()] += amount;
+        vested[_msgSender()][to] += amount;
 
-        emit Vested(msg.sender, to, amount);
+        emit Vested(_msgSender(), to, amount);
     }
 
     /**
@@ -203,10 +204,10 @@ contract Vesting is Initializable, IVesting {
     * @param tge TGE contract address
      */
     function claim(address tge) external {
-        uint256 amount = claimableBalanceOf(tge, msg.sender);
+        uint256 amount = claimableBalanceOf(tge, _msgSender());
         require(amount > 0, ExceptionsLibrary.CLAIM_NOT_AVAILABLE);
 
-        claimed[tge][msg.sender] += amount;
+        claimed[tge][_msgSender()] += amount;
         totalVested[tge] -= amount;
 
         address token = ITGE(tge).token();
@@ -217,23 +218,23 @@ contract Vesting is Initializable, IVesting {
                 tokenId
             );
 
-            ITokenERC1155(token).mint(msg.sender, tokenId, amount);
+            ITokenERC1155(token).mint(_msgSender(), tokenId, amount);
         } else {
             IToken(token).setTGEVestedTokens(
                 IToken(token).getTotalTGEVestedTokens() - amount
             );
 
-            IToken(token).mint(msg.sender, amount);
+            IToken(token).mint(_msgSender(), amount);
         }
 
         IToken(token).service().registry().log(
-            msg.sender,
+            _msgSender(),
             address(this),
             0,
             abi.encodeWithSelector(IVesting.claim.selector, tge)
         );
 
-        emit Claimed(tge, msg.sender, amount);
+        emit Claimed(tge, _msgSender(), amount);
     }
 
     // PUBLIC VIEW FUNCTIONS
@@ -334,5 +335,16 @@ contract Vesting is Initializable, IVesting {
         address account
     ) public view returns (uint256) {
         return vested[tge][account] - claimed[tge][account];
+    }
+
+    function getTrustedForwarder() public view override returns (address) {
+        return registry.service().getTrustedForwarder();
+    }
+     function _msgSender() internal view override returns (address sender) {
+       return super._msgSender();
+    }
+
+    function _msgData() internal view override returns (bytes calldata) {
+        return super._msgData();
     }
 }

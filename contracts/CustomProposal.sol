@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "./utils/CustomContext.sol";
 import "./interfaces/IPool.sol";
 
 import "./interfaces/governor/IGovernanceSettings.sol";
@@ -24,18 +25,27 @@ import "./libraries/ExceptionsLibrary.sol";
  * @notice This contract is designed for constructing proposals from user input. The methods generate calldata from the input arguments and pass it to the specified pool as a proposal.
  * @dev It is a supporting part of the protocol that takes user input arguments and constructs OZ Governor-compatible structures describing the transactions to be executed upon successful voting on the proposal. It does not store user input, but only passes it on in a transformed format to the specified pool contract.
  */
-contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
+contract CustomProposal is
+    Initializable,
+    OwnableUpgradeable,
+    AccessControlEnumerableUpgradeable,
+    ERC2771Context
+{
     // STORAGE
 
-    /// @dev The address of the Service contract.
-    IService public service;
+    /// @dev The address of the Registry contract.
+
+    IRegistry public registry;
 
     // MODIFIERS
 
     /// @notice Modifier that makes the function callable only by the Service contract.
     /// @dev Allows the function to be executed only if the address sending the transaction is equal to the address of the Service contract stored in the memory of this contract.
     modifier onlyService() {
-        require(msg.sender == address(service), ExceptionsLibrary.NOT_SERVICE);
+        require(
+            _msgSender() == address(registry.service()),
+            ExceptionsLibrary.NOT_SERVICE
+        );
         _;
     }
 
@@ -44,7 +54,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
     modifier onlyForPool(address pool) {
         //check if pool registry record exists
         require(
-            service.registry().typeOf(pool) ==
+            registry.typeOf(pool) ==
                 IRecordsRegistry.ContractType.Pool,
             ExceptionsLibrary.NOT_POOL
         );
@@ -68,21 +78,11 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
      * @notice Contract initializer
      * @dev This method replaces the constructor for upgradeable contracts.
      */
-    function initialize() public initializer {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    function initialize(address registry_) public initializer {
+        registry = IRegistry(registry_);
     }
 
     // PUBLIC FUNCTIONS
-
-    /**
-     * @dev Stores a new address of the Service contract in the memory of this contract.
-     * @param service_ The new address of the Service contract.
-     */
-    function setService(
-        address service_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        service = IService(service_);
-    }
 
     /**
      * @notice This proposal is the only way to withdraw funds from the pool account.
@@ -133,7 +133,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         // Create proposal
 
         uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
+            _msgSender(),
             0,
             IGovernor.ProposalCoreData({
                 targets: targets,
@@ -196,7 +196,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         }
 
         // Validate TGE info
-        IService(service).validateTGEInfo(
+        IService(registry.service()).validateTGEInfo(
             tgeInfo,
             tokenInfo.cap,
             totalSupplyWithReserves,
@@ -205,7 +205,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Prepare proposal action
         address[] memory targets = new address[](1);
-        targets[0] = address(IService(service).tgeFactory());
+        targets[0] = address(IService(registry.service()).tgeFactory());
 
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
@@ -221,7 +221,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Propose
         uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
+            _msgSender(),
             1,
             IGovernor.ProposalCoreData({
                 targets: targets,
@@ -281,7 +281,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Propose
         uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
+            _msgSender(),
             2,
             IGovernor.ProposalCoreData({
                 targets: targets,
@@ -329,7 +329,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         for (uint256 i = 0; i < targets.length; i++) {
             require(
-                IRegistry(IService(service).registry()).typeOf(targets[i]) ==
+                registry.typeOf(targets[i]) ==
                     IRecordsRegistry.ContractType.None,
                 ExceptionsLibrary.INVALID_TARGET
             );
@@ -338,7 +338,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         // Create proposal
 
         uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
+            _msgSender(),
             4, // - CustomTx Type
             IGovernor.ProposalCoreData({
                 targets: targets,
@@ -389,17 +389,20 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
                 IPool(pool).tokenExists(IToken(token)),
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
-        
-            require(
-                    address(token) == address(0) ||
-                    ITokenERC1155(token).cap(tokenId)==0 ||
-                    ITGE(ITokenERC1155(token).lastTGE(tokenId)).state() !=
-                    ITGE.State.Active,
-                ExceptionsLibrary.ACTIVE_TGE_EXISTS
-            );
-        
+
+        require(
+            address(token) == address(0) ||
+                ITokenERC1155(token).cap(tokenId) == 0 ||
+                ITGE(ITokenERC1155(token).lastTGE(tokenId)).state() !=
+                ITGE.State.Active,
+            ExceptionsLibrary.ACTIVE_TGE_EXISTS
+        );
+
         if (token != address(0)) {
-            if (tokenId!=0 && ITokenERC1155(token).isPrimaryTGESuccessful(tokenId)) {
+            if (
+                tokenId != 0 &&
+                ITokenERC1155(token).isPrimaryTGESuccessful(tokenId)
+            ) {
                 tokenInfo.cap = ITokenERC1155(token).cap(tokenId);
                 totalSupplyWithReserves = ITokenERC1155(token)
                     .totalSupplyWithReserves(tokenId);
@@ -407,7 +410,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         }
 
         // Validate TGE info
-        IService(service).validateTGEInfo(
+        IService(registry.service()).validateTGEInfo(
             tgeInfo,
             tokenInfo.cap,
             totalSupplyWithReserves,
@@ -416,7 +419,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Prepare proposal action
         address[] memory targets = new address[](1);
-        targets[0] = address(IService(service).tgeFactory());
+        targets[0] = address(IService(registry.service()).tgeFactory());
 
         uint256[] memory values = new uint256[](1);
         values[0] = 0;
@@ -434,7 +437,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Propose
         uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
+            _msgSender(),
             6,
             IGovernor.ProposalCoreData({
                 targets: targets,
@@ -500,7 +503,7 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
 
         // Propose
         uint256 proposalId_ = IPool(pool).propose(
-            msg.sender,
+            _msgSender(),
             2,
             IGovernor.ProposalCoreData({
                 targets: targets,
@@ -518,5 +521,28 @@ contract CustomProposal is Initializable, AccessControlEnumerableUpgradeable {
         );
 
         return proposalId_;
+    }
+
+    function getTrustedForwarder() public view override returns (address) {
+        return IService(registry.service()).getTrustedForwarder();
+    }
+
+
+    function _msgSender()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771Context)
+        returns (address sender)
+    {
+        return super._msgSender();
+    }
+
+    function _msgData()
+        internal
+        view
+        override(ContextUpgradeable, ERC2771Context)
+        returns (bytes calldata)
+    {
+        return super._msgData();
     }
 }

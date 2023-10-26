@@ -48,6 +48,8 @@ interface ITokenERC1155 is IERC1155Upgradeable {
     ) external view returns (bool);
 
     function addTGE(address tge, uint256 tokenId) external;
+    
+    function addTSE(address account,  uint256 tokenId, address tse) external ;
 
     function setTGEVestedTokens(uint256 amount, uint256 tokenId) external;
 

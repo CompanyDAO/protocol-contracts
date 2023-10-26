@@ -63,6 +63,8 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
     /// @dev Mapping storing the amounts of tokens reserved as protocol fees for each collection of this token
     mapping(uint256 => uint256) private totalProtocolFeeReserved;
 
+    mapping(uint256 =>mapping(address => address[])) public tseList;
+
     // INITIALIZER AND CONSTRUCTOR
 
     /**
@@ -149,6 +151,10 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
     function addTGE(address tge, uint256 tokenId) external onlyTGEFactory {
         tgeList[tokenId].push(tge);
         tgeWithLockedTokensList[tokenId].push(tge);
+    }
+
+    function addTSE(address account,  uint256 tokenId, address tse) external onlyTGEFactory {
+        tseList[tokenId][account].push(tse);
     }
 
     /**

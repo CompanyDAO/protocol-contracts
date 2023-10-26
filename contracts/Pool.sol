@@ -245,7 +245,7 @@ contract Pool is
         uint256 proposalId,
         bool support
     ) external nonReentrant whenNotPaused {
-        _castVote(proposalId, support);
+        _castVote(msg.sender, proposalId, support);
 
         service.registry().log(
             msg.sender,
@@ -253,6 +253,14 @@ contract Pool is
             0,
             abi.encodeWithSelector(IPool.castVote.selector, proposalId, support)
         );
+    }
+
+    function externalCastVote(
+        address account,
+        uint256 proposalId,
+        bool support
+    ) external whenNotPaused onlyService {
+        _castVote(account, proposalId, support);
     }
 
     // RESTRICTED PUBLIC FUNCTIONS
@@ -322,9 +330,9 @@ contract Pool is
      * @dev Cancel a proposal, callable only by the Service contract.
      * @param proposalId Proposal ID
      */
-    function cancelProposal(uint256 proposalId) external onlyService {
-        _cancelProposal(proposalId);
-    }
+    // function cancelProposal(uint256 proposalId) external onlyService {
+    //     _cancelProposal(proposalId);
+    // }
 
     /**
      * @dev Creating a proposal and assigning it a unique identifier to store in the list of proposals in the Governor contract.
@@ -384,8 +392,26 @@ contract Pool is
         uint256 amount,
         address unitOfAccount
     ) external onlyOwner {
+         require(!isDAO(), ExceptionsLibrary.IS_DAO);
+        _transferByOwner(to, amount, unitOfAccount);
+    }
+
+    function externalTransferByOwner(
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) external onlyService {
+         require(!isDAO(), ExceptionsLibrary.IS_DAO);
+        _transferByOwner(to, amount, unitOfAccount);
+    }
+
+    function _transferByOwner(
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) internal {
         //only if pool is yet DAO
-        require(!isDAO(), ExceptionsLibrary.IS_DAO);
+       
 
         if (unitOfAccount == address(0)) {
             require(
@@ -514,10 +540,12 @@ contract Pool is
      */
     function isValidProposer(address account) public view returns (bool) {
         uint256 currentVotes = _getCurrentVotes(account);
-        bool isValid = currentVotes > 0 &&
-            (currentVotes > proposalThreshold ||
-                isPoolSecretary(account) ||
-                service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender));
+        bool isValid = service.hasRole(
+            service.SERVICE_MANAGER_ROLE(),
+            msg.sender
+        ) ||
+            isPoolSecretary(account) ||
+            (_getCurrentVotes(account) > 0 && currentVotes > proposalThreshold);
         return isValid;
     }
 
