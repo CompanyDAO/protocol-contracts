@@ -126,6 +126,13 @@ contract Service is
 
     address public tseBeacon;
 
+    address public idRegistry;
+
+    /// @notice The fee size that the protocol charges in stables from each successful TGE
+    /// @dev Service fee percentage value with 4 decimals.
+    /// Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000
+    uint256 public serviceFee;
+
     // EVENTS
 
     /**
@@ -226,8 +233,6 @@ contract Service is
     event TSEBeaconChanged(address beacon);
     // MODIFIERS
 
-    
-
     /// @notice Modifier that allows the method to be called only by the Pool contract.
     modifier onlyPool() {
         require(
@@ -320,6 +325,8 @@ contract Service is
         setProtocolTreasury(address(this));
         setProtocolTokenFee(protocolTokenFee_);
     }
+
+    receive() external payable {}
 
     // PUBLIC FUNCTIONS
 
@@ -557,6 +564,14 @@ contract Service is
         emit ProtocolTokenFeeChanged(_protocolTokenFee);
     }
 
+    function setServiceFee(
+        uint256 _serviceFee
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_serviceFee <= DENOM, ExceptionsLibrary.INVALID_VALUE);
+
+        serviceFee = _serviceFee;
+    }
+
     /**
      * @dev Sets new Registry contract
      * @param _registry registry address
@@ -683,6 +698,14 @@ contract Service is
         emit TGEBeaconChanged(address(tgeBeacon));
     }
 
+    function setIdRegistry(
+        address idRegistry_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(idRegistry_ != address(0), ExceptionsLibrary.ADDRESS_ZERO);
+
+        idRegistry = idRegistry_;
+    }
+
     function setTSEBeacon(
         address beacon
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -711,7 +734,6 @@ contract Service is
         uint256 proposalId,
         bool support
     ) external {
-        
         IPool(pool).externalCastVote(_msgSender(), proposalId, support);
 
         registry.log(
@@ -769,9 +791,9 @@ contract Service is
      * @return The minimum soft cap.
      */
     function getMinSoftCap() public view returns (uint256) {
-        if(protocolTokenFee>0){
+        if (protocolTokenFee > 0) {
             return (DENOM + protocolTokenFee - 1) / protocolTokenFee;
-        }else{
+        } else {
             return protocolTokenFee;
         }
     }
@@ -846,14 +868,14 @@ contract Service is
             info.hardcap <= remainingSupply,
             ExceptionsLibrary.HARDCAP_OVERFLOW_REMAINING_SUPPLY
         );
-        if (tokenType == IToken.TokenType.Governance) {
-            require(
-                info.hardcap + getProtocolTokenFee(info.hardcap) <=
-                    remainingSupply,
-                ExceptionsLibrary
-                    .HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
-            );
-        }
+        // if (tokenType == IToken.TokenType.Governance) {
+        //     require(
+        //         info.hardcap + getProtocolTokenFee(info.hardcap) <=
+        //             remainingSupply,
+        //         ExceptionsLibrary
+        //             .HARDCAP_AND_PROTOCOL_FEE_OVERFLOW_REMAINING_SUPPLY
+        //     );
+        // }
     }
 
     // INTERNAL FUNCTIONS

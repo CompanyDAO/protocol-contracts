@@ -55,6 +55,8 @@ describe("Test custom proposals", function () {
         // Create TGE
         createArgs = await makeCreateData();
         createArgs[3].userWhitelist = [owner.address, other.address, third.address];
+        createArgs[3].userWhitelistMin = [0,0,0];
+        createArgs[3].userWhitelistMax = [0,0,0];
         await service.purchasePool(
             createArgs[4],
             createArgs[5],
@@ -125,7 +127,6 @@ describe("Test custom proposals", function () {
 
         this.beforeEach(async function () {
 
-            console.log(await customProposal.getTrustedForwarder());
             tx = await customProposal
                 .connect(other)
                 .proposeTransfer(
@@ -139,7 +140,7 @@ describe("Test custom proposals", function () {
         });
 
         it("Getting/Setting GlobalProposalId works", async function () {
-            console.log(await customProposal.getTrustedForwarder());
+            // console.log(await customProposal.getTrustedForwarder());
             await customProposal
                 .connect(other)
                 .proposeTransfer(
@@ -150,7 +151,7 @@ describe("Test custom proposals", function () {
                     "Let's give them money",
                     "#"
                 );
-            console.log(await Registry.getGlobalProposalId(pool.address, 1));
+            
             expect(await Registry.getGlobalProposalId(pool.address, 1)).to.equal(0);
             expect(await Registry.getGlobalProposalId(pool.address, 2)).to.equal(1);
         });

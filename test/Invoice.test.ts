@@ -61,6 +61,8 @@ describe("Test Invoice", function () {
         // Create TGE
         createArgs = await makeCreateData();
         createArgs[3].userWhitelist = [owner.address, other.address, third.address];
+        createArgs[3].userWhitelistMin = [0,0,0];
+        createArgs[3].userWhitelistMax = [0,0,0];
         await service.purchasePool(createArgs[4], createArgs[5], createArgs[2], createArgs[6], {
             value: parseUnits("0.01"),
         });

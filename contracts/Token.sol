@@ -4,11 +4,14 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20CappedUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/ITGE.sol";
+import "./interfaces/IIDRegistry.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
@@ -19,7 +22,12 @@ import "./interfaces/IPausable.sol";
  * @notice Tokens are the primary quantitative characteristic of all entities within the protocol. In addition to their inherent function as a unit of calculation, tokens can also be used as votes and as a unit indicating the degree of participation of an address in an off-chain or on-chain pool project. Tokens of any type can only be issued within the framework of a TGE (Token Generation Event), and by using vesting settings, such a TGE can divide the issuance of purchased or airdropped tokens into stages, as well as temporarily block the ability to transfer them from one address to another.
  * @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
  */
-contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
+contract Token is
+    ERC20CappedUpgradeable,
+    ERC20VotesUpgradeable,
+    IToken,
+    ReentrancyGuardUpgradeable
+{
     /// @dev Service contract address
     IService public service;
 
@@ -46,8 +54,6 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
     /// @dev A list of TGE contract addresses that have been launched to distribute this token. If any of the elements in the list have a "Successful" state, it means that the token is valid and used by the pool. If there are no such TGEs, the token can be considered unsuccessful, meaning it is detached from the pool.
     address[] public tgeList;
 
-   
-
     /// @notice Token decimals
     /// @dev This parameter is mandatory for all ERC20 tokens and is set to 18 by default. It indicates the precision applied when calculating a particular token. It can also be said that 10 raised to the power of minus decimal is the minimum indivisible amount of the token.
     uint8 private _decimals;
@@ -63,6 +69,42 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
 
     mapping(address => address[]) public tseList;
 
+    bytes32 public compliance;
+
+    event Transferred(address account);
+
+    /// Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000
+    uint256 public partnerFee;
+
+    address public partnerAddress;
+
+    struct Dividend {
+        uint256 amount;
+        uint256 blockNumber;
+        address tokenAddress; // Address of the ERC20 token or address(0) for Ether
+    }
+
+    Dividend[] public dividends;
+
+    mapping(address => uint256) public lastDividendsClaimedIndex;
+
+    // Mapping to record failed dividend transfers
+    mapping(address => mapping(address => uint256)) public failedTransfers;
+
+    mapping(address => uint256) private totalClaimedDividends;
+
+    mapping(address => uint256) private lastRecordedBalance;
+
+    event DividendsDeposited(
+        address indexed depositor,
+        uint256 amount,
+        address tokenAddress
+    );
+    event DividendsClaimed(
+        address indexed claimant,
+        uint256 amount,
+        address tokenAddress
+    );
 
     // INITIALIZER AND CONSTRUCTOR
 
@@ -90,6 +132,7 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         TokenInfo memory info,
         address primaryTGE_
     ) external initializer {
+        __ReentrancyGuard_init();
         __ERC20Capped_init(info.cap);
 
         description = info.description;
@@ -106,6 +149,8 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         service = service_;
         pool = pool_;
     }
+
+    receive() external payable {}
 
     // RESTRICTED FUNCTIONS
 
@@ -154,6 +199,37 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
 
     function addTSE(address account, address tse) external onlyTGEFactory {
         tseList[account].push(tse);
+    }
+
+    function setCompliance(bytes32 compliance_) external {
+        require(
+            msg.sender == address(service.tgeFactory()) ||
+                service.hasRole(service.ADMIN_ROLE(), msg.sender) ||
+                service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender),
+            ExceptionsLibrary.NOT_SERVICE
+        );
+        compliance = compliance_;
+
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(IToken.setCompliance.selector, compliance_)
+        );
+    }
+
+    function setPartnerFee(
+        address _partnerAddress,
+        uint256 _partnerFee
+    ) external {
+        require(
+            msg.sender == address(service.tgeFactory()) ||
+                service.hasRole(service.ADMIN_ROLE(), msg.sender) ||
+                service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender),
+            ExceptionsLibrary.NOT_SERVICE
+        );
+        partnerFee = _partnerFee;
+        partnerAddress = _partnerAddress;
     }
 
     /**
@@ -351,6 +427,17 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
         address to,
         uint256 amount
     ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
+        emit Transferred(to);
+        require(
+            IIDRegistry(service.idRegistry()).isWhitelisted(from, compliance),
+            ExceptionsLibrary.NOT_WHITELISTED
+        );
+
+        require(
+            IIDRegistry(service.idRegistry()).isWhitelisted(to, compliance),
+            ExceptionsLibrary.NOT_WHITELISTED
+        );
+
         super._afterTokenTransfer(from, to, amount);
     }
 
@@ -442,6 +529,222 @@ contract Token is ERC20CappedUpgradeable, ERC20VotesUpgradeable, IToken {
                 tgeWithLockedTokensList.pop();
             }
         }
+    }
+
+    // DIVIDENDS BLOCK
+
+    /**
+     * @notice Deposits dividends in either Ether or ERC20 tokens.
+     * @dev Records the deposited amount and token address. For ERC20, the amount is transferred from the sender.
+     * @param tokenAddress The address of the ERC20 token, or address(0) for Ether.
+     * @param amount The amount of ERC20 tokens to deposit. For Ether deposits, this is ignored.
+     */
+    function depositDividends(
+        address tokenAddress,
+        uint256 amount
+    ) public payable nonReentrant {
+        uint256 depositAmount;
+        if (tokenAddress == address(0)) {
+            // Ether deposit
+            require(msg.value > 0, "No Ether to deposit");
+            depositAmount = msg.value;
+        } else {
+            // ERC20 token deposit
+            require(amount > 0, "Amount must be greater than 0");
+            uint256 balanceBefore = IERC20Upgradeable(tokenAddress).balanceOf(
+                address(this)
+            );
+            IERC20Upgradeable(tokenAddress).transferFrom(
+                msg.sender,
+                address(this),
+                amount
+            );
+            uint256 balanceAfter = IERC20Upgradeable(tokenAddress).balanceOf(
+                address(this)
+            );
+            depositAmount = balanceAfter - balanceBefore;
+            require(depositAmount == amount, "Deposit amount mismatch");
+        }
+
+        _addDividendsRecord(tokenAddress, depositAmount);
+    }
+
+    /**
+     * @dev Updates the dividend records by adding new deposits that have occurred since the last record update.
+     * This function is designed to be called by an admin to ensure that all recent deposits are accounted for in the dividend system.
+     * It calculates the new dividends based on the difference between the current balance and the last recorded balance.
+     * This function handles both Ether and ERC20 token dividends.
+     *
+     * @notice This function should be called by an admin to update the dividend records with recent deposits.
+     *
+     * @param tokenAddress The address of the ERC20 token, or address(0) for Ether. This is the token for which the dividend deposits are being updated.
+     *
+     * Requirements:
+     * - There must be new dividends to deposit, i.e., the current balance minus the last recorded balance must be greater than zero.
+     * - This function can only be called when no other function is being executed in the contract (nonReentrant).
+     */
+    function updateDividendDeposits(address tokenAddress) public nonReentrant {
+        uint256 currentBalance;
+        if (tokenAddress == address(0)) {
+            currentBalance = address(this).balance;
+        } else {
+            currentBalance = IERC20Upgradeable(tokenAddress).balanceOf(
+                address(this)
+            );
+        }
+
+        uint256 totalBalanceIncludingClaimed = currentBalance +
+            totalClaimedDividends[tokenAddress];
+        uint256 newDividends = totalBalanceIncludingClaimed -
+            lastRecordedBalance[tokenAddress];
+        require(newDividends > 0, "No new dividends to deposit");
+
+        // Update the last recorded balance
+        lastRecordedBalance[tokenAddress] = totalBalanceIncludingClaimed;
+
+        // Call _addDividendsRecord to handle the new dividends
+        _addDividendsRecord(tokenAddress, newDividends);
+    }
+
+    /**
+     * @dev Adds a record of deposited dividends to the contract's storage. This function is an internal utility used
+     * by other functions in the contract to record dividend deposits. It creates a new Dividend struct and adds it to
+     * the dividends array. This function is not meant to be called externally but is used internally to handle
+     * dividend deposits.
+     *
+     * @notice Internal function to record a new dividend deposit.
+     *
+     * @param tokenAddress The address of the ERC20 token for which dividends are being deposited, or address(0) for Ether.
+     * @param amount The amount of dividends being deposited. For Ether, this is the value sent with the transaction;
+     * for ERC20 tokens, this is the amount transferred to the contract.
+     *
+     * Emits a `DividendsDeposited` event indicating the depositor, the amount, and the token address.
+     */
+    function _addDividendsRecord(address tokenAddress, uint256 amount) private {
+        // Ensure that new dividends are not added in the same block as the last dividend
+        require(
+            dividends.length == 0 ||
+                dividends[dividends.length - 1].blockNumber != block.number,
+            "Cannot add dividends in the same block"
+        );
+
+        // Add new dividend record
+        dividends.push(
+            Dividend({
+                amount: amount,
+                blockNumber: block.number - 1,
+                tokenAddress: tokenAddress
+            })
+        );
+
+        // Log the dividend deposit
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IToken.depositDividends.selector,
+                tokenAddress,
+                amount
+            )
+        );
+
+        emit DividendsDeposited(msg.sender, amount, tokenAddress);
+    }
+
+    /**
+     * @notice Claims any dividends owed to the caller.
+     * @dev Calculates and transfers the owed dividends to the caller.
+     *      Records any failed transfer for a later retry.
+     */
+    function claimDividends() public nonReentrant {
+        uint256 totalClaimable = 0;
+        for (
+            uint256 i = lastDividendsClaimedIndex[msg.sender];
+            i < dividends.length;
+            i++
+        ) {
+            Dividend storage dividend = dividends[i];
+            uint256 balanceAtDividend = getPastVotes(
+                msg.sender,
+                dividend.blockNumber
+            );
+            uint256 claimable = (balanceAtDividend * dividend.amount) /
+                totalSupplyAt(dividend.blockNumber);
+            if (dividend.tokenAddress == address(0)) {
+                payable(msg.sender).transfer(claimable);
+                totalClaimable += claimable;
+            } else {
+                try
+                    IERC20Upgradeable(dividend.tokenAddress).transfer(
+                        msg.sender,
+                        claimable
+                    )
+                {
+                    totalClaimable += claimable;
+
+                    // Update total claimed dividends
+                    totalClaimedDividends[dividend.tokenAddress] += claimable;
+                } catch {
+                    // Record the failed transfer for a retry
+                    failedTransfers[msg.sender][
+                        dividend.tokenAddress
+                    ] += claimable;
+                }
+            }
+            lastDividendsClaimedIndex[msg.sender] = i + 1;
+        }
+        emit DividendsClaimed(msg.sender, totalClaimable, address(0));
+    }
+
+    /**
+     * @notice Allows a user to retry claiming dividends that previously failed to transfer.
+     * @param tokenAddress The address of the token for which to claim failed transfers.
+     */
+    function retryFailedTransfers(address tokenAddress) public nonReentrant {
+        uint256 amount = failedTransfers[msg.sender][tokenAddress];
+        require(amount > 0, "No failed transfers for this token");
+
+        // Attempt the transfer again
+        IERC20Upgradeable(tokenAddress).transfer(msg.sender, amount);
+
+        // Reset the failed transfer amount
+        failedTransfers[msg.sender][tokenAddress] = 0;
+    }
+
+    /**
+     * @notice Retrieves the total dividends owed to a shareholder.
+     * @param shareholder The address of the shareholder.
+     * @return totalOwed The total amount of dividends owed to the shareholder.
+     */
+    function getOwedDividends(
+        address shareholder
+    ) public view returns (uint256) {
+        uint256 totalOwed = 0;
+        for (
+            uint256 i = lastDividendsClaimedIndex[shareholder];
+            i < dividends.length;
+            i++
+        ) {
+            Dividend memory dividend = dividends[i];
+            uint256 balanceAtDividend = getPastVotes(
+                shareholder,
+                dividend.blockNumber
+            );
+            uint256 owed = (balanceAtDividend * dividend.amount) /
+                totalSupplyAt(dividend.blockNumber);
+            totalOwed += owed;
+        }
+        return totalOwed;
+    }
+
+    /**
+     * @notice Retrieves the total token supply at a given block number.
+     * @param blockNumber The block number to check the total supply at.
+     * @return The total token supply at the given block number.
+     */
+    function totalSupplyAt(uint256 blockNumber) public view returns (uint256) {
+        return getPastTotalSupply(blockNumber);
     }
 
     // MODIFIERS

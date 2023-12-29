@@ -517,11 +517,18 @@ contract Pool is
 
     /**
      * @dev Checks if an address is a pool secretary.
+     * This function determines if a given address is a pool secretary based on their roles and the status of the pool.
+     * If the pool is a DAO, it checks if the address is in the poolSecretary set. If the pool is not a DAO, it checks if the address is the owner.
+     *
      * @param account The address to check.
      * @return True if the address is a pool secretary, false otherwise.
      */
     function isPoolSecretary(address account) public view returns (bool) {
-        return isDAO() ? poolSecretary.contains(account) : false;
+        if (isDAO()) {
+            return poolSecretary.contains(account);
+        }
+
+        return account == owner();
     }
 
     /**

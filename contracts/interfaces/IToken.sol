@@ -88,4 +88,17 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
     function transfer(address to, uint256 amount) external returns (bool);
 
     function delegate(address delegatee) external;
+
+    function setCompliance(bytes32 compliance_) external;
+
+    function partnerFee() external view returns (uint256);
+
+    function partnerAddress() external view returns (address);
+
+    function depositDividends(
+        address tokenAddress,
+        uint256 amount
+    ) external payable;
+
+    function claimDividends() external;
 }

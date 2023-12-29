@@ -442,7 +442,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
         address token,
         uint256 tokenId,
         ITSE.TSEInfo calldata tseInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address recipient
     ) external nonReentrant whenNotPaused {
         uint256 tokenBalance;
         if (tokenId != 0) {
@@ -461,7 +462,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
 
         ITSE tse = _createTSE(metadataURI, _msgSender());
 
-        tse.initialize(address(service), token, tokenId, tseInfo , _msgSender());
+        tse.initialize(token, tokenId, tseInfo , _msgSender(), recipient);
 
         if (tokenId != 0) {
             ITokenERC1155(token).transfer(
@@ -488,12 +489,13 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
             0,
             abi.encodeWithSelector(
                 ITGEFactory.createTSE.selector,
-                address(service),
                 token,
                 tokenId,
-                tseInfo
+                tseInfo,
+                metadataURI
             )
         );
+
     }
 
     function getTrustedForwarder() public view override returns (address) {

@@ -27,7 +27,7 @@ const { getContractAt, getContract, getSigners } = ethers;
 const { parseUnits } = ethers.utils;
 const { AddressZero } = ethers.constants;
 
-describe("Test secondary TGE", function () {
+describe("Test secondary TSE", function () {
     let owner: SignerWithAddress,
         other: SignerWithAddress,
         second: SignerWithAddress,
@@ -71,6 +71,8 @@ describe("Test secondary TGE", function () {
             second.address,
             third.address,
         ];
+        createArgs[3].userWhitelistMin = [0,0,0,0];
+        createArgs[3].userWhitelistMax = [0,0,0,0];
         await service.purchasePool(
             createArgs[4],
             createArgs[5],
@@ -140,7 +142,7 @@ describe("Test secondary TGE", function () {
 
       
 
-        it.only("Can create TSE", async function () {
+        it("Can create TSE", async function () {
             
             await mineBlock(100);
             await tge.setLockupTVLReached();
@@ -162,7 +164,8 @@ describe("Test secondary TGE", function () {
                     duration: 20,
                     userWhitelist: [owner.address, other.address],
                 },
-                ""
+                "",
+                owner.address
               );
 
             let tseAddress = await token.tseList(owner.address,0)
@@ -171,14 +174,14 @@ describe("Test secondary TGE", function () {
 
             await tse.connect(other).purchase(amount.div(2), { value: parseUnits("1")});
 
-            console.log((await token.balanceOf(tseAddress)).toString());
-            console.log((await token.balanceOf(owner.address)).toString());
-            console.log(tseAddress)
+            // console.log((await token.balanceOf(tseAddress)).toString());
+            // console.log((await token.balanceOf(owner.address)).toString());
+            // console.log(tseAddress)
            
             await tse.finishTSE();
 
-            console.log((await token.balanceOf(tseAddress)).toString());
-            console.log((await token.balanceOf(owner.address)).toString());
+            // console.log((await token.balanceOf(tseAddress)).toString());
+            // console.log((await token.balanceOf(owner.address)).toString());
 
         });
 

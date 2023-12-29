@@ -30,6 +30,9 @@ task("deploy:service", "Deploy Service").setAction(async function (
     //Deploy customProposal
     const customProposal = await deployProxy("CustomProposal", [registry.address]);
 
+    //Deploy IDRegistry
+    const IDRegistry = await deployProxy("IDRegistry", [registry.address]);
+
     //Deploy Invoice
     const invoice = await deployProxy("Invoice", [registry.address]);
 
@@ -67,6 +70,10 @@ task("deploy:service", "Deploy Service").setAction(async function (
     
     await serviceContract.setInvoice(
         invoice.address
+    );
+
+    await serviceContract.setIdRegistry(
+        IDRegistry.address
     );
 
     await serviceContract.setTokenERC1155Beacon(

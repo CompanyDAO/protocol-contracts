@@ -38,6 +38,7 @@ interface ITGEFactory {
         address token,
         uint256 tokenId,
         ITSE.TSEInfo calldata tseInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address recipient
     ) external;
 }

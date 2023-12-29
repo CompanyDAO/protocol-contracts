@@ -18,6 +18,7 @@ import "./interfaces/registry/IRecordsRegistry.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IToken.sol";
+import "./interfaces/ITokenERC1155.sol";
 import "./libraries/ExceptionsLibrary.sol";
 
 /**
@@ -54,8 +55,7 @@ contract CustomProposal is
     modifier onlyForPool(address pool) {
         //check if pool registry record exists
         require(
-            registry.typeOf(pool) ==
-                IRecordsRegistry.ContractType.Pool,
+            registry.typeOf(pool) == IRecordsRegistry.ContractType.Pool,
             ExceptionsLibrary.NOT_POOL
         );
         _;
@@ -523,10 +523,127 @@ contract CustomProposal is
         return proposalId_;
     }
 
+     function proposeDividendDeposit(
+        address pool,
+        address tokenContract,
+        address tokenAddress, // Address(0) for Ether, ERC20 token address otherwise
+        uint256 amount,
+        string memory description,
+        string memory metaHash
+    ) external onlyForPool(pool) returns (uint256 proposalId) {
+        require(amount > 0, "Amount must be greater than 0");
+
+        // Prepare proposal action
+        address[] memory targets = new address[](1);
+        uint256[] memory values = new uint256[](1);
+        bytes[] memory callDatas = new bytes[](1);
+
+        if (tokenAddress == address(0)) {
+            // For Ether
+            targets[0] = tokenContract;
+            values[0] = amount;
+            callDatas[0] = abi.encodeWithSelector(
+                IToken.depositDividends.selector,
+                address(0),
+                amount
+            );
+        } else {
+            // For ERC20 Tokens
+            targets[0] = tokenContract;
+            values[0] = 0;
+            callDatas[0] = abi.encodeWithSelector(
+                IToken.depositDividends.selector,
+                tokenAddress,
+                amount
+            );
+        }
+
+        // Propose
+        uint256 proposalId_ = IPool(pool).propose(
+            _msgSender(),
+            5, // Custom proposal type for dividend deposits
+            IGovernor.ProposalCoreData({
+                targets: targets,
+                values: values,
+                callDatas: callDatas,
+                quorumThreshold: 0,
+                decisionThreshold: 0,
+                executionDelay: 0
+            }),
+            IGovernor.ProposalMetaData({
+                proposalType: IRecordsRegistry.EventType.Transfer,
+                description: description,
+                metaHash: metaHash
+            })
+        );
+
+        return proposalId_;
+    }
+
+
+    function proposeDividendDepositERC1155(
+        address pool,
+        address tokenContract,
+        uint256 tokenId,
+        address tokenAddress, // Address(0) for Ether, ERC20 token address otherwise
+        uint256 amount,
+        string memory description,
+        string memory metaHash
+    ) external onlyForPool(pool) returns (uint256 proposalId) {
+        require(amount > 0, "Amount must be greater than 0");
+
+        // Prepare proposal action
+        address[] memory targets = new address[](1);
+        uint256[] memory values = new uint256[](1);
+        bytes[] memory callDatas = new bytes[](1);
+
+        if (tokenAddress == address(0)) {
+            // For Ether
+            targets[0] = tokenContract;
+            values[0] = amount;
+            callDatas[0] = abi.encodeWithSelector(
+                ITokenERC1155.depositDividendsERC1155.selector,
+                tokenId,
+                address(0),
+                amount
+            );
+        } else {
+            // For ERC20 Tokens
+            targets[0] = tokenContract;
+            values[0] = 0;
+            callDatas[0] = abi.encodeWithSelector(
+                ITokenERC1155.depositDividendsERC1155.selector,
+                tokenId,
+                tokenAddress,
+                amount
+            );
+        }
+
+        // Propose
+        uint256 proposalId_ = IPool(pool).propose(
+            _msgSender(),
+            5, // Custom proposal type for dividend deposits
+            IGovernor.ProposalCoreData({
+                targets: targets,
+                values: values,
+                callDatas: callDatas,
+                quorumThreshold: 0,
+                decisionThreshold: 0,
+                executionDelay: 0
+            }),
+            IGovernor.ProposalMetaData({
+                proposalType: IRecordsRegistry.EventType.Transfer,
+                description: description,
+                metaHash: metaHash
+            })
+        );
+
+        return proposalId_;
+    }
+
     function getTrustedForwarder() public view override returns (address) {
         return IService(registry.service()).getTrustedForwarder();
     }
-
 
     function _msgSender()
         internal

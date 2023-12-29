@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/ITokenERC1155.sol";
@@ -17,53 +18,21 @@ import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/IPausable.sol";
 import "./utils/CustomContext.sol";
 
-/**
-    * @title Token Generation Event Contract
-    * @notice The Token Generation Event (TSE) is the cornerstone of everything related to tokens issued on the CompanyDAO protocol. TSE contracts contain the rules and deadlines for token distribution events and can influence the pool's operational activities even after they have ended.
-    The launch of the TSE event takes place simultaneously with the deployment of the contract, after which the option to purchase tokens becomes immediately available. Tokens purchased by a user can be partially or fully minted to the buyer's address and can also be placed in the vesting reserve either in full or for the remaining portion. Additionally, tokens acquired during the TSE and held in the buyer's balance may have their transfer functionality locked (the user owns, uses them as votes, delegates, but cannot transfer the tokens to another address).
-    * @dev TSE events differ by the type of tokens being distributed:
-    - Governance Token Generation Event
-    - Preference Token Generation Event
-    When deploying the TSE contract, among other arguments, the callData field contains the token field, which contains the address of the token contract that will interact with the TSE contract. The token type can be determined from the TokenType state variable of the token contract.
-    Differences between these types:
-    - Governance Token Generation Event involves charging a ProtocolTokenFee in the amount set in the Service:protocolTokenFee value (percentages in DENOM notation). This fee is collected through the transferFunds() transaction after the completion of the Governance token distribution event (the funds collected from buyers go to the pool balance, and the protocolTokenFee is minted and sent to the Service:protocolTreasury).
-    - Governance Token Generation Event has a mandatory minPurchase limit equal to the Service:protocolTokenFee (in the smallest indivisible token parts, taking into account Decimals and DENOM). This is done to avoid rounding conflicts or overcharges when calculating the fee for each issued token volume.
-    - In addition to being launched as a result of a proposal execution, a Governance Token Generation Event can be launched by the pool Owner as long as the pool has not acquired DAO status. Preference Token Generation Event can only be launched as a result of a proposal execution.
-    - A successful Governance Token Generation Event (see TSE states later) leads to the pool becoming a DAO if it didn't previously have that status.
-    @dev **TSE events differ by the number of previous launches:**
-    - primary TSE
-    - secondary TSE
-    As long as the sum of the totalSupply and the vesting reserve of the distributed token does not equal the cap, a TSE can be launched to issue some more of these tokens.
-    The first TSE for the distribution of any token is called primary, and all subsequent ones are called secondary.
-    Differences between these types:
-    - A transaction to launch a primary TSE involves the simultaneous deployment of the token contract, while a secondary TSE only works with an existing token contract.
-    - A secondary TSE does not have a softcap parameter, meaning that after at least one minPurchase of tokens, the TSE is considered successful.
-    - When validating the hardcap (i.e., the maximum possible number of tokens available for sale/distribution within the TSE) during the creation of a primary TSE, only a formal check is performed (hardcap must not be less than softcap and not greater than cap). For a secondary TSE, tokens that will be minted during vesting claims are also taken into account.
-    - In case of failure of a primary TSE for any token, that token is not considered to have any application within the protocol. It is no longer possible to conduct a TSE for such a token.
-    */
-
 contract TSE is
     Initializable,
     ReentrancyGuardUpgradeable,
     ITSE,
-    ERC2771Context
+    ERC2771Context,
+    ERC1155HolderUpgradeable
 {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     // CONSTANTS
 
-
-
-    /** 
-    * @notice Denominator for shares (such as thresholds)
-    * @dev The constant Service.sol:DENOM is used to work with percentage values of QuorumThreshold and DecisionThreshold thresholds, as well as for calculating the ProtocolTokenFee. In this version, it is equal to 1,000,000, for clarity stored as 100 * 10 ^ 4.
-    10^4 corresponds to one percent, and 100 * 10^4 corresponds to one hundred percent.
-    The value of 12.3456% will be written as 123,456, and 78.9% as 789,000.
-    This notation allows specifying ratios with an accuracy of up to four decimal places in percentage notation (six decimal places in decimal notation).
-    When working with the CompanyDAO frontend, the application scripts automatically convert the familiar percentage notation into the required format. When using the contracts independently, this feature of value notation should be taken into account.
-    */
     uint256 private constant DENOM = 100 * 10 ** 4;
+
+    address public recipient;
 
     address public seller;
 
@@ -112,18 +81,17 @@ contract TSE is
 
     /**
      * @dev Constructor function, can only be called once. In this method, settings for the TSE event are assigned, such as the contract of the token implemented using TSE, as well as the TSEInfo structure, which includes the parameters of purchase, vesting, and lockup. If no lockup or vesting conditions were set for the TVL value when creating the TSE, then the TVL achievement flag is set to true from the very beginning.
-     * @param _service Service contract
      * @param _token TSE's token
      * @param _tokenId TSE's tokenId
      * @param _tokenId ERC1155TSE's tokenId (token series)
      * @param _info TSE parameters
      */
     function initialize(
-        address _service,
         address _token,
         uint256 _tokenId,
         TSEInfo calldata _info,
-        address _seller
+        address _seller,
+        address _recipient
     ) external initializer {
         __ReentrancyGuard_init();
 
@@ -134,7 +102,9 @@ contract TSE is
 
         info = _info;
 
-        seller  = _seller;
+        seller = _seller;
+
+        recipient = _recipient;
 
         for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
             _isUserWhitelisted[_info.userWhitelist[i]] = true;
@@ -146,16 +116,6 @@ contract TSE is
     // PUBLIC FUNCTIONS
     receive() external payable {}
 
-    /**
-    * @notice This method is used for purchasing pool tokens.
-    * @dev Any blockchain address can act as a buyer (TSE contract user) of tokens if the following conditions are met:
-    - active event status (TSE.sol:state method returns the Active code value / "1")
-    - the event is public (TSE.sol:info.Whitelist is empty) or the user's address is on the whitelist of addresses admitted to the event
-    - the number of tokens purchased by the address is not less than TSE.sol:minPurchase (a common rule for all participants) and not more than TSE.sol:maxPurchaseOf(address) (calculated individually for each address)
-    The TSEInfo of each such event also contains settings for the order in which token buyers receive their purchases and from when and to what extent they can start managing them.
-    However, in any case, each address that made a purchase is mentioned in the TSE.sol:purchaseOf[] mapping. This record serves as proof of full payment for the purchase and confirmation of the buyer's status, even if as a result of the transaction, not a single token was credited to the buyer's address.
-    After each purchase transaction, TSE.sol:purchase calculates what part of the purchase should be issued and immediately transferred to the buyer's balance, and what part should be left as a reserve (records, not issued tokens) in vesting until the prescribed settings for unlocking these tokens occur.
-     */
     function purchase(
         uint256 amount
     )
@@ -169,29 +129,62 @@ contract TSE is
         // Check purchase price transfer depending on unit of account
         address unitOfAccount = info.unitOfAccount;
         uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
+        uint256 serviceFee = getServiceFee(purchasePrice);
+        uint256 partnerFee = getPartnerFee(purchasePrice);
+        uint256 balance = 0;
         if (unitOfAccount == address(0)) {
             require(
-                msg.value >= purchasePrice,
-                ExceptionsLibrary.INCORRECT_ETH_PASSED
+                msg.value >= purchasePrice + serviceFee + partnerFee,
+                ExceptionsLibrary.WRONG_AMOUNT
             );
-            (bool sent, bytes memory data) = payable(seller).call{value: msg.value}("");
-            require(sent, "Failed to send");
+            if (serviceFee != 0) {
+                payable(IToken(token).service().protocolTreasury()).sendValue(
+                    serviceFee
+                );
+            }
+            if (partnerFee != 0) {
+                payable(IToken(token).partnerAddress()).sendValue(partnerFee);
+            }
+            balance = address(this).balance;
+
+            if (recipient != address(0)) {
+                payable(recipient).sendValue(balance);
+            } else {
+                payable(seller).sendValue(balance);
+            }
         } else {
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
                 _msgSender(),
-                seller,
-                purchasePrice
+                address(this),
+                purchasePrice + serviceFee + partnerFee
             );
+
+            if (serviceFee != 0) {
+                IERC20Upgradeable(unitOfAccount).safeTransfer(
+                    IToken(token).service().protocolTreasury(),
+                    serviceFee
+                );
+            }
+            if (partnerFee != 0) {
+                IERC20Upgradeable(unitOfAccount).safeTransfer(
+                    IToken(token).partnerAddress(),
+                    partnerFee
+                );
+            }
+
+            balance = IERC20Upgradeable(unitOfAccount).balanceOf(address(this));
+            if (recipient != address(0)) {
+                IERC20Upgradeable(unitOfAccount).safeTransfer(
+                    recipient,
+                    balance
+                );
+            } else {
+                IERC20Upgradeable(unitOfAccount).safeTransfer(seller, balance);
+            }
         }
+
         this.proceedPurchase(_msgSender(), amount);
     }
-
-    /**
-     * @notice Executes a token purchase for a given account using fiat during the token generation event (TSE).
-     * @dev The function can only be called by an executor, when the contract state is active, the pool is not paused, and ensures no reentrancy.
-     * @param account The address of the account to execute the purchase for.
-     * @param amount The amount of tokens to be purchased.
-     */
 
     function externalPurchase(
         address account,
@@ -211,20 +204,22 @@ contract TSE is
         }
     }
 
-    function finishTSE()
-        external
-        whenPoolNotPaused
-    {
-        require(
-            _msgSender()==seller,
-            ExceptionsLibrary.INVALID_USER
-        );
+    function finishTSE() external whenPoolNotPaused {
+        require(_msgSender() == seller, ExceptionsLibrary.INVALID_USER);
         info.amount = totalPurchased;
-        
+
         if (isERC1155TSE()) {
-            ITokenERC1155(token).transfer(address(this), seller, tokenId, ITokenERC1155(token).balanceOf(address(this), tokenId));
+            ITokenERC1155(token).transfer(
+                address(this),
+                seller,
+                tokenId,
+                ITokenERC1155(token).balanceOf(address(this), tokenId)
+            );
         } else {
-            IToken(token).transfer( seller, IToken(token).balanceOf(address(this)));
+            IToken(token).transfer(
+                seller,
+                IToken(token).balanceOf(address(this))
+            );
         }
 
         IToken(token).service().registry().log(
@@ -240,10 +235,10 @@ contract TSE is
     function _refund(address account, uint256 amount) private {
         uint256 refundValue = (amount * info.price + (1 ether - 1)) / 1 ether;
         if (info.unitOfAccount == address(0)) {
-            payable(_msgSender()).sendValue(refundValue);
+            payable(account).sendValue(refundValue);
         } else {
             IERC20Upgradeable(info.unitOfAccount).safeTransfer(
-                _msgSender(),
+                account,
                 refundValue
             );
         }
@@ -266,24 +261,6 @@ contract TSE is
             );
     }
 
-    /**
-    * @notice A state of a Token Generation Event
-    * @dev A TSE event can be in one of the following states:
-    - Active
-    - Failed
-    - Successful
-    In TSEInfo, the three most important parameters used to determine the event's state are specified:
-    - hardcap - the maximum number of tokens that can be distributed during the event (the value is stored considering the token's Decimals)
-    - softcap - the minimum expected number of tokens that should be distributed during the event (the value is stored considering the token's Decimals)
-    - duration - the duration of the event (the number of blocks since the TSE deployment transaction)
-    A successful outcome of the event and the assignment of the "Successful" status to the TSE occurs if:
-    - no fewer than duration blocks have passed since the TSE launch, and no fewer than softcap tokens have been acquired
-    OR
-    - 100% of the hardcap tokens have been acquired at any point during the event
-    If no fewer than duration blocks have passed since the TSE launch and fewer than softcap tokens have been acquired, the event is considered "Failed".
-    If fewer than 100% of the hardcap tokens have been acquired, but fewer than duration blocks have passed since the TSE launch, the event is considered "Active".
-     * @return State code
-     */
     function state() public view returns (State) {
         // If hardcap is reached TSE is successfull
         if (totalPurchased == info.amount) {
@@ -310,6 +287,14 @@ contract TSE is
      */
     function getTotalPurchasedValue() public view returns (uint256) {
         return (totalPurchased * info.price) / 10 ** 18;
+    }
+
+    function getServiceFee(uint256 amount) public view returns (uint256) {
+        return (amount * IToken(token).service().serviceFee()) / DENOM;
+    }
+
+    function getPartnerFee(uint256 amount) public view returns (uint256) {
+        return (amount * IToken(token).partnerFee()) / DENOM;
     }
 
     /**
@@ -345,23 +330,10 @@ contract TSE is
         return createdAt + info.duration;
     }
 
-    /**
-    * @notice This method returns the immutable settings with which the TSE was launched.
-    * @dev The rules for conducting an event are defined in the TSEInfo structure, which is passed within the calldata when calling one of the TSEFactory contract functions responsible for launching the TSE. For more information about the structure, see the "Interfaces" section. The variables mentioned below should be understood as attributes of the TSEInfo structure.
-    A TSE can be public or private. To make the event public, simply leave the whitelist empty.
-    The TSE contract can act as an airdrop - a free token distribution. To do this, set the price value to zero.
-    To create a DAO with a finite number of participants, each of whom should receive an equal share of tokens, you can set the whitelist when launching the TSE as a list of the participants' addresses, and set both minPurchase and maxPurchase equal to the expression (hardcap / number of participants). To make the pool obtain DAO status only if the distribution is successful under such conditions for all project participants, you can set the softcap value equal to the hardcap. With these settings, the company will become a DAO only if all the initial participants have an equal voting power.
-    * @return The settings in the form of a TSEInfo structure
-    */
     function getInfo() external view returns (TSEInfo memory) {
         return info;
     }
 
-    /// @notice Determine if a purchase is valid for a specific account and amount.
-    /// @dev Returns true if the amount is within the permitted purchase range for the account.
-    /// @param account The address of the account to validate the purchase for.
-    /// @param amount The amount of the purchase to validate.
-    /// @return A boolean value indicating if the purchase is valid.
     function validatePurchase(
         address account,
         uint256 amount
@@ -387,10 +359,14 @@ contract TSE is
         purchaseOf[account] += amount;
 
         if (isERC1155TSE()) {
-
-            ITokenERC1155(token).transfer(address(this), account, tokenId, amount);
+            ITokenERC1155(token).transfer(
+                address(this),
+                account,
+                tokenId,
+                amount
+            );
         } else {
-            IToken(token).transfer( account, amount);
+            IToken(token).transfer(account, amount);
         }
 
         // Emit event

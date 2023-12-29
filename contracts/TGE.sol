@@ -42,7 +42,12 @@ import "./utils/CustomContext.sol";
     - In case of failure of a primary TGE for any token, that token is not considered to have any application within the protocol. It is no longer possible to conduct a TGE for such a token.
     */
 
-contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context {
+contract TGE is
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    ITGE,
+    ERC2771Context
+{
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -126,36 +131,11 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
     */
     IVesting public vesting;
 
-    // EVENTS
+    // Additional mappings for individual whitelist min/max purchases
+    mapping(address => uint256) public whitelistMin;
+    mapping(address => uint256) public whitelistMax;
 
-    /**
-     * @dev Event emitted upon successful purchase (or distribution if the token unit price is 0)
-     * @param buyer Address of the token recipient (buyer)
-     * @param amount Number of token units acquired
-     */
-    event Purchased(address buyer, uint256 amount);
-
-    /**
-     * @dev Event emitted after successful claiming of the protocol fee
-     * @param token Address of the token contract
-     * @param tokenFee Amount of tokens transferred as payment for the protocol fee
-     */
-    event ProtocolTokenFeeClaimed(address token, uint256 tokenFee);
-
-    /**
-     * @dev Event emitted upon redeeming tokens in case of a failed TGE.
-     * @param account Redeemer address
-     * @param refundValue Refund value
-     */
-    event Redeemed(address account, uint256 refundValue);
-
-    /**
-     * @dev Event emitted upon transferring the raised funds to the pool contract address.
-     * @param amount Amount of tokens/ETH transferred
-     */
-    event FundsTransferred(uint256 amount);
-
-    event Refund(address account, uint256 amount);
+   
 
     // INITIALIZER AND CONSTRUCTOR
 
@@ -216,13 +196,14 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
         vesting = IService(_service).vesting();
         token = _token;
 
-        
         protocolFee = _protocolFee;
         info = _info;
         lockupTVLReached = (_info.lockupTVL == 0);
 
         for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
             _isUserWhitelisted[_info.userWhitelist[i]] = true;
+            whitelistMin[_info.userWhitelist[i]] = _info.userWhitelistMin[i];
+            whitelistMax[_info.userWhitelist[i]] = _info.userWhitelistMax[i];
         }
 
         createdAt = block.number;
@@ -253,59 +234,62 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
     {
         // Check purchase price transfer depending on unit of account
         address unitOfAccount = info.unitOfAccount;
+
         uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
+        uint256 serviceFee = getServiceFee(purchasePrice);
+        uint256 partnerFee = getPartnerFee(purchasePrice);
+
         if (unitOfAccount == address(0)) {
             require(
-                msg.value >= purchasePrice,
+                msg.value >= purchasePrice + serviceFee + partnerFee,
                 ExceptionsLibrary.INCORRECT_ETH_PASSED
             );
         } else {
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
                 _msgSender(),
                 address(this),
-                purchasePrice
+                purchasePrice + serviceFee + partnerFee
             );
         }
         this.proceedPurchase(_msgSender(), amount);
     }
 
-    /**
-     * @notice Executes a token purchase for a given account using fiat during the token generation event (TGE).
-     * @dev The function can only be called by an executor, when the contract state is active, the pool is not paused, and ensures no reentrancy.
-     * @param account The address of the account to execute the purchase for.
-     * @param amount The amount of tokens to be purchased.
-     */
+    // /**
+    //  * @notice Executes a token purchase for a given account using fiat during the token generation event (TGE).
+    //  * @dev The function can only be called by an executor, when the contract state is active, the pool is not paused, and ensures no reentrancy.
+    //  * @param account The address of the account to execute the purchase for.
+    //  * @param amount The amount of tokens to be purchased.
+    //  */
 
-    function externalPurchase(
-        address account,
-        uint256 amount
-    )
-        external
-        onlyManager
-        onlyState(State.Active)
-        nonReentrant
-        whenPoolNotPaused
-    {
-        try this.proceedPurchase(account, amount) {
-            return;
-        } catch {
-            _refund(account, amount);
-            return;
-        }
-    }
+    // function externalPurchase(
+    //     address account,
+    //     uint256 amount
+    // )
+    //     external
+    //     onlyManager
+    //     onlyState(State.Active)
+    //     nonReentrant
+    //     whenPoolNotPaused
+    // {
+    //     try this.proceedPurchase(account, amount) {
+    //         return;
+    //     } catch {
+    //         _refund(account, amount);
+    //         return;
+    //     }
+    // }
 
-    function _refund(address account, uint256 amount) private {
-        uint256 refundValue = (amount * info.price + (1 ether - 1)) / 1 ether;
-        if (info.unitOfAccount == address(0)) {
-            payable(_msgSender()).sendValue(refundValue);
-        } else {
-            IERC20Upgradeable(info.unitOfAccount).safeTransfer(
-                _msgSender(),
-                refundValue
-            );
-        }
-        emit Refund(account, amount);
-    }
+    // function _refund(address account, uint256 amount) private {
+    //     uint256 refundValue = (amount * info.price + (1 ether - 1)) / 1 ether;
+    //     if (info.unitOfAccount == address(0)) {
+    //         payable(account).sendValue(refundValue);
+    //     } else {
+    //         IERC20Upgradeable(info.unitOfAccount).safeTransfer(
+    //             account,
+    //             refundValue
+    //         );
+    //     }
+    // }
 
     /**
     * @notice Redeem acquired tokens with a refund of the spent assets.
@@ -368,7 +352,11 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
             purchaseOf[_msgSender()] -= balanceToRedeem;
             refundAmount += balanceToRedeem;
             if (isERC1155TGE()) {
-                ITokenERC1155(token).burn(_msgSender(), tokenId, balanceToRedeem);
+                ITokenERC1155(token).burn(
+                    _msgSender(),
+                    tokenId,
+                    balanceToRedeem
+                );
             } else {
                 IToken(token).burn(_msgSender(), balanceToRedeem);
             }
@@ -377,9 +365,16 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
         // Check that there is anything to refund
         require(refundAmount > 0, ExceptionsLibrary.NOTHING_TO_REDEEM);
 
+        uint256 serviceFeeAmount = getServiceFee(refundAmount);
+        uint256 partnerFeeAmount = getPartnerFee(refundAmount);
+
         // Transfer refund value
-        uint256 refundValue = (refundAmount * info.price + (1 ether - 1)) /
-            1 ether;
+        uint256 refundValue = ((refundAmount +
+            serviceFeeAmount +
+            partnerFeeAmount) *
+            info.price +
+            (1 ether - 1)) / 1 ether;
+
         if (info.unitOfAccount == address(0)) {
             payable(_msgSender()).sendValue(refundValue);
         } else {
@@ -405,9 +400,6 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
                 );
             }
         }
-
-        // Emit event
-        emit Redeemed(_msgSender(), refundValue);
     }
 
     /// @dev Set the flag that the condition for achieving the pool balance of the value specified in the lockup settings is met. The action is irreversible.
@@ -449,19 +441,43 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
 
         uint256 balance = 0;
         if (info.price != 0) {
+            uint256 totalPurchasedValue = getTotalPurchasedValue();
+
+            uint256 serviceFee = getServiceFee(totalPurchasedValue);
+            uint256 partnerFee = getPartnerFee(totalPurchasedValue);
+
             if (unitOfAccount == address(0)) {
+                if (serviceFee != 0) {
+                    payable(IToken(token).service().protocolTreasury())
+                        .sendValue(serviceFee);
+                }
+                if (partnerFee != 0) {
+                    payable(IToken(token).partnerAddress()).sendValue(
+                        partnerFee
+                    );
+                }
                 balance = address(this).balance;
                 payable(pool).sendValue(balance);
             } else {
+                if (serviceFee != 0) {
+                    IERC20Upgradeable(unitOfAccount).safeTransfer(
+                        IToken(token).service().protocolTreasury(),
+                        serviceFee
+                    );
+                }
+                if (partnerFee != 0) {
+                    IERC20Upgradeable(unitOfAccount).safeTransfer(
+                        IToken(token).partnerAddress(),
+                        partnerFee
+                    );
+                }
+
                 balance = IERC20Upgradeable(unitOfAccount).balanceOf(
                     address(this)
                 );
                 IERC20Upgradeable(unitOfAccount).safeTransfer(pool, balance);
             }
         }
-
-        // Emit event
-        emit FundsTransferred(balance);
 
         IToken(token).service().registry().log(
             _msgSender(),
@@ -514,26 +530,98 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
                 );
             }
         }
+    }
 
-        // Emit event
-        emit ProtocolTokenFeeClaimed(token, tokenFee);
+    /**
+     * @dev Sets the whitelist and individual min/max purchase limits for each account.
+     * @param accounts Array of addresses to be whitelisted
+     * @param mins Array of minimum purchase amounts corresponding to each whitelisted address
+     * @param maxs Array of maximum purchase amounts corresponding to each whitelisted address
+     */
+    function setWhitelist(
+        address[] memory accounts,
+        uint256[] memory mins,
+        uint256[] memory maxs
+    ) external onlyState(State.Active) onlyWhitelistAdmin {
+        require(
+            accounts.length == mins.length && accounts.length == maxs.length,
+            "Array lengths must match"
+        );
+
+        // Reset current whitelist
+        for (uint256 i = 0; i < info.userWhitelist.length; i++) {
+            _isUserWhitelisted[info.userWhitelist[i]] = false;
+            whitelistMin[info.userWhitelist[i]] = 0;
+            whitelistMax[info.userWhitelist[i]] = 0;
+        }
+
+        // Set new whitelist and individual min/max limits
+        info.userWhitelist = accounts;
+        for (uint256 i = 0; i < accounts.length; i++) {
+            address account = accounts[i];
+            _isUserWhitelisted[account] = true;
+            whitelistMin[account] = mins[i];
+            whitelistMax[account] = maxs[i];
+        }
+
+        IToken(token).service().registry().log(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                ITGE.setWhitelist.selector,
+                accounts,
+                mins,
+                maxs
+            )
+        );
+    }
+
+    function finishTGE() external onlyState(State.Active) onlyWhitelistAdmin {
+        info.duration = block.number - createdAt;
+        IToken(token).service().registry().log(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(ITGE.finishTGE.selector)
+        );
     }
 
     // VIEW FUNCTIONS
 
     /**
-     * @dev Shows the maximum possible number of tokens to be purchased by a specific address, taking into account whether the user is on the white list and 0 what amount of purchases he made within this TGE.
-     * @return Amount of tokens
+     * @dev Shows the maximum possible number of tokens to be purchased by a specific address, taking into account whether the user is on the white list and what amount of purchases he made within this TGE.
+     * @param account Address of the buyer
+     * @return Amount of tokens that can be purchased
      */
     function maxPurchaseOf(address account) public view returns (uint256) {
         if (!isUserWhitelisted(account)) {
             return 0;
         }
-        return
-            MathUpgradeable.min(
-                info.maxPurchase - purchaseOf[account],
-                info.hardcap - totalPurchased
-            );
+
+        // Use individual whitelist limits if they are set; otherwise, use global limits
+        uint256 individualMaxPurchase = whitelistMax[account];
+        if (individualMaxPurchase == 0) {
+            individualMaxPurchase = info.maxPurchase;
+        }
+
+        uint256 remainingGlobalCap = info.hardcap - totalPurchased;
+        uint256 remainingIndividualCap = individualMaxPurchase -
+            purchaseOf[account];
+
+        return MathUpgradeable.min(remainingGlobalCap, remainingIndividualCap);
+    }
+
+    /**
+     * @dev Returns the minimum purchase amount for a specific account.
+     * If a specific minimum is set for the account on the whitelist, it returns that value;
+     * otherwise, it returns the global minimum purchase amount.
+     * @param account The address to check the minimum purchase amount for.
+     * @return The minimum purchase amount for the given account.
+     */
+    function minPurchaseOf(address account) public view returns (uint256) {
+        uint256 specificMin = whitelistMin[account];
+        return specificMin > 0 ? specificMin : info.minPurchase;
     }
 
     /**
@@ -718,6 +806,14 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
         return (amount * protocolFee + (DENOM - 1)) / DENOM;
     }
 
+    function getServiceFee(uint256 amount) public view returns (uint256) {
+        return (amount * IToken(token).service().serviceFee()) / DENOM;
+    }
+
+    function getPartnerFee(uint256 amount) public view returns (uint256) {
+        return (amount * IToken(token).partnerFee()) / DENOM;
+    }
+
     /// @notice Determine if a purchase is valid for a specific account and amount.
     /// @dev Returns true if the amount is within the permitted purchase range for the account.
     /// @param account The address of the account to validate the purchase for.
@@ -727,7 +823,33 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
         address account,
         uint256 amount
     ) public view returns (bool) {
-        return amount >= info.minPurchase && amount <= maxPurchaseOf(account);
+        return
+            amount >= minPurchaseOf(account) &&
+            amount <= maxPurchaseOf(account);
+    }
+
+    // // Additional functions to get arrays of whitelists, mins, and maxs
+
+    /**
+     * @dev Returns an array of minimum purchase amounts for each whitelisted address.
+     * @return An array of minimum purchase amounts corresponding to each whitelisted address.
+     */
+    function getWhitelistMinMax()
+        external
+        view
+        returns (uint256[] memory, uint256[] memory)
+    {
+        uint256 length = info.userWhitelist.length;
+        uint256[] memory mins = new uint256[](length);
+        uint256[] memory max = new uint256[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            address whitelistedAddress = info.userWhitelist[i];
+            mins[i] = whitelistMin[whitelistedAddress];
+            max[i] = whitelistMax[whitelistedAddress];
+        }
+
+        return (mins, max);
     }
 
     //PRIVATE FUNCTIONS
@@ -795,8 +917,7 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
             }
         }
 
-        // Emit event
-        emit Purchased(account, amount);
+        
 
         IToken(token).service().registry().log(
             account,
@@ -833,6 +954,15 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
         _;
     }
 
+    modifier onlyWhitelistAdmin() {
+        require(
+            _msgSender() == info.whitelistAdmin ||
+                IPausable(IToken(token).pool()).isPoolSecretary(_msgSender()),
+            ExceptionsLibrary.INVALID_USER
+        );
+        _;
+    }
+
     /// @notice Modifier that allows the method to be called only if the pool associated with the event is not in a paused state.
     modifier whenPoolNotPaused() {
         require(
@@ -854,8 +984,9 @@ contract TGE is Initializable, ReentrancyGuardUpgradeable, ITGE , ERC2771Context
     function getTrustedForwarder() public view override returns (address) {
         return IToken(token).service().getTrustedForwarder();
     }
-     function _msgSender() internal view override returns (address sender) {
-       return super._msgSender();
+
+    function _msgSender() internal view override returns (address sender) {
+        return super._msgSender();
     }
 
     function _msgData() internal view override returns (bytes calldata) {
