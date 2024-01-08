@@ -129,6 +129,7 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
 
         _setCompanyInfoForPool(
             address(companyAddress),
+            _info.fee,
             _info.jurisdiction,
             _info.entityType,
             _info.ein,
@@ -269,12 +270,6 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         return companyAddress;
     }
 
-     //todo remove method
-    function setIndexAddress(uint256 index, address poolAddress) external onlyRole(COMPANIES_MANAGER_ROLE) {
-
-        _setIndexAddress(index,  poolAddress);
-    }
-
     function _setIndexAddress(
         uint256 index,
         address poolAddress
@@ -292,6 +287,7 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
      */
     function _setCompanyInfoForPool(
         address _pool,
+        uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
         string memory _ein,
@@ -304,6 +300,7 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
         );
 
         IPool(_pool).setCompanyInfo(
+            _fee,
             _jurisdiction,
             _entityType,
             _ein,

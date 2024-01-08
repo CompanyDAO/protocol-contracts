@@ -57,6 +57,8 @@ describe("Test Registry", function () {
             third.address,
         ];
 
+        createArgs[3].userWhitelistMin = [0,0,0,0];
+        createArgs[3].userWhitelistMax = [0,0,0,0];
         await service.purchasePool(
             createArgs[4],
             createArgs[5],

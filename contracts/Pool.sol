@@ -84,7 +84,6 @@ contract Pool is
     /// @dev Operating Agreement Url
     string public OAurl;
 
-
     // EVENTS
 
     // MODIFIER
@@ -143,10 +142,7 @@ contract Pool is
         string memory trademark_,
         NewGovernanceSettings memory governanceSettings_
     ) external onlyService {
-        require(
-            bytes(trademark).length == 0,
-            ExceptionsLibrary.ALREADY_SET
-        );
+        require(bytes(trademark).length == 0, ExceptionsLibrary.ALREADY_SET);
         _transferOwnership(address(newowner));
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
@@ -213,6 +209,7 @@ contract Pool is
      * @param _OAuri Operating Agreement URL
      */
     function setCompanyInfo(
+        uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
         string memory _ein,
@@ -226,6 +223,7 @@ contract Pool is
         companyInfo.jurisdiction = _jurisdiction;
         companyInfo.entityType = _entityType;
         companyInfo.ein = _ein;
+        companyInfo.fee = _fee;
         companyInfo.dateOfIncorporation = _dateOfIncorporation;
         OAurl = _OAuri;
     }
@@ -247,7 +245,7 @@ contract Pool is
         uint256 proposalId,
         bool support
     ) external nonReentrant whenNotPaused {
-        _castVote(proposalId, support);
+        _castVote(msg.sender, proposalId, support);
 
         service.registry().log(
             msg.sender,
@@ -255,6 +253,14 @@ contract Pool is
             0,
             abi.encodeWithSelector(IPool.castVote.selector, proposalId, support)
         );
+    }
+
+    function externalCastVote(
+        address account,
+        uint256 proposalId,
+        bool support
+    ) external whenNotPaused onlyService {
+        _castVote(account, proposalId, support);
     }
 
     // RESTRICTED PUBLIC FUNCTIONS
@@ -324,9 +330,9 @@ contract Pool is
      * @dev Cancel a proposal, callable only by the Service contract.
      * @param proposalId Proposal ID
      */
-    function cancelProposal(uint256 proposalId) external onlyService {
-        _cancelProposal(proposalId);
-    }
+    // function cancelProposal(uint256 proposalId) external onlyService {
+    //     _cancelProposal(proposalId);
+    // }
 
     /**
      * @dev Creating a proposal and assigning it a unique identifier to store in the list of proposals in the Governor contract.
@@ -386,8 +392,26 @@ contract Pool is
         uint256 amount,
         address unitOfAccount
     ) external onlyOwner {
+         require(!isDAO(), ExceptionsLibrary.IS_DAO);
+        _transferByOwner(to, amount, unitOfAccount);
+    }
+
+    function externalTransferByOwner(
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) external onlyService {
+         require(!isDAO(), ExceptionsLibrary.IS_DAO);
+        _transferByOwner(to, amount, unitOfAccount);
+    }
+
+    function _transferByOwner(
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) internal {
         //only if pool is yet DAO
-        require(!isDAO(), ExceptionsLibrary.IS_DAO);
+       
 
         if (unitOfAccount == address(0)) {
             require(
@@ -493,11 +517,18 @@ contract Pool is
 
     /**
      * @dev Checks if an address is a pool secretary.
+     * This function determines if a given address is a pool secretary based on their roles and the status of the pool.
+     * If the pool is a DAO, it checks if the address is in the poolSecretary set. If the pool is not a DAO, it checks if the address is the owner.
+     *
      * @param account The address to check.
      * @return True if the address is a pool secretary, false otherwise.
      */
     function isPoolSecretary(address account) public view returns (bool) {
-        return isDAO() ? poolSecretary.contains(account) : false;
+        if (isDAO()) {
+            return poolSecretary.contains(account);
+        }
+
+        return account == owner();
     }
 
     /**
@@ -516,10 +547,12 @@ contract Pool is
      */
     function isValidProposer(address account) public view returns (bool) {
         uint256 currentVotes = _getCurrentVotes(account);
-        bool isValid = currentVotes > 0 &&
-            (currentVotes > proposalThreshold ||
-                isPoolSecretary(account) ||
-                service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender));
+        bool isValid = service.hasRole(
+            service.SERVICE_MANAGER_ROLE(),
+            msg.sender
+        ) ||
+            isPoolSecretary(account) ||
+            (_getCurrentVotes(account) > 0 && currentVotes > proposalThreshold);
         return isValid;
     }
 

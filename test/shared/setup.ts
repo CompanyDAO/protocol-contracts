@@ -29,7 +29,10 @@ export async function setup() {
         await registry.COMPANIES_MANAGER_ROLE(),
         owner.address
     );
-
+    await service.grantRole(
+        await service.ADMIN_ROLE(),
+        owner.address
+    );
     await service.grantRole(
         await service.EXECUTOR_ROLE(),
         owner.address

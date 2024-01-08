@@ -22,6 +22,25 @@
         "inputs": [
             {
                 "indexed": true,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
                 "internalType": "bytes32",
                 "name": "role",
                 "type": "bytes32"
@@ -168,6 +187,19 @@
         "type": "function"
     },
     {
+        "inputs": [],
+        "name": "getTrustedForwarder",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
                 "internalType": "bytes32",
@@ -210,10 +242,48 @@
         "type": "function"
     },
     {
-        "inputs": [],
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "registry_",
+                "type": "address"
+            }
+        ],
         "name": "initialize",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "forwarder",
+                "type": "address"
+            }
+        ],
+        "name": "isTrustedForwarder",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -250,6 +320,99 @@
             }
         ],
         "name": "proposeCustomTx",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "proposalId",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "tokenContract",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "tokenAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "metaHash",
+                "type": "string"
+            }
+        ],
+        "name": "proposeDividendDeposit",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "proposalId",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "pool",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "tokenContract",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "tokenId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "tokenAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "metaHash",
+                "type": "string"
+            }
+        ],
+        "name": "proposeDividendDepositERC1155",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -509,6 +672,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -522,6 +695,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -699,6 +877,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -712,6 +900,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -827,6 +1020,26 @@
         "type": "function"
     },
     {
+        "inputs": [],
+        "name": "registry",
+        "outputs": [
+            {
+                "internalType": "contract IRegistry",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
                 "internalType": "bytes32",
@@ -863,32 +1076,6 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "service",
-        "outputs": [
-            {
-                "internalType": "contract IService",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "service_",
-                "type": "address"
-            }
-        ],
-        "name": "setService",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
         "inputs": [
             {
                 "internalType": "bytes4",
@@ -905,6 +1092,19 @@
             }
         ],
         "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
     }
 ]

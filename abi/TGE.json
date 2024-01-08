@@ -9,101 +9,12 @@
         "inputs": [
             {
                 "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "FundsTransferred",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
                 "internalType": "uint8",
                 "name": "version",
                 "type": "uint8"
             }
         ],
         "name": "Initialized",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "token",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "tokenFee",
-                "type": "uint256"
-            }
-        ],
-        "name": "ProtocolTokenFeeClaimed",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "buyer",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "Purchased",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "refundValue",
-                "type": "uint256"
-            }
-        ],
-        "name": "Redeemed",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "Refund",
         "type": "event"
     },
     {
@@ -120,19 +31,8 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "externalPurchase",
+        "inputs": [],
+        "name": "finishTGE",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -239,6 +139,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -252,6 +162,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -270,7 +185,45 @@
                 "type": "uint256"
             }
         ],
+        "name": "getPartnerFee",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
         "name": "getProtocolTokenFee",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "getServiceFee",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -309,12 +262,43 @@
     },
     {
         "inputs": [],
+        "name": "getTrustedForwarder",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "getUserWhitelist",
         "outputs": [
             {
                 "internalType": "address[]",
                 "name": "",
                 "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getWhitelistMinMax",
+        "outputs": [
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
             }
         ],
         "stateMutability": "view",
@@ -415,6 +399,11 @@
                 "internalType": "uint256",
                 "name": "lockupTVL",
                 "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "whitelistAdmin",
+                "type": "address"
             }
         ],
         "stateMutability": "view",
@@ -527,6 +516,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -540,6 +539,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -573,6 +577,25 @@
     {
         "inputs": [],
         "name": "isProtocolTokenFeeClaimed",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "forwarder",
+                "type": "address"
+            }
+        ],
+        "name": "isTrustedForwarder",
         "outputs": [
             {
                 "internalType": "bool",
@@ -643,6 +666,25 @@
             }
         ],
         "name": "maxPurchaseOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "minPurchaseOf",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -745,6 +787,29 @@
     {
         "inputs": [],
         "name": "setLockupTVLReached",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "mins",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "maxs",
+                "type": "uint256[]"
+            }
+        ],
+        "name": "setWhitelist",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -915,5 +980,47 @@
         ],
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "whitelistMax",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "whitelistMin",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "receive"
     }
 ]

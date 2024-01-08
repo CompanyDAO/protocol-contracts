@@ -5,6 +5,9 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/ERC1155SupplyUpgradeable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "./utils/ERC1155Snapshot.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/ITokenERC1155.sol";
 import "./interfaces/IToken.sol";
@@ -12,12 +15,18 @@ import "./interfaces/ITGE.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
-
+import "./interfaces/IIDRegistry.sol";
 import "./interfaces/IPausable.sol";
 
 /// @title Company (Pool) Token
 /// @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
-contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
+contract TokenERC1155 is
+    ERC1155SupplyUpgradeable,
+    ERC1155SnapshotUpgradeable,
+    ITokenERC1155,
+    ReentrancyGuardUpgradeable
+{
+    using EnumerableMap for EnumerableMap.UintToUintMap;
     /// @dev The address of the Service contract
     IService public service;
 
@@ -63,6 +72,42 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
     /// @dev Mapping storing the amounts of tokens reserved as protocol fees for each collection of this token
     mapping(uint256 => uint256) private totalProtocolFeeReserved;
 
+    mapping(uint256 => mapping(address => address[])) public tseList;
+
+    bytes32 public compliance;
+
+    /// Examples: 1% = 10000, 100% = 1000000, 0.1% = 1000
+    uint256 public partnerFee;
+
+    address public partnerAddress;
+
+    struct Dividend {
+        uint256 tokenId;
+        uint256 amount;
+        uint256 snapshotId;
+        address tokenAddress;
+    }
+
+    Dividend[] public dividends;
+    mapping(address => mapping(uint256 => uint256))
+        public lastDividendsClaimedIndex;
+
+    // Mapping to record failed dividend transfers for ERC1155 tokens
+    mapping(uint256 => mapping(address => mapping(address => uint256)))
+        public failedERC1155Transfers;
+
+    event DividendsDeposited(
+        address indexed depositor,
+        uint256 amount,
+        address tokenAddress,
+        uint256 tokenId
+    );
+    event DividendsClaimed(
+        address indexed claimant,
+        uint256 amount,
+        uint256 tokenId
+    );
+
     // INITIALIZER AND CONSTRUCTOR
 
     /**
@@ -89,6 +134,7 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
         IToken.TokenInfo memory _info,
         address _primaryTGE
     ) external initializer {
+        __ReentrancyGuard_init();
         __ERC1155Supply_init();
         name = _info.name;
         symbol = _info.symbol;
@@ -100,6 +146,8 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
         service = _service;
         pool = _pool;
     }
+
+    receive() external payable {}
 
     // RESTRICTED FUNCTIONS
 
@@ -149,6 +197,46 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
     function addTGE(address tge, uint256 tokenId) external onlyTGEFactory {
         tgeList[tokenId].push(tge);
         tgeWithLockedTokensList[tokenId].push(tge);
+    }
+
+    function addTSE(
+        address account,
+        uint256 tokenId,
+        address tse
+    ) external onlyTGEFactory {
+        tseList[tokenId][account].push(tse);
+    }
+
+    function setCompliance(bytes32 compliance_) external {
+        require(
+            msg.sender == address(service.tgeFactory()) ||
+                service.hasRole(service.ADMIN_ROLE(), msg.sender),
+            ExceptionsLibrary.NOT_SERVICE
+        );
+        compliance = compliance_;
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                ITokenERC1155.setCompliance.selector,
+                compliance_
+            )
+        );
+    }
+
+    function setPartnerFee(
+        address _partnerAddress,
+        uint256 _partnerFee
+    ) external {
+        require(
+            msg.sender == address(service.tgeFactory()) ||
+                service.hasRole(service.ADMIN_ROLE(), msg.sender) ||
+                service.hasRole(service.SERVICE_MANAGER_ROLE(), msg.sender),
+            ExceptionsLibrary.NOT_SERVICE
+        );
+        partnerFee = _partnerFee;
+        partnerAddress = _partnerAddress;
     }
 
     /**
@@ -391,8 +479,18 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
         uint256[] memory ids,
         uint256[] memory amounts,
         bytes memory data
-    ) internal override {
+    ) internal override(ERC1155SnapshotUpgradeable, ERC1155SupplyUpgradeable) {
         super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
+        require(
+            IIDRegistry(service.idRegistry()).isWhitelisted(from, compliance),
+            ExceptionsLibrary.NOT_WHITELISTED
+        );
+
+        require(
+            IIDRegistry(service.idRegistry()).isWhitelisted(to, compliance),
+            ExceptionsLibrary.NOT_WHITELISTED
+        );
+
         if (from != address(0)) {
             for (uint256 i = 0; i < ids.length; ++i) {
                 // Update list of TGEs with locked tokens
@@ -453,6 +551,162 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
         }
     }
 
+    // DIVIDENDS BLOCK
+    /**
+     * @notice Deposits dividends for a specific ERC1155 token ID.
+     * @param tokenId The ERC1155 token ID for which dividends are being deposited.
+     * @param tokenAddress The address of the ERC20 token, or address(0) for Ether.
+     * @param amount The amount of ERC20 tokens to deposit. For Ether deposits, this is ignored.
+     */
+    function depositDividendsERC1155(
+        uint256 tokenId,
+        address tokenAddress,
+        uint256 amount
+    ) public payable nonReentrant {
+        uint256 depositAmount;
+        if (tokenAddress == address(0)) {
+            require(msg.value > 0, "No Ether to deposit");
+            depositAmount = msg.value;
+        } else {
+            require(amount > 0, "Amount must be greater than 0");
+            uint256 balanceBefore = IERC20Upgradeable(tokenAddress).balanceOf(
+                address(this)
+            );
+            IERC20Upgradeable(tokenAddress).transferFrom(
+                msg.sender,
+                address(this),
+                amount
+            );
+            uint256 balanceAfter = IERC20Upgradeable(tokenAddress).balanceOf(
+                address(this)
+            );
+            depositAmount = balanceAfter - balanceBefore;
+            require(depositAmount == amount, "Deposit amount mismatch");
+        }
+
+        uint256 currentSnapshotId = _snapshot(); // Snapshot is taken at deposit
+        dividends.push(
+            Dividend({
+                tokenId: tokenId,
+                amount: depositAmount,
+                snapshotId: currentSnapshotId,
+                tokenAddress: tokenAddress
+            })
+        );
+
+        service.registry().log(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                ITokenERC1155.depositDividendsERC1155.selector,
+                tokenId,
+                tokenAddress,
+                depositAmount
+            )
+        );
+
+        emit DividendsDeposited(
+            msg.sender,
+            depositAmount,
+            tokenAddress,
+            tokenId
+        );
+    }
+
+    /**
+     * @notice Claims any dividends owed to the caller for a specific ERC1155 token ID.
+     * @param tokenId The ERC1155 token ID for which dividends are being claimed.
+     */
+    function claimDividendsERC1155(uint256 tokenId) public nonReentrant {
+        uint256 totalClaimable = 0;
+        uint256 lastIndex = lastDividendsClaimedIndex[msg.sender][tokenId];
+        for (uint256 i = lastIndex; i < dividends.length; i++) {
+            Dividend storage dividend = dividends[i];
+            if (dividend.tokenId != tokenId) continue;
+
+            uint256 balanceAtDividend = balanceOfAt(
+                msg.sender,
+                tokenId,
+                dividend.snapshotId
+            );
+            uint256 claimable = (balanceAtDividend * dividend.amount) /
+                totalSupplyAt(tokenId, dividend.snapshotId);
+
+            if (dividend.tokenAddress == address(0)) {
+                payable(msg.sender).transfer(claimable);
+                totalClaimable += claimable;
+            } else {
+                try
+                    IERC20Upgradeable(dividend.tokenAddress).transfer(
+                        msg.sender,
+                        claimable
+                    )
+                {
+                    totalClaimable += claimable;
+                } catch {
+                    // Record the failed transfer for a retry
+                    failedERC1155Transfers[tokenId][msg.sender][
+                        dividend.tokenAddress
+                    ] += claimable;
+                }
+            }
+            lastDividendsClaimedIndex[msg.sender][tokenId] = i + 1;
+        }
+        emit DividendsClaimed(msg.sender, totalClaimable, tokenId);
+    }
+
+    /**
+     * @notice Allows a user to retry claiming dividends for a specific ERC1155 token ID that previously failed to transfer.
+     * @param tokenId The ERC1155 token ID.
+     * @param tokenAddress The address of the token for which to claim failed transfers.
+     */
+    function retryFailedERC1155Transfers(
+        uint256 tokenId,
+        address tokenAddress
+    ) public nonReentrant {
+        uint256 amount = failedERC1155Transfers[tokenId][msg.sender][
+            tokenAddress
+        ];
+        require(amount > 0, "No failed transfers for this token and tokenId");
+
+        // Attempt the transfer again
+        IERC20Upgradeable(tokenAddress).transfer(msg.sender, amount);
+
+        // Reset the failed transfer amount
+        failedERC1155Transfers[tokenId][msg.sender][tokenAddress] = 0;
+    }
+
+    /**
+     * @notice Retrieves the total dividends owed to a shareholder for a specific ERC1155 token ID.
+     * @param shareholder The address of the shareholder.
+     * @param tokenId The ERC1155 token ID.
+     * @return totalOwed The total amount of dividends owed to the shareholder for the specified token ID.
+     */
+    function getOwedDividends(
+        address shareholder,
+        uint256 tokenId
+    ) public view returns (uint256) {
+        uint256 totalOwed = 0;
+        uint256 lastIndex = lastDividendsClaimedIndex[shareholder][tokenId];
+        for (uint256 i = lastIndex; i < dividends.length; i++) {
+            Dividend memory dividend = dividends[i];
+            if (dividend.tokenId != tokenId) continue;
+
+            uint256 balanceAtDividend = balanceOfAt(
+                shareholder,
+                tokenId,
+                dividend.snapshotId
+            );
+            uint256 owed = (balanceAtDividend * dividend.amount) /
+                totalSupplyAt(tokenId, dividend.snapshotId);
+            totalOwed += owed;
+        }
+        return totalOwed;
+    }
+
+    // DIVIDENDS BLOCK
+
     // MODIFIERS
 
     /// @notice Modifier that allows the method to be called only by the Pool contract.
@@ -460,7 +714,6 @@ contract TokenERC1155 is ERC1155SupplyUpgradeable, ITokenERC1155 {
         require(msg.sender == pool, ExceptionsLibrary.NOT_POOL);
         _;
     }
-
 
     /// @notice Modifier that allows the method to be called only by the TGEFactory contract.
     modifier onlyTGEFactory() {

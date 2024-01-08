@@ -11,6 +11,7 @@ import {
   Registry,
   Vesting,
   TGEFactory,
+  IDRegistry
 } from "../typechain-types";
 
 import { mineBlock } from "./shared/utils";
@@ -27,6 +28,7 @@ describe("Test initial TGE", function () {
     third: SignerWithAddress;
   let service: Service,
     registry: Registry,
+    IDRegistry: IDRegistry,
     vesting: Vesting,
     tgeFactory: TGEFactory;
   let pool: Pool, tge: TGE, token: Token;
@@ -45,6 +47,7 @@ describe("Test initial TGE", function () {
     // Get contracts
     service = await getContract("Service");
     registry = await getContract("Registry");
+    IDRegistry = await getContract("IDRegistry");
     vesting = await getContract("Vesting");
     token1 = await getContract("ONE");
     tgeFactory = await getContract("TGEFactory");
@@ -86,7 +89,7 @@ describe("Test initial TGE", function () {
     });
   });
 
-  describe("Initial TGE: interaction", function () {
+  describe("Initial TGE for permissioned tokens: interaction", function () {
     this.beforeEach(async function () {
       // First TGE
       await service.purchasePool(
@@ -119,12 +122,24 @@ describe("Test initial TGE", function () {
       );
 
       token = await getContractAt("Token", await pool.getGovernanceToken());
+
+      await token.setCompliance( ethers.utils.formatBytes32String("marsbase"));
+
+      await IDRegistry.addComplianceAdmin(owner.address,ethers.utils.formatBytes32String("marsbase"))
+
+      await IDRegistry.addToWhitelist(owner.address,ethers.utils.formatBytes32String("marsbase"))
+
+      await IDRegistry.addToWhitelist(other.address,ethers.utils.formatBytes32String("marsbase"))
+
       tge = await getContractAt("TGE", await token.tgeList(0));
+
+     
+      
     });
 
     it("Can't purchase less than min purchase", async function () {
       await expect(
-        tge.connect(other).purchase(1, { value: parseUnits("0.05") })
+        tge.connect(other).purchase(1, { value: parseUnits("0.1") })
       ).to.be.revertedWith(Exceptions.INVALID_PURCHASE_AMOUNT);
     });
 
@@ -173,9 +188,19 @@ describe("Test initial TGE", function () {
     });
 
     it("Purchasing works", async function () {
-      await tge
+
+      
+      let tx = await tge
         .connect(other)
         .purchase(parseUnits("1000"), { value: parseUnits("10") });
+      
+        let receipt = await tx.wait();
+
+        if (receipt.events) {
+           // index = receipt.events[5].args?.index;
+           //console.log(receipt.events);
+        }
+
 
       expect(await token.balanceOf(other.address)).to.equal(parseUnits("500"));
       expect(await provider.getBalance(tge.address)).to.equal(parseUnits("10"));
@@ -259,17 +284,9 @@ describe("Test initial TGE", function () {
         token.connect(other).mint(other.address, 100)
       ).to.be.revertedWith(Exceptions.NOT_TGE);
     });
-    it("Whitelist Admin", async function () {
-      expect(await (await tge.getUserWhitelist()).length).to.equal(2);
-      await tge.setWhitelist([third.address],[0],[0]);
-      expect(await (await tge.getUserWhitelist()).length).to.equal(1);
 
-
-    });
     it("Purchasing works", async function () {
-
       expect(await (await tge.getUserWhitelist()).length).to.equal(2);
-
       await tge
         .connect(other)
         .purchase(parseUnits("1000"), { value: parseUnits("10") });

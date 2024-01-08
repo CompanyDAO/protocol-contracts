@@ -24,28 +24,3 @@ task("deploy:beacon", "Deploy Beacon")
 
     return beacon;
   });
-
-  task("deploy:beaconmeta", "Deploy Beacon")
-  .addOptionalParam("contract", "Contract implementation name", "TGE")
-  .setAction(async function (
-    { contract },
-    { getNamedAccounts, deployments: { deploy } }
-  ) {
-    const { deployer } = await getNamedAccounts();
-
-    const implementation = await deploy(`${contract}Implementation`, {
-      contract,
-      from: deployer,
-      args: [deployer],
-      log: true,
-    });
-
-    const beacon = await deploy(`${contract}Beacon`, {
-      contract: "UpgradeableBeacon",
-      from: deployer,
-      args: [implementation.address],
-      log: true,
-    });
-
-    return beacon;
-  });

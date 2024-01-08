@@ -8,15 +8,15 @@ import "./IService.sol";
 
 interface IToken is IVotesUpgradeable, IERC20Upgradeable {
     /**
-    * @notice This structure is used to define the parameters of ERC20 tokens issued by the protocol for pools.
-    * @dev This structure is suitable for both Governance and Preference tokens if they are based on ERC20.
-    * @param tokenType Numeric code for the token type
-    * @param name Full name of the token
-    * @param symbol Ticker symbol (short name) of the token
-    * @param description Description of the token
-    * @param cap Maximum allowable token issuance
-    * @param decimals Number of decimal places for the token (precision)
-    */
+     * @notice This structure is used to define the parameters of ERC20 tokens issued by the protocol for pools.
+     * @dev This structure is suitable for both Governance and Preference tokens if they are based on ERC20.
+     * @param tokenType Numeric code for the token type
+     * @param name Full name of the token
+     * @param symbol Ticker symbol (short name) of the token
+     * @param description Description of the token
+     * @param cap Maximum allowable token issuance
+     * @param decimals Number of decimal places for the token (precision)
+     */
     struct TokenInfo {
         TokenType tokenType;
         string name;
@@ -26,8 +26,8 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
         uint8 decimals;
     }
     /**
-    * @notice Token type encoding
-    */
+     * @notice Token type encoding
+     */
     enum TokenType {
         None,
         Governance,
@@ -67,6 +67,8 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
 
     function addTGE(address tge) external;
 
+    function addTSE(address account, address tse) external;
+
     function setTGEVestedTokens(uint256 amount) external;
 
     function setProtocolFeeReserved(uint256 amount) external;
@@ -85,7 +87,18 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
 
     function transfer(address to, uint256 amount) external returns (bool);
 
-    function delegate(
-        address delegatee
-    ) external; 
+    function delegate(address delegatee) external;
+
+    function setCompliance(bytes32 compliance_) external;
+
+    function partnerFee() external view returns (uint256);
+
+    function partnerAddress() external view returns (address);
+
+    function depositDividends(
+        address tokenAddress,
+        uint256 amount
+    ) external payable;
+
+    function claimDividends() external;
 }

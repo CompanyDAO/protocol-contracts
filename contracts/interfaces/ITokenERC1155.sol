@@ -49,6 +49,8 @@ interface ITokenERC1155 is IERC1155Upgradeable {
 
     function addTGE(address tge, uint256 tokenId) external;
 
+    function addTSE(address account, uint256 tokenId, address tse) external;
+
     function setTGEVestedTokens(uint256 amount, uint256 tokenId) external;
 
     function setProtocolFeeReserved(uint256 amount, uint256 tokenId) external;
@@ -77,4 +79,18 @@ interface ITokenERC1155 is IERC1155Upgradeable {
     ) external;
 
     function setLastTokenId(uint256 tokenId) external;
+
+    function setCompliance(bytes32 compliance_) external;
+
+    function partnerFee() external view returns (uint256);
+
+    function partnerAddress() external view returns (address);
+
+    function depositDividendsERC1155(
+        uint256 tokenId,
+        address tokenAddress,
+        uint256 amount
+    ) external payable;
+
+    function claimDividendsERC1155(uint256 tokenId) external;
 }

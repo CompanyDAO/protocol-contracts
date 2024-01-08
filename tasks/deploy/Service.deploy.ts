@@ -28,7 +28,10 @@ task("deploy:service", "Deploy Service").setAction(async function (
     const registry = await deployProxy("Registry", []);
 
     //Deploy customProposal
-    const customProposal = await deployProxy("CustomProposal", []);
+    const customProposal = await deployProxy("CustomProposal", [registry.address]);
+
+    //Deploy IDRegistry
+    const IDRegistry = await deployProxy("IDRegistry", [registry.address]);
 
     //Deploy Invoice
     const invoice = await deployProxy("Invoice", [registry.address]);
@@ -41,6 +44,7 @@ task("deploy:service", "Deploy Service").setAction(async function (
     const tokenBeacon = await getContract("TokenBeacon");
     const tokenERC1155Beacon = await getContract("TokenERC1155Beacon");
     const tgeBeacon = await getContract("TGEBeacon");
+    const tseBeacon = await getContract("TSEBeacon");
 
     // Deploy Service
     const service = await deployProxy("Service", [
@@ -68,19 +72,25 @@ task("deploy:service", "Deploy Service").setAction(async function (
         invoice.address
     );
 
+    await serviceContract.setIdRegistry(
+        IDRegistry.address
+    );
+
     await serviceContract.setTokenERC1155Beacon(
         tokenERC1155Beacon.address
+    );
+
+    await serviceContract.setTrustForwarder(
+        "0xE7e5605aC99ED54Ff6E6e32c52e9Ed91AA0163bC"
     );
 
     // Set Service in Registry
     const registryContract = await getContract<Registry>("Registry");
     await registryContract.setService(service.address);
 
-    // Set Service in customProposalContract
-    const customProposalContract = await getContract<CustomProposal>(
-        "CustomProposal"
+    await serviceContract.setTSEBeacon(
+        tseBeacon.address
     );
-    await customProposalContract.setService(service.address);
 
     await serviceContract.setInvoice(
         invoice.address

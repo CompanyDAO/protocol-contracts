@@ -91,6 +91,7 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
                 msg.sender == address(IService(service).tgeFactory()) ||
                 msg.sender == address(IService(service).invoice()) ||
                 msg.sender == address(IService(service).vesting()) ||
+                msg.sender == address(IService(service).idRegistry()) ||
                 typeOf(msg.sender) == IRecordsRegistry.ContractType.Pool ||
                 typeOf(msg.sender) == IRecordsRegistry.ContractType.TGE ||
                 typeOf(msg.sender) ==

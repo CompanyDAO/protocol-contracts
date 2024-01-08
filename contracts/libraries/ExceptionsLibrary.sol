@@ -73,4 +73,5 @@ library ExceptionsLibrary {
     string public constant NOT_INVOICE_MANAGER = "NOT_INVOICE_MANAGER";
     string public constant WRONG_RESOLVER = "WRONG_RESOLVER";
     string public constant INVALID_PURCHASE_AMOUNT = "INVALID_PURCHASE_AMOUNT";
+    string public constant NOT_SERVICE_ADMIN = "NOT_SERVICE_ADMIN";
 }

@@ -27,7 +27,7 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function createPool(
         ICompaniesRegistry.CompanyInfo memory companyInfo
-    ) external returns(address);
+    ) external returns (address);
 
     function addProposal(uint256 proposalId) external;
 
@@ -56,11 +56,14 @@ interface IService is IAccessControlEnumerableUpgradeable {
 
     function protocolTokenFee() external view returns (uint256);
 
+    function serviceFee() external view returns (uint256);
+
     function getMinSoftCap() external view returns (uint256);
 
     function getProtocolTokenFee(
         uint256 amount
     ) external view returns (uint256);
+
 
     function getProtocolCollectedFee(
         address token_
@@ -69,6 +72,10 @@ interface IService is IAccessControlEnumerableUpgradeable {
     function poolBeacon() external view returns (address);
 
     function tgeBeacon() external view returns (address);
+
+    function tseBeacon() external view returns (address);
+
+    function idRegistry() external view returns (address);
 
     function tokenBeacon() external view returns (address);
 
@@ -82,7 +89,6 @@ interface IService is IAccessControlEnumerableUpgradeable {
         uint256 totalSupply,
         IToken.TokenType tokenType
     ) external view;
-
 
     function paused() external view returns (bool);
 
@@ -105,4 +111,6 @@ interface IService is IAccessControlEnumerableUpgradeable {
         string memory trademark,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings
     ) external;
+
+    function getTrustedForwarder() external view returns (address);
 }

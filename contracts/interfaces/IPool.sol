@@ -32,7 +32,7 @@ interface IPool is IGovernorProposals {
 
     function setProposalIdToTGE(address tge) external;
 
-    function cancelProposal(uint256 proposalId) external;
+    //function cancelProposal(uint256 proposalId) external;
 
     function setSettings(
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
@@ -71,6 +71,7 @@ interface IPool is IGovernorProposals {
     function getPoolExecutor() external view returns (address[] memory);
 
     function setCompanyInfo(
+        uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
         string memory _ein,
@@ -79,6 +80,18 @@ interface IPool is IGovernorProposals {
     ) external;
 
     function castVote(uint256 proposalId, bool support) external;
+
+    function externalCastVote(
+        address account,
+        uint256 proposalId,
+        bool support
+    ) external;
+
+    function externalTransferByOwner(
+        address to,
+        uint256 amount,
+        address unitOfAccount
+    ) external;
 
     function executeProposal(uint256 proposalId) external;
 

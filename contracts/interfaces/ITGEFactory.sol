@@ -3,6 +3,7 @@
 pragma solidity 0.8.17;
 
 import "./ITGE.sol";
+import "./ITSE.sol";
 import "./IToken.sol";
 import "./governor/IGovernanceSettings.sol";
 
@@ -31,5 +32,13 @@ interface ITGEFactory {
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
         address[] memory secretary,
         address[] memory executor
+    ) external;
+
+     function createTSE(
+        address token,
+        uint256 tokenId,
+        ITSE.TSEInfo calldata tseInfo,
+        string memory metadataURI,
+        address recipient
     ) external;
 }

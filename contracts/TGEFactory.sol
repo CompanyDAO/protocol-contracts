@@ -11,13 +11,15 @@ import "./interfaces/IPool.sol";
 import "./interfaces/ITGEFactory.sol";
 import "./interfaces/governor/IGovernanceSettings.sol";
 import "./libraries/ExceptionsLibrary.sol";
+import "./utils/CustomContext.sol";
+import "./interfaces/ITSE.sol";
 
 /**
  * @title TGE Factory contract
  * @notice Event emitted on creation of primary TGE.
  * @dev Deployment of a TGE can occur both within the execution of transactions prescribed by a proposal, and during the execution of a transaction initiated by the pool owner, who has not yet become a DAO.
  */
-contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
+contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
     // STORAGE
 
     /// @notice Service contract address
@@ -59,7 +61,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     /// @notice Modifier that allows the method to be called only by the Pool contract.
     modifier onlyPool() {
         require(
-            service.registry().typeOf(msg.sender) ==
+            service.registry().typeOf(_msgSender()) ==
                 IRecordsRegistry.ContractType.Pool,
             ExceptionsLibrary.NOT_POOL
         );
@@ -118,7 +120,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
     ) external nonReentrant whenNotPaused {
         // Check that sender is pool owner
         IPool pool = IPool(poolAddress);
-        require(pool.owner() == msg.sender, ExceptionsLibrary.NOT_POOL_OWNER);
+        require(pool.owner() == _msgSender(), ExceptionsLibrary.NOT_POOL_OWNER);
 
         // Check token cap
         require(tokenInfo.cap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
@@ -157,7 +159,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         emit PrimaryTGECreated(address(pool), address(tge), address(token));
 
         service.registry().log(
-            msg.sender,
+            _msgSender(),
             address(this),
             0,
             abi.encodeWithSelector(
@@ -211,10 +213,10 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         }
 
         // Add proposal id to TGE
-        IPool(msg.sender).setProposalIdToTGE(address(tge));
+        IPool(_msgSender()).setProposalIdToTGE(address(tge));
 
         // Emit event
-        emit SecondaryTGECreated(msg.sender, address(tge), address(token));
+        emit SecondaryTGECreated(_msgSender(), address(tge), address(token));
     }
 
     /**
@@ -264,11 +266,11 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         }
 
         // Add proposal id to TGE
-        IPool(msg.sender).setProposalIdToTGE(address(tge));
+        IPool(_msgSender()).setProposalIdToTGE(address(tge));
 
         // Emit event
         emit SecondaryTGEERC1155Created(
-            msg.sender,
+            _msgSender(),
             address(tge),
             address(token),
             tokenId
@@ -288,7 +290,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         // Check that token is valid
         require(
             tokenInfo.tokenType != IToken.TokenType.None &&
-                IPool(msg.sender).tokenTypeByAddress(address(token)) ==
+                IPool(_msgSender()).tokenTypeByAddress(address(token)) ==
                 tokenInfo.tokenType,
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
@@ -308,7 +310,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             );
         }
         // Create TGE
-        ITGE tge = _createTGE(metadataURI, msg.sender);
+        ITGE tge = _createTGE(metadataURI, _msgSender());
 
         // Add TGE to token's list
         if (tokenId != 0) {
@@ -351,13 +353,13 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         string memory metadataURI
     ) internal returns (address, ITGE) {
         // Create TGE
-        ITGE tge = _createTGE(metadataURI, msg.sender);
+        ITGE tge = _createTGE(metadataURI, _msgSender());
         address token;
         if (tokenId != 0) {
             // Create token contract
             token = address(
                 service.tokenFactory().createTokenERC1155(
-                    msg.sender,
+                    _msgSender(),
                     tokenInfo,
                     address(tge)
                 )
@@ -366,7 +368,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             // Create token contract
             token = address(
                 service.tokenFactory().createToken(
-                    msg.sender,
+                    _msgSender(),
                     tokenInfo,
                     address(tge)
                 )
@@ -374,7 +376,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
         }
 
         // Add token to Pool
-        IPool(msg.sender).setToken(token, IToken.TokenType.Preference);
+        IPool(_msgSender()).setToken(token, IToken.TokenType.Preference);
 
         // Initialize TGE
         tge.initialize(address(service), token, tokenId, uri, tgeInfo, 0);
@@ -410,5 +412,101 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory {
             0,
             ""
         );
+    }
+
+    function _createTSE(
+        string memory metadataURI,
+        address pool
+    ) internal returns (ITSE tse) {
+        // Create TGE contract
+        tse = ITSE(address(new BeaconProxy(service.tseBeacon(), "")));
+
+        // Add TGE contract to registry
+        service.registry().addContractRecord(
+            address(tse),
+            IRecordsRegistry.ContractType.TGE,
+            metadataURI
+        );
+
+        // Add TGE event to registry
+        service.registry().addEventRecord(
+            pool,
+            IRecordsRegistry.EventType.TGE,
+            address(tse),
+            0,
+            ""
+        );
+    }
+
+    function createTSE(
+        address token,
+        uint256 tokenId,
+        ITSE.TSEInfo calldata tseInfo,
+        string memory metadataURI,
+        address recipient
+    ) external nonReentrant whenNotPaused {
+        uint256 tokenBalance;
+        if (tokenId != 0) {
+            tokenBalance = ITokenERC1155(token).balanceOf(
+                _msgSender(),
+                tokenId
+            );
+        } else {
+            tokenBalance = IToken(token).balanceOf(_msgSender());
+        }
+
+        require(
+            tokenBalance >= tseInfo.amount,
+            ExceptionsLibrary.INVALID_VALUE
+        );
+
+        ITSE tse = _createTSE(metadataURI, _msgSender());
+
+        tse.initialize(token, tokenId, tseInfo , _msgSender(), recipient);
+
+        if (tokenId != 0) {
+            ITokenERC1155(token).transfer(
+                _msgSender(),
+                address(tse),
+                tokenId,
+                tseInfo.amount
+            );
+
+            ITokenERC1155(token).addTSE(_msgSender(), tokenId, address(tse));
+        } else {
+            IToken(token).transferFrom(
+                _msgSender(),
+                address(tse),
+                tseInfo.amount
+            );
+
+            IToken(token).addTSE(_msgSender(), address(tse));
+        }
+
+        service.registry().log(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                ITGEFactory.createTSE.selector,
+                token,
+                tokenId,
+                tseInfo,
+                metadataURI
+            )
+        );
+
+    }
+
+    function getTrustedForwarder() public view override returns (address) {
+        return service.getTrustedForwarder();
+    }
+
+    function _msgSender() internal view override returns (address sender) {
+        return super._msgSender();
+    }
+
+    function _msgData() internal view override returns (bytes calldata) {
+        return super._msgData();
     }
 }

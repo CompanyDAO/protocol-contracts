@@ -301,10 +301,11 @@ abstract contract Governor {
     /**
     * @notice Implementation of the voting method for the pool contract.
     * @dev This method includes a check that the proposal is still in the "Active" state and eligible for the user to cast their vote. Additionally, each invocation of this method results in an additional check for the conditions to prematurely end the voting.
+    * @param account Voting account
     * @param proposalId Proposal ID.
     * @param support "True" for a vote "in favor/for," "False" otherwise.
     */
-    function _castVote(uint256 proposalId, bool support) internal {
+    function _castVote(address account, uint256 proposalId, bool support) internal {
         // Check that voting exists, is started and not finished
         require(
             proposals[proposalId].vote.startBlock != 0,
@@ -319,13 +320,13 @@ abstract contract Governor {
             ExceptionsLibrary.VOTING_FINISHED
         );
         require(
-            ballots[msg.sender][proposalId] == Ballot.None,
+            ballots[account][proposalId] == Ballot.None,
             ExceptionsLibrary.ALREADY_VOTED
         );
 
         // Get number of votes
         uint256 votes = _getPastVotes(
-            msg.sender,
+            account,
             proposals[proposalId].vote.startBlock - 1
         );
 
@@ -334,22 +335,22 @@ abstract contract Governor {
         // Account votes
         if (support) {
             proposals[proposalId].vote.forVotes += votes;
-            ballots[msg.sender][proposalId] = Ballot.For;
+            ballots[account][proposalId] = Ballot.For;
         } else {
             proposals[proposalId].vote.againstVotes += votes;
-            ballots[msg.sender][proposalId] = Ballot.Against;
+            ballots[account][proposalId] = Ballot.Against;
         }
 
         // Check for voting early end
         _checkProposalVotingEarlyEnd(proposalId);
 
         // Emit event
-        emit VoteCast(
-            msg.sender,
-            proposalId,
-            votes,
-            support ? Ballot.For : Ballot.Against
-        );
+        // emit VoteCast(
+        //     account,
+        //     proposalId,
+        //     votes,
+        //     support ? Ballot.For : Ballot.Against
+        // );
     }
 
     /**
@@ -397,22 +398,22 @@ abstract contract Governor {
      * @dev The substitution of proposals, both active and those that have a positive voting result, but have not yet been executed.
      * @param proposalId Proposal ID
      */
-    function _cancelProposal(uint256 proposalId) internal {
-        // Check proposal state
-        ProposalState state = proposalState(proposalId);
-        require(
-            state == ProposalState.Active ||
-                state == ProposalState.Delayed ||
-                state == ProposalState.AwaitingExecution,
-            ExceptionsLibrary.WRONG_STATE
-        );
+    // function _cancelProposal(uint256 proposalId) internal {
+    //     // Check proposal state
+    //     ProposalState state = proposalState(proposalId);
+    //     require(
+    //         state == ProposalState.Active ||
+    //             state == ProposalState.Delayed ||
+    //             state == ProposalState.AwaitingExecution,
+    //         ExceptionsLibrary.WRONG_STATE
+    //     );
 
-        // Mark proposal as cancelled
-        proposals[proposalId].vote.executionState = ProposalState.Cancelled;
+    //     // Mark proposal as cancelled
+    //     proposals[proposalId].vote.executionState = ProposalState.Cancelled;
 
-        // Emit event
-        emit ProposalCancelled(proposalId);
-    }
+    //     // Emit event
+    //     emit ProposalCancelled(proposalId);
+    // }
 
     /**
      * @notice The method checks whether it is possible to end the voting early with the result fixed. If a quorum was reached and so many votes were cast in favor that even if all other available votes were cast against, or if so many votes were cast against that it could not affect the result of the vote, this function will change set the end block of the proposal to the current block

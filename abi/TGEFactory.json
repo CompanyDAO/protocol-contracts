@@ -227,6 +227,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -240,6 +250,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -401,6 +416,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -414,6 +439,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -570,6 +600,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -583,6 +623,11 @@
                         "internalType": "uint256",
                         "name": "lockupTVL",
                         "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "whitelistAdmin",
+                        "type": "address"
                     }
                 ],
                 "internalType": "struct ITGE.TGEInfo",
@@ -640,6 +685,89 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "tokenId",
+                "type": "uint256"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "amount",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "price",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "minPurchase",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "maxPurchase",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "duration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "userWhitelist",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "unitOfAccount",
+                        "type": "address"
+                    }
+                ],
+                "internalType": "struct ITSE.TSEInfo",
+                "name": "tseInfo",
+                "type": "tuple"
+            },
+            {
+                "internalType": "string",
+                "name": "metadataURI",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+            }
+        ],
+        "name": "createTSE",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getTrustedForwarder",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "contract IService",
                 "name": "service_",
                 "type": "address"
@@ -648,6 +776,25 @@
         "name": "initialize",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "forwarder",
+                "type": "address"
+            }
+        ],
+        "name": "isTrustedForwarder",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {

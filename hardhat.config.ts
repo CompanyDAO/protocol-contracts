@@ -22,6 +22,7 @@ dotenv.config();
 
 const networkConfig = (url: string | null | undefined) => ({
   url: url || "",
+ // gasPrice: 31000000000,
   accounts:
     process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
 });
@@ -38,7 +39,9 @@ const onlyContracts = () => ({
     ":CustomProposal$",
     ":Invoice$",
     ":TGEFactory$",
-    ":TokenFactory$"
+    ":TokenFactory$",
+    ":TSE$",
+    ":IDRegistry$"
   ]
 });
 
