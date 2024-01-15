@@ -615,27 +615,31 @@ contract TokenERC1155 is
     }
 
     /**
-     * @notice Claims any dividends owed to the caller for a specific ERC1155 token ID.
+     * @notice Claims a subset of dividends owed to the caller for a specific ERC1155 token ID.
+     * @dev Claims dividends for the specified ERC1155 token ID, within the specified range, based on the shareholder's balance at the snapshot time.
      * @param tokenId The ERC1155 token ID for which dividends are being claimed.
+     * @param limit The maximum number of dividends to claim.
+     * @param offset The starting index from which to begin claiming dividends.
      */
-    function claimDividendsERC1155(uint256 tokenId) public nonReentrant {
+    function claimDividendsERC1155(
+        uint256 tokenId,
+        uint256 limit,
+        uint256 offset
+    ) public nonReentrant {
+        Dividend[] memory claimableDividends = getClaimableDividends(
+            msg.sender,
+            tokenId,
+            limit,
+            offset
+        );
         uint256 totalClaimable = 0;
-        uint256 lastIndex = lastDividendsClaimedIndex[msg.sender][tokenId];
-        for (uint256 i = lastIndex; i < dividends.length; i++) {
-            Dividend storage dividend = dividends[i];
-            if (dividend.tokenId != tokenId) continue;
 
-            uint256 balanceAtDividend = balanceOfAt(
-                msg.sender,
-                tokenId,
-                dividend.snapshotId
-            );
-            uint256 claimable = (balanceAtDividend * dividend.amount) /
-                totalSupplyAt(tokenId, dividend.snapshotId);
+        for (uint256 i = 0; i < claimableDividends.length; i++) {
+            Dividend memory dividend = claimableDividends[i]; // Change to memory
+            uint256 claimable = dividend.amount;
 
             if (dividend.tokenAddress == address(0)) {
                 payable(msg.sender).transfer(claimable);
-                totalClaimable += claimable;
             } else {
                 try
                     IERC20Upgradeable(dividend.tokenAddress).transfer(
@@ -651,9 +655,73 @@ contract TokenERC1155 is
                     ] += claimable;
                 }
             }
-            lastDividendsClaimedIndex[msg.sender][tokenId] = i + 1;
+            lastDividendsClaimedIndex[msg.sender][tokenId]++;
         }
+
         emit DividendsClaimed(msg.sender, totalClaimable, tokenId);
+    }
+
+    /**
+     * @notice Retrieves a subset of claimable dividends for a specific ERC1155 token ID and shareholder.
+     * @dev Iterates through the dividends array starting from a specific offset to calculate the claimable amount, up to a specified limit.
+     * @param shareholder The address of the shareholder.
+     * @param tokenId The ERC1155 token ID for which dividends are to be calculated.
+     * @param limit The maximum number of claimable dividends to return.
+     * @param offset The starting index from which to begin counting claimable dividends.
+     * @return claimableDividends An array of Dividend structures containing details of each claimable dividend for the specified token ID, within the specified range.
+     */
+    function getClaimableDividends(
+        address shareholder,
+        uint256 tokenId,
+        uint256 limit,
+        uint256 offset
+    ) public view returns (Dividend[] memory) {
+        uint256 count = 0;
+        for (
+            uint256 i = lastDividendsClaimedIndex[shareholder][tokenId] +
+                offset;
+            i < dividends.length && count < limit;
+            i++
+        ) {
+            if (dividends[i].tokenId == tokenId) {
+                count++;
+            }
+        }
+
+        Dividend[] memory claimableDividends = new Dividend[](count);
+        uint256 counter = 0;
+
+        for (
+            uint256 i = lastDividendsClaimedIndex[shareholder][tokenId] +
+                offset;
+            i < dividends.length && counter < limit;
+            i++
+        ) {
+            Dividend storage dividend = dividends[i];
+            if (dividend.tokenId != tokenId) {
+                continue;
+            }
+
+            uint256 balanceAtDividend = balanceOfAt(
+                shareholder,
+                tokenId,
+                dividend.snapshotId
+            );
+            uint256 claimableAmount = (balanceAtDividend * dividend.amount) /
+                totalSupplyAt(tokenId, dividend.snapshotId);
+
+            if (claimableAmount > 0) {
+                claimableDividends[counter] = Dividend({
+                    tokenId: tokenId,
+                    amount: claimableAmount,
+                    snapshotId: dividend.snapshotId,
+                    tokenAddress: dividend.tokenAddress
+                });
+                counter++;
+            }
+        }
+
+        return claimableDividends;
     }
 
     /**
@@ -700,7 +768,8 @@ contract TokenERC1155 is
             );
             uint256 owed = (balanceAtDividend * dividend.amount) /
                 totalSupplyAt(tokenId, dividend.snapshotId);
-            totalOwed += owed;
+
+            if (owed > 0) totalOwed += 1;
         }
         return totalOwed;
     }
