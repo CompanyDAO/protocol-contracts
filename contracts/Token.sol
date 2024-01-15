@@ -161,10 +161,9 @@ contract Token is
      */
     function mint(address to, uint256 amount) external onlyTGEOrVesting {
         // Delegate to self if first mint and no delegatee set
-        if (tokenType == IToken.TokenType.Governance) {
-            if (balanceOf(to) == 0 && delegates(to) == address(0))
-                _delegate(to, to);
-        }
+
+        if (balanceOf(to) == 0 && delegates(to) == address(0))
+            _delegate(to, to);
 
         // Mint tokens
         _mint(to, amount);
@@ -653,48 +652,94 @@ contract Token is
     }
 
     /**
-     * @notice Claims any dividends owed to the caller.
-     * @dev Calculates and transfers the owed dividends to the caller.
-     *      Records any failed transfer for a later retry.
+     * @notice Allows a shareholder to claim their dividends within a specified range.
+     * @dev Claims dividends for the caller based on the specified offset and limit.
+     * If a transfer fails, it records the amount for a later retry.
+     * @param offset The starting index for claiming dividends, relative to the last claimed dividend.
+     * @param limit The maximum number of dividends to claim.
      */
-    function claimDividends() public nonReentrant {
+    function claimDividends(uint256 offset, uint256 limit) public nonReentrant {
         uint256 totalClaimable = 0;
-        for (
-            uint256 i = lastDividendsClaimedIndex[msg.sender];
-            i < dividends.length;
-            i++
-        ) {
-            Dividend storage dividend = dividends[i];
-            uint256 balanceAtDividend = getPastVotes(
-                msg.sender,
-                dividend.blockNumber
-            );
-            uint256 claimable = (balanceAtDividend * dividend.amount) /
-                totalSupplyAt(dividend.blockNumber);
+        Dividend[] memory claimableDividends = getClaimableDividends(
+            msg.sender,
+            offset,
+            limit
+        );
+
+        for (uint256 i = 0; i < claimableDividends.length; i++) {
+            Dividend memory dividend = claimableDividends[i];
             if (dividend.tokenAddress == address(0)) {
-                payable(msg.sender).transfer(claimable);
-                totalClaimable += claimable;
+                payable(msg.sender).transfer(dividend.amount);
             } else {
                 try
                     IERC20Upgradeable(dividend.tokenAddress).transfer(
                         msg.sender,
-                        claimable
+                        dividend.amount
                     )
                 {
-                    totalClaimable += claimable;
-
-                    // Update total claimed dividends
-                    totalClaimedDividends[dividend.tokenAddress] += claimable;
+                    totalClaimedDividends[dividend.tokenAddress] += dividend
+                        .amount;
                 } catch {
-                    // Record the failed transfer for a retry
                     failedTransfers[msg.sender][
                         dividend.tokenAddress
-                    ] += claimable;
+                    ] += dividend.amount;
                 }
             }
-            lastDividendsClaimedIndex[msg.sender] = i + 1;
+            totalClaimable += dividend.amount;
+            lastDividendsClaimedIndex[msg.sender] = dividend.blockNumber + 1;
         }
+
         emit DividendsClaimed(msg.sender, totalClaimable, address(0));
+    }
+
+    /**
+     * @notice Calculates and returns an array of claimable dividends for a specific shareholder,
+     * within the specified range defined by offset and limit.
+     * @dev Iterates through the dividends array starting from the last claimed index for the shareholder
+     * plus the offset, and processes up to the specified limit of dividends.
+     * @param shareholder The address of the shareholder for whom to calculate claimable dividends.
+     * @param offset The starting index to begin calculating dividends from, relative to the last claimed dividend.
+     * @param limit The maximum number of dividends to include in the calculation.
+     * @return claimableDividends An array of Dividend structures containing the details of each claimable dividend.
+     */
+    function getClaimableDividends(
+        address shareholder,
+        uint256 offset,
+        uint256 limit
+    ) public view returns (Dividend[] memory) {
+        uint256 totalDividends = dividends.length -
+            lastDividendsClaimedIndex[shareholder];
+        uint256 resultLength = MathUpgradeable.min(
+            limit,
+            totalDividends - offset
+        );
+        Dividend[] memory claimableDividends = new Dividend[](resultLength);
+        uint256 counter = 0;
+
+        for (
+            uint256 i = lastDividendsClaimedIndex[shareholder] + offset;
+            counter < resultLength;
+            i++
+        ) {
+            Dividend storage dividend = dividends[i];
+            uint256 balanceAtDividend = getPastVotes(
+                shareholder,
+                dividend.blockNumber
+            );
+            uint256 claimable = (balanceAtDividend * dividend.amount) /
+                totalSupplyAt(dividend.blockNumber);
+
+            if (claimable > 0) {
+                claimableDividends[counter] = Dividend({
+                    amount: claimable,
+                    blockNumber: dividend.blockNumber,
+                    tokenAddress: dividend.tokenAddress
+                });
+                counter++;
+            }
+        }
+
+        return claimableDividends;
     }
 
     /**
@@ -733,7 +778,7 @@ contract Token is
             );
             uint256 owed = (balanceAtDividend * dividend.amount) /
                 totalSupplyAt(dividend.blockNumber);
-            totalOwed += owed;
+            if (owed > 0) totalOwed += 1;
         }
         return totalOwed;
     }
