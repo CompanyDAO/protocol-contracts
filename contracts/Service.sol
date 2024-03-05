@@ -677,11 +677,7 @@ contract Service is
     function setTrustForwarder(
         address _trustedForwarder
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(
-            _trustedForwarder != address(0),
-            ExceptionsLibrary.ADDRESS_ZERO
-        );
-
+        
         trustedForwarder = _trustedForwarder;
     }
 
@@ -707,11 +703,11 @@ contract Service is
     }
 
     function setTSEBeacon(
-        address beacon
+        address tseBeacon_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(beacon != address(0), ExceptionsLibrary.ADDRESS_ZERO);
+        require(tseBeacon_ != address(0), ExceptionsLibrary.ADDRESS_ZERO);
 
-        tseBeacon = beacon;
+        tseBeacon = tseBeacon_;
         emit TSEBeaconChanged(address(tseBeacon));
     }
 

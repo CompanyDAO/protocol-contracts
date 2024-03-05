@@ -100,5 +100,5 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
         uint256 amount
     ) external payable;
 
-    function claimDividends(uint256 offset, uint256 limit) external;
+    function claimDividends( uint256 limit) external;
 }

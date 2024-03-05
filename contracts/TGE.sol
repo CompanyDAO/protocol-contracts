@@ -956,8 +956,7 @@ contract TGE is
 
     modifier onlyWhitelistAdmin() {
         require(
-            _msgSender() == info.whitelistAdmin ||
-                IPausable(IToken(token).pool()).isPoolSecretary(_msgSender()),
+            _msgSender() == info.whitelistAdmin ,
             ExceptionsLibrary.INVALID_USER
         );
         _;

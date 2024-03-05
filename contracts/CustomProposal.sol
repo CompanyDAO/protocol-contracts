@@ -526,7 +526,7 @@ contract CustomProposal is
      function proposeDividendDeposit(
         address pool,
         address tokenContract,
-        address tokenAddress, // Address(0) for Ether, ERC20 token address otherwise
+        address unitOfAccount, // Address(0) for Ether, ERC20 token address otherwise
         uint256 amount,
         string memory description,
         string memory metaHash
@@ -538,7 +538,7 @@ contract CustomProposal is
         uint256[] memory values = new uint256[](1);
         bytes[] memory callDatas = new bytes[](1);
 
-        if (tokenAddress == address(0)) {
+        if (unitOfAccount == address(0)) {
             // For Ether
             targets[0] = tokenContract;
             values[0] = amount;
@@ -553,7 +553,7 @@ contract CustomProposal is
             values[0] = 0;
             callDatas[0] = abi.encodeWithSelector(
                 IToken.depositDividends.selector,
-                tokenAddress,
+                unitOfAccount,
                 amount
             );
         }
@@ -585,7 +585,7 @@ contract CustomProposal is
         address pool,
         address tokenContract,
         uint256 tokenId,
-        address tokenAddress, // Address(0) for Ether, ERC20 token address otherwise
+        address unitOfAccount, // Address(0) for Ether, ERC20 token address otherwise
         uint256 amount,
         string memory description,
         string memory metaHash
@@ -597,7 +597,7 @@ contract CustomProposal is
         uint256[] memory values = new uint256[](1);
         bytes[] memory callDatas = new bytes[](1);
 
-        if (tokenAddress == address(0)) {
+        if (unitOfAccount == address(0)) {
             // For Ether
             targets[0] = tokenContract;
             values[0] = amount;
@@ -614,7 +614,7 @@ contract CustomProposal is
             callDatas[0] = abi.encodeWithSelector(
                 ITokenERC1155.depositDividendsERC1155.selector,
                 tokenId,
-                tokenAddress,
+                unitOfAccount,
                 amount
             );
         }

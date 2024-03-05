@@ -124,6 +124,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -297,6 +307,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
@@ -362,7 +382,7 @@
                 "type": "address"
             }
         ],
-        "name": "isUserWhitelisted",
+        "name": "isUserwhitelist",
         "outputs": [
             {
                 "internalType": "bool",
@@ -382,6 +402,25 @@
             }
         ],
         "name": "maxPurchaseOf",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "minPurchaseOf",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -547,6 +586,29 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "mins",
+                "type": "uint256[]"
+            },
+            {
+                "internalType": "uint256[]",
+                "name": "maxs",
+                "type": "uint256[]"
+            }
+        ],
+        "name": "setWhitelist",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "state",
         "outputs": [
@@ -636,6 +698,44 @@
                 "internalType": "bool",
                 "name": "",
                 "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "whitelistMax",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "whitelistMin",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",

@@ -81,7 +81,7 @@ task("deploy:service", "Deploy Service").setAction(async function (
     );
 
     await serviceContract.setTrustForwarder(
-        "0xE7e5605aC99ED54Ff6E6e32c52e9Ed91AA0163bC"
+        "0x0000000000000000000000000000000000000000"
     );
 
     // Set Service in Registry

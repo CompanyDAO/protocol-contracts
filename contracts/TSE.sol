@@ -53,7 +53,10 @@ contract TSE is
     The TSE contract can act as an airdrop - a free token distribution. To do this, set the price value to zero.
     To create a DAO with a finite number of participants, each of whom should receive an equal share of tokens, you can set the whitelist when launching the TSE as a list of the participants' addresses, and set both minPurchase and maxPurchase equal to the expression (hardcap / number of participants). To make the pool obtain DAO status only if the distribution is successful under such conditions for all project participants, you can set the softcap value equal to the hardcap. With these settings, the company will become a DAO only if all the initial participants have an equal voting power.
     */
-    mapping(address => bool) private _isUserWhitelisted;
+    mapping(address => bool) private whitelist;
+
+    mapping(address => uint256) public whitelistMin;
+    mapping(address => uint256) public whitelistMax;
 
     /// @dev The block on which the TSE contract was deployed and the event begins
     uint256 public createdAt;
@@ -107,7 +110,9 @@ contract TSE is
         recipient = _recipient;
 
         for (uint256 i = 0; i < _info.userWhitelist.length; i++) {
-            _isUserWhitelisted[_info.userWhitelist[i]] = true;
+            whitelist[_info.userWhitelist[i]] = true;
+            whitelistMin[_info.userWhitelist[i]] = _info.userWhitelistMin[i];
+            whitelistMax[_info.userWhitelist[i]] = _info.userWhitelistMax[i];
         }
 
         createdAt = block.number;
@@ -121,7 +126,7 @@ contract TSE is
     )
         external
         payable
-        onlyWhitelistedUser
+        onlywhitelistUser
         onlyState(State.Active)
         nonReentrant
         whenPoolNotPaused
@@ -246,21 +251,6 @@ contract TSE is
 
     // VIEW FUNCTIONS
 
-    /**
-     * @dev Shows the maximum possible number of tokens to be purchased by a specific address, taking into account whether the user is on the white list and 0 what amount of purchases he made within this TSE.
-     * @return Amount of tokens
-     */
-    function maxPurchaseOf(address account) public view returns (uint256) {
-        if (!isUserWhitelisted(account)) {
-            return 0;
-        }
-        return
-            MathUpgradeable.min(
-                info.maxPurchase - purchaseOf[account],
-                info.amount - totalPurchased
-            );
-    }
-
     function state() public view returns (State) {
         // If hardcap is reached TSE is successfull
         if (totalPurchased == info.amount) {
@@ -306,12 +296,12 @@ contract TSE is
     }
 
     /**
-     * @dev Checks if user is whitelisted.
+     * @dev Checks if user is whitelist.
      * @param account User address
      * @return 'True' if the whitelist is empty (public TSE) or if the address is found in the whitelist, 'False' otherwise.
      */
-    function isUserWhitelisted(address account) public view returns (bool) {
-        return info.userWhitelist.length == 0 || _isUserWhitelisted[account];
+    function isUserwhitelist(address account) public view returns (bool) {
+        return info.userWhitelist.length == 0 || whitelist[account];
     }
 
     /**
@@ -340,8 +330,42 @@ contract TSE is
     ) public view returns (bool) {
         return
             amount > 0 &&
-            amount >= info.minPurchase &&
+            amount >= minPurchaseOf(account) &&
             amount <= maxPurchaseOf(account);
+    }
+
+    /**
+     * @dev Shows the maximum possible number of tokens to be purchased by a specific address, taking into account whether the user is on the white list and what amount of purchases he made within this TGE.
+     * @param account Address of the buyer
+     * @return Amount of tokens that can be purchased
+     */
+    function maxPurchaseOf(address account) public view returns (uint256) {
+        if (!whitelist[account]) {
+            return 0;
+        }
+
+        // Use individual whitelist limits if they are set; otherwise, use global limits
+        uint256 individualMaxPurchase = whitelistMax[account];
+        if (individualMaxPurchase == 0) {
+            individualMaxPurchase = info.maxPurchase;
+        }
+
+        uint256 remainingIndividualCap = individualMaxPurchase -
+            purchaseOf[account];
+
+        return remainingIndividualCap;
+    }
+
+    /**
+     * @dev Returns the minimum purchase amount for a specific account.
+     * If a specific minimum is set for the account on the whitelist, it returns that value;
+     * otherwise, it returns the global minimum purchase amount.
+     * @param account The address to check the minimum purchase amount for.
+     * @return The minimum purchase amount for the given account.
+     */
+    function minPurchaseOf(address account) public view returns (uint256) {
+        uint256 specificMin = whitelistMin[account];
+        return specificMin > 0 ? specificMin : info.minPurchase;
     }
 
     //PRIVATE FUNCTIONS
@@ -380,6 +404,51 @@ contract TSE is
         );
     }
 
+    /**
+     * @dev Sets the whitelist and individual min/max purchase limits for each account.
+     * @param accounts Array of addresses to be whitelist
+     * @param mins Array of minimum purchase amounts corresponding to each whitelist address
+     * @param maxs Array of maximum purchase amounts corresponding to each whitelist address
+     */
+    function setWhitelist(
+        address[] memory accounts,
+        uint256[] memory mins,
+        uint256[] memory maxs
+    ) external onlyState(State.Active) onlySeller {
+        require(
+            accounts.length == mins.length && accounts.length == maxs.length,
+            "Array lengths must match"
+        );
+
+        // Reset current whitelist
+        for (uint256 i = 0; i < info.userWhitelist.length; i++) {
+            whitelist[info.userWhitelist[i]] = false;
+            whitelistMin[info.userWhitelist[i]] = 0;
+            whitelistMax[info.userWhitelist[i]] = 0;
+        }
+
+        // Set new whitelist and individual min/max limits
+        info.userWhitelist = accounts;
+        for (uint256 i = 0; i < accounts.length; i++) {
+            address account = accounts[i];
+            whitelist[account] = true;
+            whitelistMin[account] = mins[i];
+            whitelistMax[account] = maxs[i];
+        }
+
+        IToken(token).service().registry().log(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                ITSE.setWhitelist.selector,
+                accounts,
+                mins,
+                maxs
+            )
+        );
+    }
+
     // MODIFIER
 
     /// @notice Modifier that allows the method to be called only if the TSE state is equal to the specified state.
@@ -388,10 +457,10 @@ contract TSE is
         _;
     }
 
-    /// @notice Modifier that allows the method to be called only by an account that is whitelisted for the TSE or if the TSE is created as public.
-    modifier onlyWhitelistedUser() {
+    /// @notice Modifier that allows the method to be called only by an account that is whitelist for the TSE or if the TSE is created as public.
+    modifier onlywhitelistUser() {
         require(
-            isUserWhitelisted(_msgSender()),
+            isUserwhitelist(_msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;
@@ -404,6 +473,11 @@ contract TSE is
             service.hasRole(service.SERVICE_MANAGER_ROLE(), _msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
+        _;
+    }
+
+    modifier onlySeller() {
+        require(_msgSender() == seller, ExceptionsLibrary.NOT_WHITELISTED);
         _;
     }
 

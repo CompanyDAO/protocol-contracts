@@ -7,8 +7,6 @@ import "./ITokenERC1155.sol";
 import "./IVesting.sol";
 
 interface ITSE {
-  
-
     struct TSEInfo {
         uint256 amount;
         uint256 price;
@@ -16,6 +14,8 @@ interface ITSE {
         uint256 maxPurchase;
         uint256 duration;
         address[] userWhitelist;
+        uint256[] userWhitelistMin;
+        uint256[] userWhitelistMax;
         address unitOfAccount;
     }
 
@@ -50,6 +50,12 @@ interface ITSE {
     function isERC1155TSE() external view returns (bool);
 
     function purchase(uint256 amount) external payable;
+
+    function setWhitelist(
+        address[] memory accounts,
+        uint256[] memory mins,
+        uint256[] memory maxs
+    ) external;
 
     function finishTSE() external;
 }

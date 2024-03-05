@@ -94,7 +94,6 @@ interface ITokenERC1155 is IERC1155Upgradeable {
 
     function claimDividendsERC1155(
         uint256 tokenId,
-        uint256 limit,
-        uint256 offset
+        uint256 limit
     ) external;
 }
