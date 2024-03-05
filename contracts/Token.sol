@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20CappedUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+import "./utils/ERC20VotesWithBalanceSnapshot.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IToken.sol";
@@ -24,7 +24,7 @@ import "./interfaces/IPausable.sol";
  */
 contract Token is
     ERC20CappedUpgradeable,
-    ERC20VotesUpgradeable,
+    ERC20VotesWithBalanceSnapshot,
     IToken,
     ReentrancyGuardUpgradeable
 {
@@ -80,7 +80,7 @@ contract Token is
 
     struct Dividend {
         uint256 amount;
-        uint256 blockNumber;
+        uint256 snapshotId;
         address tokenAddress; // Address of the ERC20 token or address(0) for Ether
     }
 
@@ -91,9 +91,9 @@ contract Token is
     // Mapping to record failed dividend transfers
     mapping(address => mapping(address => uint256)) public failedTransfers;
 
-    mapping(address => uint256) private totalClaimedDividends;
+    mapping(address => uint256) public totalClaimedDividends;
 
-    mapping(address => uint256) private lastRecordedBalance;
+    mapping(address => uint256) public totalDepositedDividends;
 
     event DividendsDeposited(
         address indexed depositor,
@@ -160,8 +160,7 @@ contract Token is
      * @param amount The number of tokens being minted
      */
     function mint(address to, uint256 amount) external onlyTGEOrVesting {
-        // Delegate to self if first mint and no delegatee set
-
+        // Delegate to self if first mint
         if (balanceOf(to) == 0 && delegates(to) == address(0))
             _delegate(to, to);
 
@@ -408,10 +407,8 @@ contract Token is
             ExceptionsLibrary.LOW_UNLOCKED_BALANCE
         );
 
-        if (tokenType == IToken.TokenType.Governance) {
-            if (balanceOf(to) == 0 && delegates(to) == address(0))
-                _delegate(to, to);
-        }
+        if (balanceOf(to) == 0 && delegates(to) == address(0))
+            _delegate(to, to);
 
         // Execute transfer
         super._transfer(from, to, amount);
@@ -438,6 +435,14 @@ contract Token is
         );
 
         super._afterTokenTransfer(from, to, amount);
+    }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override(ERC20Upgradeable, ERC20VotesWithBalanceSnapshot) {
+        super._beforeTokenTransfer(from, to, amount);
     }
 
     function delegate(
@@ -564,26 +569,18 @@ contract Token is
             depositAmount = balanceAfter - balanceBefore;
             require(depositAmount == amount, "Deposit amount mismatch");
         }
-
+        totalDepositedDividends[tokenAddress] += depositAmount;
         _addDividendsRecord(tokenAddress, depositAmount);
     }
 
     /**
-     * @dev Updates the dividend records by adding new deposits that have occurred since the last record update.
-     * This function is designed to be called by an admin to ensure that all recent deposits are accounted for in the dividend system.
-     * It calculates the new dividends based on the difference between the current balance and the last recorded balance.
-     * This function handles both Ether and ERC20 token dividends.
+     * @dev Updates the dividend records with new deposits for the specified token.
+     * This method should be called to ensure the dividend records accurately reflect the current state.
      *
-     * @notice This function should be called by an admin to update the dividend records with recent deposits.
-     *
-     * @param tokenAddress The address of the ERC20 token, or address(0) for Ether. This is the token for which the dividend deposits are being updated.
-     *
-     * Requirements:
-     * - There must be new dividends to deposit, i.e., the current balance minus the last recorded balance must be greater than zero.
-     * - This function can only be called when no other function is being executed in the contract (nonReentrant).
+     * @param tokenAddress The address of the ERC20 token or address(0) for Ether.
      */
     function updateDividendDeposits(address tokenAddress) public nonReentrant {
-        uint256 currentBalance;
+        uint256 currentBalance = 0;
         if (tokenAddress == address(0)) {
             currentBalance = address(this).balance;
         } else {
@@ -592,14 +589,18 @@ contract Token is
             );
         }
 
-        uint256 totalBalanceIncludingClaimed = currentBalance +
+        uint256 expectedBalance = totalDepositedDividends[tokenAddress] -
             totalClaimedDividends[tokenAddress];
-        uint256 newDividends = totalBalanceIncludingClaimed -
-            lastRecordedBalance[tokenAddress];
+
+        // Calculate the new dividends based on the current balance and expected balance
+        uint256 newDividends = currentBalance > expectedBalance
+            ? currentBalance - expectedBalance
+            : 0;
+
         require(newDividends > 0, "No new dividends to deposit");
 
-        // Update the last recorded balance
-        lastRecordedBalance[tokenAddress] = totalBalanceIncludingClaimed;
+        // Update total deposited dividends
+        totalDepositedDividends[tokenAddress] += newDividends;
 
         // Call _addDividendsRecord to handle the new dividends
         _addDividendsRecord(tokenAddress, newDividends);
@@ -620,18 +621,13 @@ contract Token is
      * Emits a `DividendsDeposited` event indicating the depositor, the amount, and the token address.
      */
     function _addDividendsRecord(address tokenAddress, uint256 amount) private {
-        // Ensure that new dividends are not added in the same block as the last dividend
-        require(
-            dividends.length == 0 ||
-                dividends[dividends.length - 1].blockNumber != block.number,
-            "Cannot add dividends in the same block"
-        );
+        uint256 currentSnapshotId = _snapshot(); // Snapshot is taken at deposit
 
         // Add new dividend record
         dividends.push(
             Dividend({
                 amount: amount,
-                blockNumber: block.number - 1,
+                snapshotId: currentSnapshotId,
                 tokenAddress: tokenAddress
             })
         );
@@ -655,38 +651,39 @@ contract Token is
      * @notice Allows a shareholder to claim their dividends within a specified range.
      * @dev Claims dividends for the caller based on the specified offset and limit.
      * If a transfer fails, it records the amount for a later retry.
-     * @param offset The starting index for claiming dividends, relative to the last claimed dividend.
      * @param limit The maximum number of dividends to claim.
      */
-    function claimDividends(uint256 offset, uint256 limit) public nonReentrant {
+    function claimDividends(uint256 limit) public nonReentrant {
         uint256 totalClaimable = 0;
-        Dividend[] memory claimableDividends = getClaimableDividends(
+        Dividend[] memory claimableDividends = getFullClaimableDividends(
             msg.sender,
-            offset,
-            limit
+            dividends.length - lastDividendsClaimedIndex[_msgSender()]
         );
-
-        for (uint256 i = 0; i < claimableDividends.length; i++) {
+        uint256 counter = 0;
+        for (uint256 i = 0; counter < limit; i++) {
             Dividend memory dividend = claimableDividends[i];
-            if (dividend.tokenAddress == address(0)) {
-                payable(msg.sender).transfer(dividend.amount);
-            } else {
-                try
-                    IERC20Upgradeable(dividend.tokenAddress).transfer(
-                        msg.sender,
-                        dividend.amount
-                    )
-                {
-                    totalClaimedDividends[dividend.tokenAddress] += dividend
-                        .amount;
-                } catch {
-                    failedTransfers[msg.sender][
-                        dividend.tokenAddress
-                    ] += dividend.amount;
+            if (dividend.amount > 0) {
+                counter++;
+                if (dividend.tokenAddress == address(0)) {
+                    payable(msg.sender).transfer(dividend.amount);
+                } else {
+                    try
+                        IERC20Upgradeable(dividend.tokenAddress).transfer(
+                            msg.sender,
+                            dividend.amount
+                        )
+                    {
+                        totalClaimedDividends[dividend.tokenAddress] += dividend
+                            .amount;
+                    } catch {
+                        failedTransfers[msg.sender][
+                            dividend.tokenAddress
+                        ] += dividend.amount;
+                    }
                 }
+                totalClaimable += dividend.amount;
             }
-            totalClaimable += dividend.amount;
-            lastDividendsClaimedIndex[msg.sender] = dividend.blockNumber + 1;
+            lastDividendsClaimedIndex[msg.sender]++;
         }
 
         emit DividendsClaimed(msg.sender, totalClaimable, address(0));
@@ -698,45 +695,74 @@ contract Token is
      * @dev Iterates through the dividends array starting from the last claimed index for the shareholder
      * plus the offset, and processes up to the specified limit of dividends.
      * @param shareholder The address of the shareholder for whom to calculate claimable dividends.
-     * @param offset The starting index to begin calculating dividends from, relative to the last claimed dividend.
      * @param limit The maximum number of dividends to include in the calculation.
      * @return claimableDividends An array of Dividend structures containing the details of each claimable dividend.
      */
     function getClaimableDividends(
         address shareholder,
-        uint256 offset,
         uint256 limit
     ) public view returns (Dividend[] memory) {
-        uint256 totalDividends = dividends.length -
-            lastDividendsClaimedIndex[shareholder];
-        uint256 resultLength = MathUpgradeable.min(
-            limit,
-            totalDividends - offset
-        );
+        uint256 owedDividends = getOwedDividends(shareholder);
+        uint256 resultLength = MathUpgradeable.min(limit, owedDividends);
         Dividend[] memory claimableDividends = new Dividend[](resultLength);
         uint256 counter = 0;
 
         for (
-            uint256 i = lastDividendsClaimedIndex[shareholder] + offset;
+            uint256 i = lastDividendsClaimedIndex[shareholder];
             counter < resultLength;
             i++
         ) {
             Dividend storage dividend = dividends[i];
-            uint256 balanceAtDividend = getPastVotes(
+            uint256 balanceAtDividend = balanceOfAt(
                 shareholder,
-                dividend.blockNumber
+                dividend.snapshotId
             );
             uint256 claimable = (balanceAtDividend * dividend.amount) /
-                totalSupplyAt(dividend.blockNumber);
+                totalSupplyAtSnapshotId(dividend.snapshotId);
 
             if (claimable > 0) {
                 claimableDividends[counter] = Dividend({
                     amount: claimable,
-                    blockNumber: dividend.blockNumber,
+                    snapshotId: dividend.snapshotId,
                     tokenAddress: dividend.tokenAddress
                 });
                 counter++;
             }
+        }
+
+        return claimableDividends;
+    }
+
+    function getFullClaimableDividends(
+        address shareholder,
+        uint256 limit
+    ) public view returns (Dividend[] memory) {
+        uint256 totalDividends = dividends.length -
+            lastDividendsClaimedIndex[shareholder];
+        uint256 resultLength = MathUpgradeable.min(limit, totalDividends);
+        Dividend[] memory claimableDividends = new Dividend[](limit);
+        uint256 counter = 0;
+
+        for (
+            uint256 i = lastDividendsClaimedIndex[shareholder];
+            counter < resultLength;
+            i++
+        ) {
+            Dividend storage dividend = dividends[i];
+            uint256 balanceAtDividend = balanceOfAt(
+                shareholder,
+                dividend.snapshotId
+            );
+            uint256 claimable = (balanceAtDividend * dividend.amount) /
+                totalSupplyAtSnapshotId(dividend.snapshotId);
+
+            claimableDividends[counter] = Dividend({
+                amount: claimable,
+                snapshotId: dividend.snapshotId,
+                tokenAddress: dividend.tokenAddress
+            });
+
+            counter++;
         }
 
         return claimableDividends;
@@ -772,12 +798,12 @@ contract Token is
             i++
         ) {
             Dividend memory dividend = dividends[i];
-            uint256 balanceAtDividend = getPastVotes(
+            uint256 balanceAtDividend = balanceOfAt(
                 shareholder,
-                dividend.blockNumber
+                dividend.snapshotId
             );
             uint256 owed = (balanceAtDividend * dividend.amount) /
-                totalSupplyAt(dividend.blockNumber);
+                totalSupplyAtSnapshotId(dividend.snapshotId);
             if (owed > 0) totalOwed += 1;
         }
         return totalOwed;

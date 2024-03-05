@@ -1234,7 +1234,7 @@
         "inputs": [
             {
                 "internalType": "address",
-                "name": "beacon",
+                "name": "tseBeacon_",
                 "type": "address"
             }
         ],

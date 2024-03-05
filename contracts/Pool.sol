@@ -392,7 +392,7 @@ contract Pool is
         uint256 amount,
         address unitOfAccount
     ) external onlyOwner {
-         require(!isDAO(), ExceptionsLibrary.IS_DAO);
+        require(!isDAO(), ExceptionsLibrary.IS_DAO);
         _transferByOwner(to, amount, unitOfAccount);
     }
 
@@ -401,7 +401,7 @@ contract Pool is
         uint256 amount,
         address unitOfAccount
     ) external onlyService {
-         require(!isDAO(), ExceptionsLibrary.IS_DAO);
+        require(!isDAO(), ExceptionsLibrary.IS_DAO);
         _transferByOwner(to, amount, unitOfAccount);
     }
 
@@ -411,7 +411,6 @@ contract Pool is
         address unitOfAccount
     ) internal {
         //only if pool is yet DAO
-       
 
         if (unitOfAccount == address(0)) {
             require(
@@ -525,7 +524,8 @@ contract Pool is
      */
     function isPoolSecretary(address account) public view returns (bool) {
         if (isDAO()) {
-            return poolSecretary.contains(account);
+            return
+                poolSecretary.contains(account) || account == address(service);
         }
 
         return account == owner();

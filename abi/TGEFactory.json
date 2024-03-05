@@ -727,6 +727,16 @@
                         "type": "address[]"
                     },
                     {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMin",
+                        "type": "uint256[]"
+                    },
+                    {
+                        "internalType": "uint256[]",
+                        "name": "userWhitelistMax",
+                        "type": "uint256[]"
+                    },
+                    {
                         "internalType": "address",
                         "name": "unitOfAccount",
                         "type": "address"
