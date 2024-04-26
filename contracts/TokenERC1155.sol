@@ -17,6 +17,7 @@ import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/IIDRegistry.sol";
 import "./interfaces/IPausable.sol";
+import "./utils/Logger.sol";
 
 /// @title Company (Pool) Token
 /// @dev An expanded ERC20 contract, based on which tokens of various types are issued. At the moment, the protocol provides for 2 types of tokens: Governance, which must be created simultaneously with the pool, existing for the pool only in the singular and participating in voting, and Preference, which may be several for one pool and which do not participate in voting in any way.
@@ -24,7 +25,8 @@ contract TokenERC1155 is
     ERC1155SupplyUpgradeable,
     ERC1155SnapshotUpgradeable,
     ITokenERC1155,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    Logger
 {
     using EnumerableMap for EnumerableMap.UintToUintMap;
     /// @dev The address of the Service contract
@@ -216,14 +218,15 @@ contract TokenERC1155 is
             ExceptionsLibrary.NOT_SERVICE
         );
         compliance = compliance_;
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
             abi.encodeWithSelector(
                 ITokenERC1155.setCompliance.selector,
                 compliance_
-            )
+            ),
+            address(service)
         );
     }
 
@@ -484,12 +487,15 @@ contract TokenERC1155 is
     ) internal override(ERC1155SnapshotUpgradeable, ERC1155SupplyUpgradeable) {
         super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
         require(
-            IIDRegistry(service.idRegistry()).isWhitelisted(from, compliance),
+            IIDRegistry(service.idRegistry()).isWhitelisted(
+                from,
+                address(this)
+            ),
             ExceptionsLibrary.NOT_WHITELISTED
         );
 
         require(
-            IIDRegistry(service.idRegistry()).isWhitelisted(to, compliance),
+            IIDRegistry(service.idRegistry()).isWhitelisted(to, address(this)),
             ExceptionsLibrary.NOT_WHITELISTED
         );
 
@@ -503,7 +509,7 @@ contract TokenERC1155 is
                     amounts[i] <= unlockedBalanceOf(from, ids[i]),
                     ExceptionsLibrary.LOW_UNLOCKED_BALANCE
                 );
-                service.registry().log(
+                emit CompanyDAOLog(
                     msg.sender,
                     address(this),
                     0,
@@ -513,7 +519,8 @@ contract TokenERC1155 is
                         to,
                         ids[i],
                         amounts[i]
-                    )
+                    ),
+                    address(service)
                 );
             }
         }
@@ -596,7 +603,7 @@ contract TokenERC1155 is
             })
         );
 
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
@@ -605,7 +612,8 @@ contract TokenERC1155 is
                 tokenId,
                 tokenAddress,
                 depositAmount
-            )
+            ),
+            address(service)
         );
 
         emit DividendsDeposited(

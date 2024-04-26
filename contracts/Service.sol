@@ -14,6 +14,7 @@ import "@openzeppelin/contracts-upgradeable/utils/Create2Upgradeable.sol";
 import "./utils/CustomContext.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IPool.sol";
+import "./interfaces/IPausable.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IVesting.sol";
@@ -22,6 +23,7 @@ import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/ICustomProposal.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
+import "./utils/Logger.sol";
 
 /**
  * @title Service Contract
@@ -36,7 +38,8 @@ contract Service is
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
     IService,
-    ERC2771Context
+    ERC2771Context,
+    Logger
 {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     using AddressUpgradeable for address;
@@ -355,17 +358,18 @@ contract Service is
         );
 
         // Check fee
+
         require(
             msg.value == pool.getCompanyFee(),
             ExceptionsLibrary.INCORRECT_ETH_PASSED
         );
 
         // setNewOwnerWithSettings to pool contract
-        pool.setNewOwnerWithSettings(msg.sender, trademark, governanceSettings);
+        pool.setNewOwnerWithSettings(msg.sender, trademark, governanceSettings,false);
         registry.lockCompany(jurisdiction, entityType);
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
-        registry.log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             msg.value,
@@ -375,7 +379,8 @@ contract Service is
                 entityType,
                 trademark,
                 governanceSettings
-            )
+            ),
+            address(this)
         );
     }
 
@@ -401,12 +406,12 @@ contract Service is
 
         // setNewOwnerWithSettings to pool contract
 
-        pool.setNewOwnerWithSettings(newowner, trademark, governanceSettings);
+        pool.setNewOwnerWithSettings(newowner, trademark, governanceSettings,false);
 
         // Emit event
         emit PoolPurchased(address(pool), address(0), address(0));
         registry.lockCompany(jurisdiction, entityType);
-        registry.log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
@@ -417,7 +422,41 @@ contract Service is
                 entityType,
                 trademark,
                 governanceSettings
-            )
+            ),
+            address(this)
+        );
+    }
+
+    function transferExactPoolByService(
+        address poolAdress,
+        address newowner,
+        uint256 jurisdiction,
+        uint256 entityType,
+        string memory trademark,
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings
+    ) external onlyManager nonReentrant whenNotPaused {
+        // Create pool
+        IPool pool = IPool(
+            poolAdress
+        );
+
+        // setNewOwnerWithSettings to pool contract
+
+        pool.setNewOwnerWithSettings(newowner, trademark, governanceSettings,true);
+
+        emit CompanyDAOLog(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IService.transferPurchasedPoolByService.selector,
+                newowner,
+                jurisdiction,
+                entityType,
+                trademark,
+                governanceSettings
+            ),
+            address(this)
         );
     }
 
@@ -677,7 +716,6 @@ contract Service is
     function setTrustForwarder(
         address _trustedForwarder
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        
         trustedForwarder = _trustedForwarder;
     }
 
@@ -732,26 +770,55 @@ contract Service is
     ) external {
         IPool(pool).externalCastVote(_msgSender(), proposalId, support);
 
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             pool,
             0,
-            abi.encodeWithSelector(IPool.castVote.selector, proposalId, support)
+            abi.encodeWithSelector(
+                IPool.castVote.selector,
+                proposalId,
+                support
+            ),
+            address(this)
         );
     }
 
-    function externalTransferByOwner(
-        address pool,
-        address to,
-        uint256 amount,
-        address unitOfAccount
+    function setDAOmetadataURI(
+        address _pool,
+        string memory _DAOmetadataURI
     ) external {
         require(
-            IPool(pool).owner() == _msgSender(),
-            ExceptionsLibrary.NOT_POOL_OWNER
+            IPool(_pool).isPoolSecretary(_msgSender()),
+            ExceptionsLibrary.INVALID_USER
         );
-        IPool(pool).externalTransferByOwner(to, amount, unitOfAccount);
+
+        IPool(_pool).setDAOmetadataURI(_DAOmetadataURI);
+
+        emit CompanyDAOLog(
+            msg.sender,
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IService.setDAOmetadataURI.selector,
+                _pool,
+                _DAOmetadataURI
+            ),
+            address(this)
+        );
     }
+
+    // function externalTransferByOwner(
+    //     address pool,
+    //     address to,
+    //     uint256 amount,
+    //     address unitOfAccount
+    // ) external {
+    //     require(
+    //         IPool(pool).owner() == _msgSender(),
+    //         ExceptionsLibrary.NOT_POOL_OWNER
+    //     );
+    //     IPool(pool).externalTransferByOwner(to, amount, unitOfAccount);
+    // }
 
     /**
      * @dev Pause service

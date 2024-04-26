@@ -9,6 +9,43 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "receiver",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "service",
+                "type": "address"
+            }
+        ],
+        "name": "CompanyDAOLog",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
                 "internalType": "uint8",
                 "name": "version",
                 "type": "uint8"
@@ -267,6 +304,11 @@
                 "type": "string"
             },
             {
+                "internalType": "address",
+                "name": "fundReceiverAddress",
+                "type": "address"
+            },
+            {
                 "components": [
                     {
                         "internalType": "uint256",
@@ -309,14 +351,31 @@
                 "type": "tuple"
             },
             {
-                "internalType": "address[]",
-                "name": "secretary",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "executor",
-                "type": "address[]"
+                "components": [
+                    {
+                        "internalType": "address[]",
+                        "name": "manager",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "secretary",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "executor",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "dividendManager",
+                        "type": "address[]"
+                    }
+                ],
+                "internalType": "struct ITGEFactory.Roles",
+                "name": "_roles",
+                "type": "tuple"
             }
         ],
         "name": "createPrimaryTGE",
@@ -491,6 +550,11 @@
                 "internalType": "string",
                 "name": "metadataURI",
                 "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "fundReceiverAddress",
+                "type": "address"
             }
         ],
         "name": "createSecondaryTGE",
@@ -675,6 +739,11 @@
                 "internalType": "string",
                 "name": "metadataURI",
                 "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "fundReceiverAddress",
+                "type": "address"
             }
         ],
         "name": "createSecondaryTGEERC1155",

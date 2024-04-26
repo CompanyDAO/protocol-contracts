@@ -9,6 +9,7 @@ import "./registry/ICompaniesRegistry.sol";
 import "./governor/IGovernor.sol";
 import "./governor/IGovernanceSettings.sol";
 import "./governor/IGovernorProposals.sol";
+import "./ITGEFactory.sol";
 
 interface IPool is IGovernorProposals {
     function initialize(
@@ -18,7 +19,8 @@ interface IPool is IGovernorProposals {
     function setNewOwnerWithSettings(
         address owner_,
         string memory trademark_,
-        IGovernanceSettings.NewGovernanceSettings memory governanceSettings_
+        IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
+        bool forceTransfer
     ) external;
 
     function propose(
@@ -36,8 +38,7 @@ interface IPool is IGovernorProposals {
 
     function setSettings(
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
-        address[] memory secretary,
-        address[] memory executor
+        ITGEFactory.Roles memory roles
     ) external;
 
     function owner() external view returns (address);
@@ -48,7 +49,7 @@ interface IPool is IGovernorProposals {
 
     function getGovernanceToken() external view returns (IToken);
 
-    function tokenExists(IToken token_) external view returns (bool);
+    function tokenExists(address token) external view returns (bool);
 
     function tokenTypeByAddress(
         address token_
@@ -58,6 +59,10 @@ interface IPool is IGovernorProposals {
 
     function isPoolSecretary(address account) external view returns (bool);
 
+    // function isValidDividendManager(
+    //     address account
+    // ) external view returns (bool);
+
     function isLastProposalIdByTypeActive(
         uint256 type_
     ) external view returns (bool);
@@ -66,17 +71,15 @@ interface IPool is IGovernorProposals {
         IGovernanceSettings.NewGovernanceSettings memory settings
     ) external pure;
 
-    function getPoolSecretary() external view returns (address[] memory);
+    // function getPoolSecretary() external view returns (address[] memory);
 
-    function getPoolExecutor() external view returns (address[] memory);
+    // function getPoolExecutor() external view returns (address[] memory);
 
     function setCompanyInfo(
         uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
-        string memory _ein,
-        string memory _dateOfIncorporation,
-        string memory _OAuri
+        string memory _ein
     ) external;
 
     function castVote(uint256 proposalId, bool support) external;
@@ -87,13 +90,15 @@ interface IPool is IGovernorProposals {
         bool support
     ) external;
 
-    function externalTransferByOwner(
-        address to,
-        uint256 amount,
-        address unitOfAccount
-    ) external;
+    // function externalTransferByOwner(
+    //     address to,
+    //     uint256 amount,
+    //     address unitOfAccount
+    // ) external;
 
     function executeProposal(uint256 proposalId) external;
 
     function getCompanyFee() external returns (uint256);
+
+    function setDAOmetadataURI(string memory _OAuri) external;
 }

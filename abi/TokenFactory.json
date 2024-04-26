@@ -9,6 +9,43 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "receiver",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "service",
+                "type": "address"
+            }
+        ],
+        "name": "CompanyDAOLog",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
                 "internalType": "uint8",
                 "name": "version",
                 "type": "uint8"

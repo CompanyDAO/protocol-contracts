@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20CappedUpgradeable.sol";
 import "./utils/ERC20VotesWithBalanceSnapshot.sol";
+import "./utils/Logger.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/IToken.sol";
@@ -16,6 +17,7 @@ import "./interfaces/IPool.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/IPausable.sol";
+import "./utils/Logger.sol";
 
 /**
  * @title Company (Pool) Token
@@ -26,7 +28,8 @@ contract Token is
     ERC20CappedUpgradeable,
     ERC20VotesWithBalanceSnapshot,
     IToken,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    Logger
 {
     /// @dev Service contract address
     IService public service;
@@ -137,12 +140,9 @@ contract Token is
 
         description = info.description;
 
-        if (info.tokenType == TokenType.Preference) {
-            __ERC20_init(info.name, info.symbol);
-            _decimals = info.decimals;
-        } else {
-            __ERC20_init(info.name, info.symbol);
-        }
+        __ERC20_init(info.name, info.symbol);
+        _decimals = info.decimals;
+
         tgeList.push(primaryTGE_);
         tgeWithLockedTokensList.push(primaryTGE_);
         tokenType = info.tokenType;
@@ -208,11 +208,12 @@ contract Token is
         );
         compliance = compliance_;
 
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
-            abi.encodeWithSelector(IToken.setCompliance.selector, compliance_)
+            abi.encodeWithSelector(IToken.setCompliance.selector, compliance_),
+            address(service)
         );
     }
 
@@ -258,11 +259,7 @@ contract Token is
         override(ERC20Upgradeable, IToken)
         returns (uint8)
     {
-        if (tokenType == TokenType.Governance) {
-            return 18;
-        } else {
-            return _decimals;
-        }
+        return _decimals;
     }
 
     /**
@@ -425,12 +422,15 @@ contract Token is
     ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         emit Transferred(to);
         require(
-            IIDRegistry(service.idRegistry()).isWhitelisted(from, compliance),
+            IIDRegistry(service.idRegistry()).isWhitelisted(
+                from,
+                address(this)
+            ),
             ExceptionsLibrary.NOT_WHITELISTED
         );
 
         require(
-            IIDRegistry(service.idRegistry()).isWhitelisted(to, compliance),
+            IIDRegistry(service.idRegistry()).isWhitelisted(to, address(this)),
             ExceptionsLibrary.NOT_WHITELISTED
         );
 
@@ -448,11 +448,12 @@ contract Token is
     function delegate(
         address delegatee
     ) public override(ERC20VotesUpgradeable, IToken) {
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
-            abi.encodeWithSelector(IToken.delegate.selector, delegatee)
+            abi.encodeWithSelector(IToken.delegate.selector, delegatee),
+            address(service)
         );
 
         super.delegate(delegatee);
@@ -462,11 +463,12 @@ contract Token is
         address to,
         uint256 amount
     ) public override(ERC20Upgradeable, IToken) returns (bool) {
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
-            abi.encodeWithSelector(IToken.transfer.selector, to, amount)
+            abi.encodeWithSelector(IToken.transfer.selector, to, amount),
+            address(service)
         );
 
         return super.transfer(to, amount);
@@ -477,7 +479,7 @@ contract Token is
         address to,
         uint256 amount
     ) public override(ERC20Upgradeable, IToken) returns (bool) {
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
@@ -486,9 +488,9 @@ contract Token is
                 from,
                 to,
                 amount
-            )
+            ),
+            address(service)
         );
-
         return super.transferFrom(from, to, amount);
     }
 
@@ -522,10 +524,11 @@ contract Token is
      * @dev It is crucial to keep this list up to date to have accurate information at any given time on how much of their token balance each user can dispose of, taking into account the locks imposed by the TGEs in which the user participated.
      */
     function updateTgeWithLockedTokensList() private {
-        address[] memory _tgeWithLockedTokensList = tgeWithLockedTokensList;
-        for (uint256 i; i < _tgeWithLockedTokensList.length; i++) {
+        uint256 i = tgeWithLockedTokensList.length;
+        while (i > 0) {
+            i--;
             // Check if transfer is unlocked
-            if (ITGE(_tgeWithLockedTokensList[i]).transferUnlocked()) {
+            if (ITGE(tgeWithLockedTokensList[i]).transferUnlocked()) {
                 // Remove tge from tgeWithLockedTokensList when transfer is unlocked
                 tgeWithLockedTokensList[i] = tgeWithLockedTokensList[
                     tgeWithLockedTokensList.length - 1
@@ -621,6 +624,11 @@ contract Token is
      * Emits a `DividendsDeposited` event indicating the depositor, the amount, and the token address.
      */
     function _addDividendsRecord(address tokenAddress, uint256 amount) private {
+        // require(
+        //     IPool(pool).isValidDividendManager(_msgSender()),
+        //     ExceptionsLibrary.NOT_WHITELISTED
+        // );
+
         uint256 currentSnapshotId = _snapshot(); // Snapshot is taken at deposit
 
         // Add new dividend record
@@ -633,18 +641,18 @@ contract Token is
         );
 
         // Log the dividend deposit
-        service.registry().log(
-            msg.sender,
+        emit CompanyDAOLog(
+            _msgSender(),
             address(this),
             0,
             abi.encodeWithSelector(
                 IToken.depositDividends.selector,
                 tokenAddress,
                 amount
-            )
+            ),
+            address(service)
         );
-
-        emit DividendsDeposited(msg.sender, amount, tokenAddress);
+        emit DividendsDeposited(_msgSender(), amount, tokenAddress);
     }
 
     /**

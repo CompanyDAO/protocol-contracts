@@ -17,7 +17,7 @@ import "hardhat-contract-sizer";
 import "solidity-docgen";
 import "./tasks";
 import "./tasks/doc.js";
-
+import "hardhat-gas-reporter"
 dotenv.config();
 
 const networkConfig = (url: string | null | undefined) => ({
@@ -78,6 +78,9 @@ const config: HardhatUserConfig = {
     polygon: { ...networkConfig(process.env.POLYGON_RPC_URL!) },
     mumbai: {
       ...networkConfig(process.env.MUMBAI_RPC_URL!)
+    },
+    amoy: {
+      ...networkConfig(process.env.AMOY_RPC_URL!)
     }
   },
   gasReporter: {

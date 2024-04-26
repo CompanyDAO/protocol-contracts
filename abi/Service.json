@@ -10,6 +10,43 @@
             {
                 "indexed": false,
                 "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "receiver",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "service",
+                "type": "address"
+            }
+        ],
+        "name": "CompanyDAOLog",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
                 "name": "proxy",
                 "type": "address"
             }
@@ -573,34 +610,6 @@
         "inputs": [
             {
                 "internalType": "address",
-                "name": "pool",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "to",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            },
-            {
-                "internalType": "address",
-                "name": "unitOfAccount",
-                "type": "address"
-            }
-        ],
-        "name": "externalTransferByOwner",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
                 "name": "_pool",
                 "type": "address"
             }
@@ -1093,6 +1102,24 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "_pool",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_DAOmetadataURI",
+                "type": "string"
+            }
+        ],
+        "name": "setDAOmetadataURI",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "internalType": "contract ITokenFactory",
                 "name": "tokenFactory_",
                 "type": "address"
@@ -1388,6 +1415,81 @@
             }
         ],
         "name": "transferCollectedFees",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "poolAdress",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "newowner",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "jurisdiction",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "entityType",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "trademark",
+                "type": "string"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "uint256",
+                        "name": "proposalThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "quorumThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "decisionThreshold",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingDuration",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "transferValueForDelay",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256[4]",
+                        "name": "executionDelays",
+                        "type": "uint256[4]"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "votingStartDelay",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
+                "name": "governanceSettings",
+                "type": "tuple"
+            }
+        ],
+        "name": "transferExactPoolByService",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

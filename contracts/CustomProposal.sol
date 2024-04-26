@@ -20,7 +20,7 @@ import "./interfaces/ITGE.sol";
 import "./interfaces/IToken.sol";
 import "./interfaces/ITokenERC1155.sol";
 import "./libraries/ExceptionsLibrary.sol";
-
+import "./utils/Logger.sol";
 /**
  * @title Custom Proposal Contract
  * @notice This contract is designed for constructing proposals from user input. The methods generate calldata from the input arguments and pass it to the specified pool as a proposal.
@@ -30,7 +30,8 @@ contract CustomProposal is
     Initializable,
     OwnableUpgradeable,
     AccessControlEnumerableUpgradeable,
-    ERC2771Context
+    ERC2771Context,
+    Logger
 {
     // STORAGE
 
@@ -170,7 +171,8 @@ contract CustomProposal is
         IToken.TokenInfo memory tokenInfo,
         string memory metadataURI,
         string memory description,
-        string memory metaHash
+        string memory metaHash,
+        address fundReceiverAddress
     ) external returns (uint256 proposalId) {
         // Get cap and supply data
         uint256 totalSupplyWithReserves = 0;
@@ -178,7 +180,7 @@ contract CustomProposal is
         //Check if token is new or exists for pool
         require(
             address(token) == address(0) ||
-                IPool(pool).tokenExists(IToken(token)),
+                IPool(pool).tokenExists(token),
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
 
@@ -216,7 +218,8 @@ contract CustomProposal is
             token,
             tgeInfo,
             tokenInfo,
-            metadataURI
+            metadataURI,
+            fundReceiverAddress
         );
 
         // Propose
@@ -264,7 +267,7 @@ contract CustomProposal is
         );
 
         // Validate settings
-        IPool(pool).validateGovernanceSettings(settings);
+        // IPool(pool).validateGovernanceSettings(settings);
 
         // Prepare proposal action
         address[] memory targets = new address[](1);
@@ -378,7 +381,8 @@ contract CustomProposal is
         IToken.TokenInfo memory tokenInfo,
         string memory metadataURI,
         string memory description,
-        string memory metaHash
+        string memory metaHash,
+        address fundReceiverAddress
     ) external returns (uint256 proposalId) {
         // Get cap and supply data
         uint256 totalSupplyWithReserves = 0;
@@ -386,7 +390,7 @@ contract CustomProposal is
         //Check if token is new or exists for pool
         require(
             address(token) == address(0) ||
-                IPool(pool).tokenExists(IToken(token)),
+                IPool(pool).tokenExists(token),
             ExceptionsLibrary.WRONG_TOKEN_ADDRESS
         );
 
@@ -432,7 +436,8 @@ contract CustomProposal is
             tokenIdMetadataURI,
             tgeInfo,
             tokenInfo,
-            metadataURI
+            metadataURI,
+            fundReceiverAddress
         );
 
         // Propose
@@ -462,8 +467,7 @@ contract CustomProposal is
      * @dev The main parameter should be a structure of type NewGovernanceSettings, which includes the Governance Threshold, Decision Threshold, Proposal Threshold, execution delay lists for proposals, as well as two sets of addresses: one for the new list of secretaries and another for the new list of executors.
      * @param pool The address of the pool on behalf of which this proposal will be launched and for which the Governance settings will be changed.
      * @param settings New governance settings.
-     * @param secretary Add a new address to the pool's secretary list.
-     * @param executor Add a new address to the pool's executor list.
+     * @param _roles  roles
      * @param description Proposal description.
      * @param metaHash Hash value of the proposal metadata.
      * @return proposalId The ID of the created proposal.
@@ -471,8 +475,7 @@ contract CustomProposal is
     function proposeGovernanceSettingsWithRoles(
         address pool,
         IGovernanceSettings.NewGovernanceSettings memory settings,
-        address[] memory secretary,
-        address[] memory executor,
+        ITGEFactory.Roles memory _roles,
         string memory description,
         string memory metaHash
     ) external returns (uint256 proposalId) {
@@ -484,7 +487,7 @@ contract CustomProposal is
         );
 
         // Validate settings
-        IPool(pool).validateGovernanceSettings(settings);
+        // IPool(pool).validateGovernanceSettings(settings);
 
         // Prepare proposal action
         address[] memory targets = new address[](1);
@@ -497,8 +500,7 @@ contract CustomProposal is
         callDatas[0] = abi.encodeWithSelector(
             IPool.setSettings.selector,
             settings,
-            secretary,
-            executor
+            _roles
         );
 
         // Propose

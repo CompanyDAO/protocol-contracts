@@ -8,6 +8,43 @@
         "anonymous": false,
         "inputs": [
             {
+                "indexed": false,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "receiver",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "service",
+                "type": "address"
+            }
+        ],
+        "name": "CompanyDAOLog",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
                 "indexed": true,
                 "internalType": "address",
                 "name": "admin",
@@ -136,6 +173,56 @@
             {
                 "indexed": true,
                 "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "status",
+                "type": "bool"
+            }
+        ],
+        "name": "TokenBlacklisted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "status",
+                "type": "bool"
+            }
+        ],
+        "name": "TokenWhitelisted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
                 "name": "account",
                 "type": "address"
             },
@@ -195,6 +282,42 @@
             }
         ],
         "name": "addComplianceAdmin",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            }
+        ],
+        "name": "addToTokenBlacklist",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            }
+        ],
+        "name": "addToTokenWhitelist",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -274,6 +397,44 @@
                 "internalType": "uint256",
                 "name": "",
                 "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            }
+        ],
+        "name": "getTokenBlacklist",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            }
+        ],
+        "name": "getTokenWhitelist",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
             }
         ],
         "stateMutability": "view",
@@ -367,6 +528,30 @@
         "inputs": [
             {
                 "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "isBlacklistedForToken",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
                 "name": "account",
                 "type": "address"
             }
@@ -390,9 +575,9 @@
                 "type": "address"
             },
             {
-                "internalType": "bytes32",
-                "name": "compliance",
-                "type": "bytes32"
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
             }
         ],
         "name": "isWhitelisted",
@@ -401,6 +586,43 @@
                 "internalType": "bool",
                 "name": "",
                 "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "isWhitelistedForToken",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "registry",
+        "outputs": [
+            {
+                "internalType": "contract IRegistry",
+                "name": "",
+                "type": "address"
             }
         ],
         "stateMutability": "view",
@@ -420,6 +642,42 @@
             }
         ],
         "name": "removeComplianceAdmin",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            }
+        ],
+        "name": "removeFromTokenBlacklist",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address[]",
+                "name": "accounts",
+                "type": "address[]"
+            }
+        ],
+        "name": "removeFromTokenWhitelist",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -474,6 +732,29 @@
             }
         ],
         "name": "revokeRole",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "token",
+                "type": "address"
+            },
+            {
+                "internalType": "address[]",
+                "name": "newWhitelist",
+                "type": "address[]"
+            },
+            {
+                "internalType": "address[]",
+                "name": "newBlacklist",
+                "type": "address[]"
+            }
+        ],
+        "name": "setTokenLists",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

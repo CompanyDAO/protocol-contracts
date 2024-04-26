@@ -12,7 +12,8 @@ interface ITGEFactory {
         address token,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address fundReceiverAddress
     ) external;
 
     function createSecondaryTGEERC1155(
@@ -21,7 +22,8 @@ interface ITGEFactory {
         string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address fundReceiverAddress
     ) external;
 
     function createPrimaryTGE(
@@ -29,16 +31,23 @@ interface ITGEFactory {
         IToken.TokenInfo memory tokenInfo,
         ITGE.TGEInfo memory tgeInfo,
         string memory metadataURI,
+        address fundReceiverAddress,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
-        address[] memory secretary,
-        address[] memory executor
+        Roles memory roles
     ) external;
 
-     function createTSE(
+    function createTSE(
         address token,
         uint256 tokenId,
         ITSE.TSEInfo calldata tseInfo,
         string memory metadataURI,
         address recipient
     ) external;
+
+    struct Roles {
+        address[] manager;
+        address[] secretary;
+        address[] executor;
+        address[] dividendManager;
+    }
 }

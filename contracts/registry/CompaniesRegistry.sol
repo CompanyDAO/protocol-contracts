@@ -7,13 +7,18 @@ import "../libraries/ExceptionsLibrary.sol";
 import "../interfaces/IService.sol";
 import "../interfaces/IPool.sol";
 import "../interfaces/registry/ICompaniesRegistry.sol";
+import "../utils/Logger.sol";
 
 /**
  *@title Companies Registry Contract
  *@notice This contract is a section of the Registry contract designed for storing and manipulating companies listed for sale.
  *@dev With the help of this contract, one can find out the number of companies available for purchase in a specific jurisdiction and their corresponding prices. Here, an isolated but still dependent role-based model based on Access Control from OZ is implemented, with the contract Service playing a crucial role.
  */
-abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
+abstract contract CompaniesRegistry is
+    RegistryBase,
+    ICompaniesRegistry,
+    Logger
+{
     // CONSTANTS
 
     /**
@@ -108,14 +113,15 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
 
         _setIndexAddress(index, poolAddress);
 
-        IRegistry(address(this)).log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
             abi.encodeWithSelector(
                 ICompaniesRegistry.createCompany.selector,
                 info
-            )
+            ),
+            service
         );
     }
 
@@ -132,9 +138,7 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
             _info.fee,
             _info.jurisdiction,
             _info.entityType,
-            _info.ein,
-            _info.dateOfIncorporation,
-            ""
+            _info.ein
         );
 
         companies[index] = _info;
@@ -281,31 +285,20 @@ abstract contract CompaniesRegistry is RegistryBase, ICompaniesRegistry {
      * @param _pool The contract pool address.
      * @param _jurisdiction The digital code of the jurisdiction.
      * @param _entityType The digital code of the organization type.
-     * @param _ein The government registration number.
-     * @param _dateOfIncorporation The date of incorporation.
-     * @param _OAuri Operating Agreement URL.
+     * @param _ein The government registration number
      */
     function _setCompanyInfoForPool(
         address _pool,
         uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
-        string memory _ein,
-        string memory _dateOfIncorporation,
-        string memory _OAuri
+        string memory _ein
     ) private onlyRole(COMPANIES_MANAGER_ROLE) {
         require(
             bytes(IPool(_pool).trademark()).length == 0,
             ExceptionsLibrary.ALREADY_SET
         );
 
-        IPool(_pool).setCompanyInfo(
-            _fee,
-            _jurisdiction,
-            _entityType,
-            _ein,
-            _dateOfIncorporation,
-            _OAuri
-        );
+        IPool(_pool).setCompanyInfo(_fee, _jurisdiction, _entityType, _ein);
     }
 }

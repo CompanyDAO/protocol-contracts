@@ -11,10 +11,10 @@ import "../interfaces/governor/IGovernor.sol";
 import "../interfaces/registry/IRegistry.sol";
 
 /**
-* @title Governor Contract
-* @notice This contract extends the functionality of the pool contract. If the pool has been granted DAO status, Governance tokens can be used as votes during the voting process for proposals created for the pool. With this architecture, the pool can invoke methods on behalf of itself provided by this module to execute transactions prescribed by proposals.
-* @dev This module provides additional methods for creating proposals, participating and observing the voting process, as well as safely and securely counting votes and executing decisions that have undergone voting.
-*/
+ * @title Governor Contract
+ * @notice This contract extends the functionality of the pool contract. If the pool has been granted DAO status, Governance tokens can be used as votes during the voting process for proposals created for the pool. With this architecture, the pool can invoke methods on behalf of itself provided by this module to execute transactions prescribed by proposals.
+ * @dev This module provides additional methods for creating proposals, participating and observing the voting process, as well as safely and securely counting votes and executing decisions that have undergone voting.
+ */
 abstract contract Governor {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using AddressUpgradeable for address;
@@ -30,7 +30,7 @@ abstract contract Governor {
     This notation allows specifying ratios with an accuracy of up to four decimal places in percentage notation (six decimal places in decimal notation).
     When working with the CompanyDAO frontend, the application scripts automatically convert the familiar percentage notation into the required format. When using the contracts independently, this feature of value notation should be taken into account.
     */
-    uint256 private constant DENOM = 100 * 10**4;
+    uint256 private constant DENOM = 100 * 10 ** 4;
 
     // STORAGE
 
@@ -77,7 +77,7 @@ abstract contract Governor {
     }
 
     /**
-    * @notice The structure that includes all the nested structures describing the subject, state, and metadata of the voting.
+     * @notice The structure that includes all the nested structures describing the subject, state, and metadata of the voting.
      * @dev This is the format in which information about each individual proposal is stored in the contract. Since the Pool contract inherits from Governor, all proposals for an individual pool are stored separately in the public mapping(uint256 => Proposal) proposals, where the mapping key is the internal proposal identifier (which is subsequently stored in the array of records of the Registry contract).
      * @param core Data on the voting settings that were applied to this proposal
      * @param vote Cumulative information on the progress of voting on this proposal
@@ -108,20 +108,6 @@ abstract contract Governor {
     /// @dev Last proposal ID
     uint256 public lastProposalId;
 
-    // EVENTS
-
-    /**
-     * @dev Event emitted on proposal creation
-     * @param proposalId Proposal ID
-     * @param core Proposal core data
-     * @param meta Proposal meta data
-     */
-    event ProposalCreated(
-        uint256 proposalId,
-        IGovernor.ProposalCoreData core,
-        IGovernor.ProposalMetaData meta
-    );
-
     /**
      * @dev Event emitted on proposal vote cast
      * @param voter Voter address
@@ -135,18 +121,6 @@ abstract contract Governor {
         uint256 votes,
         Ballot ballot
     );
-
-    /**
-     * @dev Event emitted on proposal execution
-     * @param proposalId Proposal ID
-     */
-    event ProposalExecuted(uint256 proposalId);
-
-    /**
-     * @dev Event emitted on proposal cancellation
-     * @param proposalId Proposal ID
-     */
-    event ProposalCancelled(uint256 proposalId);
 
     // PUBLIC VIEW FUNCTIONS
 
@@ -169,11 +143,9 @@ abstract contract Governor {
     * @param proposalId Идентификатор Proposal.
     * @return The state code using the ProposalState type.
      */
-    function proposalState(uint256 proposalId)
-        public
-        view
-        returns (ProposalState)
-    {
+    function proposalState(
+        uint256 proposalId
+    ) public view returns (ProposalState) {
         Proposal memory proposal = proposals[proposalId];
 
         if (proposal.vote.startBlock == 0) {
@@ -234,30 +206,20 @@ abstract contract Governor {
     }
 
     /**
-    * @dev This method is used to work with the voting history and returns the vote code according to the Ballot type made by the specified account in the specified proposal. Additionally, using the pastVotes snapshots, it provides information about the number of votes this account had during the specified voting.
-    * @param account Account address.
-    * @param proposalId Proposal identifier.
-    * @return ballot Vote type.
-    * @return votes Number of votes cast.
-    */
-    function getBallot(address account, uint256 proposalId)
-        public
-        view
-        returns (Ballot ballot, uint256 votes)
-    {
-        if (proposals[proposalId].vote.startBlock - 1 < block.number)
-            return (
-                ballots[account][proposalId],
-                _getPastVotes(
-                    account,
-                    proposals[proposalId].vote.startBlock - 1
-                )
-            );
-        else
-            return (
-                ballots[account][proposalId],
-                _getPastVotes(account, block.number - 1)
-            );
+     * @dev This method is used to work with the voting history and returns the vote code according to the Ballot type made by the specified account in the specified proposal. Additionally, using the pastVotes snapshots, it provides information about the number of votes this account had during the specified voting.
+     * @param account Account address.
+     * @param proposalId Proposal identifier.
+     * @return ballot Vote type.
+     * @return votes Number of votes cast.
+     */
+    function getBallot(
+        address account,
+        uint256 proposalId
+    ) public view returns (Ballot ballot, uint256 votes) {
+        return (
+            ballots[account][proposalId],
+            _getPastVotesForProposal(account, proposalId)
+        );
     }
 
     // INTERNAL FUNCTIONS
@@ -293,19 +255,20 @@ abstract contract Governor {
 
         // Call creation hook
         _afterProposalCreated(proposalId);
-
-        // Emit event
-        emit ProposalCreated(proposalId, core, meta);
     }
 
     /**
-    * @notice Implementation of the voting method for the pool contract.
-    * @dev This method includes a check that the proposal is still in the "Active" state and eligible for the user to cast their vote. Additionally, each invocation of this method results in an additional check for the conditions to prematurely end the voting.
-    * @param account Voting account
-    * @param proposalId Proposal ID.
-    * @param support "True" for a vote "in favor/for," "False" otherwise.
-    */
-    function _castVote(address account, uint256 proposalId, bool support) internal {
+     * @notice Implementation of the voting method for the pool contract.
+     * @dev This method includes a check that the proposal is still in the "Active" state and eligible for the user to cast their vote. Additionally, each invocation of this method results in an additional check for the conditions to prematurely end the voting.
+     * @param account Voting account
+     * @param proposalId Proposal ID.
+     * @param support "True" for a vote "in favor/for," "False" otherwise.
+     */
+    function _castVote(
+        address account,
+        uint256 proposalId,
+        bool support
+    ) internal {
         // Check that voting exists, is started and not finished
         require(
             proposals[proposalId].vote.startBlock != 0,
@@ -325,10 +288,12 @@ abstract contract Governor {
         );
 
         // Get number of votes
-        uint256 votes = _getPastVotes(
-            account,
-            proposals[proposalId].vote.startBlock - 1
-        );
+        // uint256 votes = _getPastVotes(
+        //     account,
+        //     proposals[proposalId].vote.startBlock - 1
+        // );
+
+        uint256 votes = _getPastVotesForProposal(account, proposalId);
 
         require(votes > 0, ExceptionsLibrary.ZERO_VOTES);
 
@@ -345,12 +310,12 @@ abstract contract Governor {
         _checkProposalVotingEarlyEnd(proposalId);
 
         // Emit event
-        // emit VoteCast(
-        //     account,
-        //     proposalId,
-        //     votes,
-        //     support ? Ballot.For : Ballot.Against
-        // );
+        emit VoteCast(
+            account,
+            proposalId,
+            votes,
+            support ? Ballot.For : Ballot.Against
+        );
     }
 
     /**
@@ -389,9 +354,6 @@ abstract contract Governor {
             proposalId,
             proposal.meta.metaHash
         );
-
-        // Emit contract event
-        emit ProposalExecuted(proposalId);
     }
 
     /**
@@ -508,30 +470,33 @@ abstract contract Governor {
      * @param blocknumber block number
      * @return Total amount of votes
      */
-    function _getBlockTotalVotes(uint256 blocknumber)
-        internal
-        view
-        virtual
-        returns (uint256);
+    function _getBlockTotalVotes(
+        uint256 blocknumber
+    ) internal view virtual returns (uint256);
 
-    /**
-     * @dev Function that returns the amount of votes for a client adrress at any given block
-     * @param account Account's address
-     * @param blockNumber Block number
-     * @return Account's votes at given block
-     */
-    function _getPastVotes(address account, uint256 blockNumber)
-        internal
-        view
-        virtual
-        returns (uint256);
+    // /**
+    //  * @dev Function that returns the amount of votes for a client adrress at any given block
+    //  * @param account Account's address
+    //  * @param blockNumber Block number
+    //  * @return Account's votes at given block
+    //  */
+    // function _getPastVotes(
+    //     address account,
+    //     uint256 blockNumber
+    // ) internal view virtual returns (uint256);
+
+    function _getPastVotesForProposal(
+        address account,
+        uint256 proposalId
+    ) internal view virtual returns (uint256);
 
     /**
      * @dev Function that set last ProposalId for a client address
      * @param proposer Proposer's address
      * @param proposalId Proposal id
      */
-    function _setLastProposalIdForAddress(address proposer, uint256 proposalId)
-        internal
-        virtual;
+    function _setLastProposalIdForAddress(
+        address proposer,
+        uint256 proposalId
+    ) internal virtual;
 }

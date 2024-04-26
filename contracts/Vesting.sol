@@ -9,7 +9,9 @@ import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/ITGE.sol";
 import "./interfaces/IVesting.sol";
 import "./utils/CustomContext.sol";
-    /**
+import "./utils/Logger.sol";
+
+/**
     * @title Vesting contract
     * @notice The Vesting contract exists in a single instance and helps manage the vesting processes for all successful TGEs.
     * @dev The vesting setup is performed by passing a value as one of the fields of the TGEInfo structure called "vestingParams", which is a structure of IVesting.VestingParams. This set of settings allows you to specify:
@@ -20,7 +22,7 @@ import "./utils/CustomContext.sol";
     @dev For each TGE, a list of Resolvers can be assigned, i.e., addresses that can stop the vesting program for a specific user. 
     The list of resolvers is immutable for each individual TGE and is set at the time of its launch (it can be stored in the proposal data for creating the TGE beforehand).
     */
-contract Vesting is Initializable, IVesting, ERC2771Context {
+contract Vesting is Initializable, IVesting, ERC2771Context, Logger {
     using SafeERC20Upgradeable for IToken;
 
     // CONSTANTS
@@ -63,27 +65,27 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     // EVENTS
 
     /**
-    * @dev This event is emitted when new token units are vested due to token purchase.
-    * @param tge TGE contract address
-    * @param account Account address
-    * @param amount Amount of tokens vested for the account
-    */
+     * @dev This event is emitted when new token units are vested due to token purchase.
+     * @param tge TGE contract address
+     * @param account Account address
+     * @param amount Amount of tokens vested for the account
+     */
     event Vested(address tge, address account, uint256 amount);
 
     /**
-    * @dev This event is emitted for each token claiming by users.
-    * @param tge TGE contract address
-    * @param account Account address that requested the token claiming
-    * @param amount Amount of claimed tokens
-    */
+     * @dev This event is emitted for each token claiming by users.
+     * @param tge TGE contract address
+     * @param account Account address that requested the token claiming
+     * @param amount Amount of claimed tokens
+     */
     event Claimed(address tge, address account, uint256 amount);
 
     /**
-    * @dev This event is emitted when vesting is canceled for a specific account and TGE.
-    * @param tge TGE contract address
-    * @param account Account address
-    * @param amount Amount of tokens that will not be distributed to this address due to the cancellation
-    */
+     * @dev This event is emitted when vesting is canceled for a specific account and TGE.
+     * @param tge TGE contract address
+     * @param account Account address
+     * @param amount Amount of tokens that will not be distributed to this address due to the cancellation
+     */
     event Cancelled(address tge, address account, uint256 amount);
 
     // MODIFIERS
@@ -97,7 +99,7 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
         );
         _;
     }
-    
+
     /// @notice Modifier allows the method to be called only by an account that has the role of `SERVICE_MANAGER` in the Service contract.
     /// @dev It restricts access to certain privileged actions that are reserved for the manager.
     modifier onlyManager() {
@@ -153,10 +155,10 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     // PUBLIC FUNCTIONS
 
     /**
-    * @notice Method for increasing the token balance in vesting for a specific TGE contract.
-    * @dev This method is called only by the TGE contract and results in the creation of a new entry or an increase in the existing value in the vested mapping for the TGE key and the specified account. After this, the account is reserved the ability to mint and receive new token units in case the conditions specified in the vesting program for this TGE are met.
-    * @param to Account address that received the vested tokens
-    * @param amount Amount of tokens to vest
+     * @notice Method for increasing the token balance in vesting for a specific TGE contract.
+     * @dev This method is called only by the TGE contract and results in the creation of a new entry or an increase in the existing value in the vested mapping for the TGE key and the specified account. After this, the account is reserved the ability to mint and receive new token units in case the conditions specified in the vesting program for this TGE are met.
+     * @param to Account address that received the vested tokens
+     * @param amount Amount of tokens to vest
      */
     function vest(address to, uint256 amount) external onlyTGE {
         totalVested[_msgSender()] += amount;
@@ -166,9 +168,9 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice Method for recording the occurrence of one of two conditions for token unlocking.
-    * @dev This method can only be called by the address with the SERVICE_MANAGER role in the Service contract. It is a trusted way to load data into the source of truth about the TVL events achieved by the pool, as specified in the parameters of the vesting program.
-    * @param tge TGE contract address
+     * @notice Method for recording the occurrence of one of two conditions for token unlocking.
+     * @dev This method can only be called by the address with the SERVICE_MANAGER role in the Service contract. It is a trusted way to load data into the source of truth about the TVL events achieved by the pool, as specified in the parameters of the vesting program.
+     * @param tge TGE contract address
      */
     function setClaimTVLReached(address tge) external onlyManager {
         require(
@@ -179,10 +181,10 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice Cancels vesting for the specified account and TGE contract addresses.
-    * @dev Calling this method is only possible by the address specified in the resolvers list for the specific TGE, and it leads to resetting the token balance in vesting for the specified address, depriving it of the ability to make successful token claiming within the specified TGE.
-    * @param tge TGE contract address
-    * @param account Account address
+     * @notice Cancels vesting for the specified account and TGE contract addresses.
+     * @dev Calling this method is only possible by the address specified in the resolvers list for the specific TGE, and it leads to resetting the token balance in vesting for the specified address, depriving it of the ability to make successful token claiming within the specified TGE.
+     * @param tge TGE contract address
+     * @param account Account address
      */
     function cancel(
         address tge,
@@ -199,9 +201,9 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice Method to issue and transfer unlocked tokens to the transaction sender's address.
-    * @dev This method is executed with the specified TGE, for which the currently unlocked token volume is calculated. Calling the method results in the issuance and transfer of the entire calculated token volume to the sender's address.
-    * @param tge TGE contract address
+     * @notice Method to issue and transfer unlocked tokens to the transaction sender's address.
+     * @dev This method is executed with the specified TGE, for which the currently unlocked token volume is calculated. Calling the method results in the issuance and transfer of the entire calculated token volume to the sender's address.
+     * @param tge TGE contract address
      */
     function claim(address tge) external {
         uint256 amount = claimableBalanceOf(tge, _msgSender());
@@ -227,11 +229,12 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
             IToken(token).mint(_msgSender(), amount);
         }
 
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
-            abi.encodeWithSelector(IVesting.claim.selector, tge)
+            abi.encodeWithSelector(IVesting.claim.selector, tge),
+            address(registry.service())
         );
 
         emit Claimed(tge, _msgSender(), amount);
@@ -240,9 +243,9 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     // PUBLIC VIEW FUNCTIONS
 
     /**
-    * @notice This method returns the vesting parameters specified for a specific TGE.
-    * @param tge TGE contract address
-    * @return VestingParams Vesting settings
+     * @notice This method returns the vesting parameters specified for a specific TGE.
+     * @param tge TGE contract address
+     * @return VestingParams Vesting settings
      */
     function vestingParams(
         address tge
@@ -251,9 +254,9 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice This method validates the vesting program parameters proposed for use in the created TGE contract.
-    * @param params Vesting program parameters
-    * @return bool True if params are valid (reverts otherwise)
+     * @notice This method validates the vesting program parameters proposed for use in the created TGE contract.
+     * @param params Vesting program parameters
+     * @return bool True if params are valid (reverts otherwise)
      */
     function validateParams(
         VestingParams memory params
@@ -266,11 +269,11 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice This method returns the number of token units that have been unlocked for a specific account within the vesting program of a particular TGE.
-    * @dev The returned value is the total sum of all quantities after all token unlocks that have occurred for this account within this TGE. In other words, claimed tokens are also part of this response.
-    * @param tge TGE contract address
-    * @param account Account address
-    * @return uint256 Number of unlocked token units
+     * @notice This method returns the number of token units that have been unlocked for a specific account within the vesting program of a particular TGE.
+     * @dev The returned value is the total sum of all quantities after all token unlocks that have occurred for this account within this TGE. In other words, claimed tokens are also part of this response.
+     * @param tge TGE contract address
+     * @param account Account address
+     * @return uint256 Number of unlocked token units
      */
     function unlockedBalanceOf(
         address tge,
@@ -310,11 +313,11 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice This method returns the currently available amount of token units that an account can claim within the specified TGE.
-    * @dev This method takes into account previous claimings made by the account.
-    * @param tge TGE contract address
-    * @param account Account address
-    * @return uin256 Number of claimable token units
+     * @notice This method returns the currently available amount of token units that an account can claim within the specified TGE.
+     * @dev This method takes into account previous claimings made by the account.
+     * @param tge TGE contract address
+     * @param account Account address
+     * @return uin256 Number of claimable token units
      */
     function claimableBalanceOf(
         address tge,
@@ -324,11 +327,11 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     }
 
     /**
-    * @notice This method shows the remaining tokens that are still vested for a given address.
-    * @dev This method shows both still locked token units and already unlocked units ready for claiming.
-    * @param tge TGE contract address
-    * @param account Account address
-    * @return uint256 Number of token units vested
+     * @notice This method shows the remaining tokens that are still vested for a given address.
+     * @dev This method shows both still locked token units and already unlocked units ready for claiming.
+     * @param tge TGE contract address
+     * @param account Account address
+     * @return uint256 Number of token units vested
      */
     function vestedBalanceOf(
         address tge,
@@ -340,8 +343,9 @@ contract Vesting is Initializable, IVesting, ERC2771Context {
     function getTrustedForwarder() public view override returns (address) {
         return registry.service().getTrustedForwarder();
     }
-     function _msgSender() internal view override returns (address sender) {
-       return super._msgSender();
+
+    function _msgSender() internal view override returns (address sender) {
+        return super._msgSender();
     }
 
     function _msgData() internal view override returns (bytes calldata) {

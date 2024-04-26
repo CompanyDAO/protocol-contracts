@@ -13,13 +13,19 @@ import "./interfaces/governor/IGovernanceSettings.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./utils/CustomContext.sol";
 import "./interfaces/ITSE.sol";
+import "./utils/Logger.sol";
 
 /**
  * @title TGE Factory contract
  * @notice Event emitted on creation of primary TGE.
  * @dev Deployment of a TGE can occur both within the execution of transactions prescribed by a proposal, and during the execution of a transaction initiated by the pool owner, who has not yet become a DAO.
  */
-contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
+contract TGEFactory is
+    ReentrancyGuardUpgradeable,
+    ITGEFactory,
+    ERC2771Context,
+    Logger
+{
     // STORAGE
 
     /// @notice Service contract address
@@ -106,38 +112,36 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
      * @param tgeInfo Pool TGE parameters
      * @param metadataURI Metadata URI
      * @param governanceSettings_ Set of Governance settings
-     * @param secretary Secretary address
-     * @param executor Executor address
+     * @param _roles roles address
      */
     function createPrimaryTGE(
         address poolAddress,
         IToken.TokenInfo memory tokenInfo,
         ITGE.TGEInfo memory tgeInfo,
         string memory metadataURI,
+        address fundReceiverAddress,
         IGovernanceSettings.NewGovernanceSettings memory governanceSettings_,
-        address[] memory secretary,
-        address[] memory executor
+        Roles memory _roles
     ) external nonReentrant whenNotPaused {
         // Check that sender is pool owner
         IPool pool = IPool(poolAddress);
         require(pool.owner() == _msgSender(), ExceptionsLibrary.NOT_POOL_OWNER);
 
         // Check token cap
-        require(tokenInfo.cap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
+        //require(tokenInfo.cap >= 1 ether, ExceptionsLibrary.INVALID_CAP);
 
         // Check that pool is not active yet
         require(
             address(pool.getGovernanceToken()) == address(0) || !pool.isDAO(),
             ExceptionsLibrary.GOVERNANCE_TOKEN_EXISTS
         );
-        pool.setSettings(governanceSettings_, secretary, executor);
+        pool.setSettings(governanceSettings_, _roles);
 
         // Create TGE contract
         ITGE tge = _createTGE(metadataURI, address(pool));
 
         // Create token contract
         tokenInfo.tokenType = IToken.TokenType.Governance;
-        tokenInfo.decimals = 18;
         address token = service.tokenFactory().createToken(
             address(pool),
             tokenInfo,
@@ -154,11 +158,12 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
             0,
             "",
             tgeInfo,
-            service.protocolTokenFee()
+            service.protocolTokenFee(),
+            fundReceiverAddress
         );
         emit PrimaryTGECreated(address(pool), address(tge), address(token));
 
-        service.registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -168,10 +173,11 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
                 tokenInfo,
                 tgeInfo,
                 metadataURI,
+                fundReceiverAddress,
                 governanceSettings_,
-                secretary,
-                executor
-            )
+                _roles
+            ),
+            address(service)
         );
     }
 
@@ -186,7 +192,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
         address token,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address fundReceiverAddress
     ) external onlyPool nonReentrant whenNotPaused {
         ITGE tge;
         // Check whether it's initial preference TGE or any secondary token
@@ -199,7 +206,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
                 "",
                 tgeInfo,
                 tokenInfo,
-                metadataURI
+                metadataURI,
+                fundReceiverAddress
             );
         } else {
             (token, tge) = _createSecondaryTGE(
@@ -208,7 +216,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
                 "",
                 tgeInfo,
                 tokenInfo,
-                metadataURI
+                metadataURI,
+                fundReceiverAddress
             );
         }
 
@@ -234,7 +243,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
         string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address fundReceiverAddress
     ) external onlyPool nonReentrant whenNotPaused {
         require(
             tokenInfo.tokenType == IToken.TokenType.Preference,
@@ -248,7 +258,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
                 uri,
                 tgeInfo,
                 tokenInfo,
-                metadataURI
+                metadataURI,
+                fundReceiverAddress
             );
         } else {
             if (tokenId == 0) tokenId = ITokenERC1155(token).lastTokenId();
@@ -258,7 +269,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
                 uri,
                 tgeInfo,
                 tokenInfo,
-                metadataURI
+                metadataURI,
+                fundReceiverAddress
             );
         }
         if (ITokenERC1155(token).cap(tokenId) == 0) {
@@ -285,7 +297,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
         string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address fundReceiverAddress
     ) internal returns (address, ITGE) {
         // Check that token is valid
         require(
@@ -331,7 +344,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
             tokenId,
             uri,
             tgeInfo,
-            protocolTokenFee
+            protocolTokenFee,
+            fundReceiverAddress
         );
 
         return (token, tge);
@@ -350,7 +364,8 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
         string memory uri,
         ITGE.TGEInfo calldata tgeInfo,
         IToken.TokenInfo calldata tokenInfo,
-        string memory metadataURI
+        string memory metadataURI,
+        address fundReceiverAddress
     ) internal returns (address, ITGE) {
         // Create TGE
         ITGE tge = _createTGE(metadataURI, _msgSender());
@@ -379,7 +394,15 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
         IPool(_msgSender()).setToken(token, IToken.TokenType.Preference);
 
         // Initialize TGE
-        tge.initialize(address(service), token, tokenId, uri, tgeInfo, 0);
+        tge.initialize(
+            address(service),
+            token,
+            tokenId,
+            uri,
+            tgeInfo,
+            0,
+            fundReceiverAddress
+        );
 
         return (token, tge);
     }
@@ -462,7 +485,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
 
         ITSE tse = _createTSE(metadataURI, _msgSender());
 
-        tse.initialize(token, tokenId, tseInfo , _msgSender(), recipient);
+        tse.initialize(token, tokenId, tseInfo, _msgSender(), recipient);
 
         if (tokenId != 0) {
             ITokenERC1155(token).transfer(
@@ -483,7 +506,7 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
             IToken(token).addTSE(_msgSender(), address(tse));
         }
 
-        service.registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -492,10 +515,11 @@ contract TGEFactory is ReentrancyGuardUpgradeable, ITGEFactory, ERC2771Context {
                 token,
                 tokenId,
                 tseInfo,
-                metadataURI
-            )
+                metadataURI,
+                recipient
+            ),
+            address(service)
         );
-
     }
 
     function getTrustedForwarder() public view override returns (address) {

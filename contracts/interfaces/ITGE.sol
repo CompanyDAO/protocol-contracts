@@ -47,7 +47,8 @@ interface ITGE {
         uint256 _tokenId,
         string memory _uri,
         TGEInfo calldata _info,
-        uint256 _protocolFee
+        uint256 _protocolFee,
+        address _fundReceiverAddress
     ) external;
 
     enum State {

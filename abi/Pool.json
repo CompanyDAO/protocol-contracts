@@ -9,6 +9,43 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "receiver",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "data",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "service",
+                "type": "address"
+            }
+        ],
+        "name": "CompanyDAOLog",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
                 "internalType": "uint256",
                 "name": "proposalThreshold_",
                 "type": "uint256"
@@ -103,106 +140,6 @@
         "inputs": [
             {
                 "indexed": false,
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            }
-        ],
-        "name": "ProposalCancelled",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            },
-            {
-                "components": [
-                    {
-                        "internalType": "address[]",
-                        "name": "targets",
-                        "type": "address[]"
-                    },
-                    {
-                        "internalType": "uint256[]",
-                        "name": "values",
-                        "type": "uint256[]"
-                    },
-                    {
-                        "internalType": "bytes[]",
-                        "name": "callDatas",
-                        "type": "bytes[]"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "quorumThreshold",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "decisionThreshold",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "executionDelay",
-                        "type": "uint256"
-                    }
-                ],
-                "indexed": false,
-                "internalType": "struct IGovernor.ProposalCoreData",
-                "name": "core",
-                "type": "tuple"
-            },
-            {
-                "components": [
-                    {
-                        "internalType": "enum IRecordsRegistry.EventType",
-                        "name": "proposalType",
-                        "type": "uint8"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "description",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "metaHash",
-                        "type": "string"
-                    }
-                ],
-                "indexed": false,
-                "internalType": "struct IGovernor.ProposalMetaData",
-                "name": "meta",
-                "type": "tuple"
-            }
-        ],
-        "name": "ProposalCreated",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "proposalId",
-                "type": "uint256"
-            }
-        ],
-        "name": "ProposalExecuted",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
                 "internalType": "address",
                 "name": "account",
                 "type": "address"
@@ -244,7 +181,7 @@
     },
     {
         "inputs": [],
-        "name": "OAurl",
+        "name": "DAOmetadataURI",
         "outputs": [
             {
                 "internalType": "string",
@@ -421,29 +358,6 @@
         "inputs": [
             {
                 "internalType": "address",
-                "name": "to",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            },
-            {
-                "internalType": "address",
-                "name": "unitOfAccount",
-                "type": "address"
-            }
-        ],
-        "name": "externalTransferByOwner",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
                 "name": "account",
                 "type": "address"
             },
@@ -483,6 +397,25 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "getCurrentVotes",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "getGovernanceToken",
         "outputs": [
@@ -498,6 +431,19 @@
     {
         "inputs": [],
         "name": "getPoolExecutor",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getPoolManager",
         "outputs": [
             {
                 "internalType": "address[]",
@@ -620,45 +566,7 @@
                 "type": "address"
             }
         ],
-        "name": "isPoolExecutor",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
         "name": "isPoolSecretary",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "isValidExecutor",
         "outputs": [
             {
                 "internalType": "bool",
@@ -1095,19 +1003,22 @@
                 "internalType": "string",
                 "name": "_ein",
                 "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "_dateOfIncorporation",
-                "type": "string"
-            },
+            }
+        ],
+        "name": "setCompanyInfo",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
             {
                 "internalType": "string",
                 "name": "_OAuri",
                 "type": "string"
             }
         ],
-        "name": "setCompanyInfo",
+        "name": "setDAOmetadataURI",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -1215,6 +1126,11 @@
                 "internalType": "struct IGovernanceSettings.NewGovernanceSettings",
                 "name": "governanceSettings_",
                 "type": "tuple"
+            },
+            {
+                "internalType": "bool",
+                "name": "forceTransfer",
+                "type": "bool"
             }
         ],
         "name": "setNewOwnerWithSettings",
@@ -1280,14 +1196,31 @@
                 "type": "tuple"
             },
             {
-                "internalType": "address[]",
-                "name": "secretary",
-                "type": "address[]"
-            },
-            {
-                "internalType": "address[]",
-                "name": "executor",
-                "type": "address[]"
+                "components": [
+                    {
+                        "internalType": "address[]",
+                        "name": "manager",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "secretary",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "executor",
+                        "type": "address[]"
+                    },
+                    {
+                        "internalType": "address[]",
+                        "name": "dividendManager",
+                        "type": "address[]"
+                    }
+                ],
+                "internalType": "struct ITGEFactory.Roles",
+                "name": "_roles",
+                "type": "tuple"
             }
         ],
         "name": "setSettings",
@@ -1316,7 +1249,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IToken",
+                "internalType": "address",
                 "name": "token",
                 "type": "address"
             }

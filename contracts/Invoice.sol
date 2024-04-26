@@ -12,7 +12,7 @@ import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IInvoice.sol";
 import "./interfaces/IPausable.sol";
-
+import "./utils/Logger.sol";
 /**
  * @title Invoice Contract
  * @notice This contract is designed for managing invoices issued by pools for payment.
@@ -31,7 +31,8 @@ contract Invoice is
     Initializable,
     ReentrancyGuardUpgradeable,
     IInvoice,
-    ERC2771Context
+    ERC2771Context,
+    Logger
 {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -196,7 +197,7 @@ contract Invoice is
         }
 
         _setInvoicePaid(pool, invoiceId);
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             msg.value,
@@ -204,7 +205,8 @@ contract Invoice is
                 IInvoice.payInvoice.selector,
                 pool,
                 invoiceId
-            )
+            ),
+            address(registry.service())
         );
     }
 
@@ -245,11 +247,12 @@ contract Invoice is
 
         emit InvoiceCreated(pool, invoiceId);
 
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
-            abi.encodeWithSelector(IInvoice.createInvoice.selector, pool, core)
+            abi.encodeWithSelector(IInvoice.createInvoice.selector, pool, core),
+            address(registry.service())
         );
     }
 
@@ -266,7 +269,7 @@ contract Invoice is
     ) external onlyValidInvoiceManager(pool) {
         _setInvoiceCanceled(pool, invoiceId);
 
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -274,7 +277,8 @@ contract Invoice is
                 IInvoice.cancelInvoice.selector,
                 pool,
                 invoiceId
-            )
+            ),
+            address(registry.service())
         );
     }
 
@@ -306,7 +310,7 @@ contract Invoice is
     ) external onlyManager {
         _setInvoiceCanceled(pool, invoiceId);
 
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -314,7 +318,8 @@ contract Invoice is
                 IInvoice.setInvoiceCanceled.selector,
                 pool,
                 invoiceId
-            )
+            ),
+            address(registry.service())
         );
     }
 
