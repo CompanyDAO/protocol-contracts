@@ -16,6 +16,7 @@ import "./interfaces/IVesting.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/IPausable.sol";
 import "./utils/CustomContext.sol";
+import "./utils/Logger.sol";
 
 /**
     * @title Token Generation Event Contract
@@ -46,7 +47,8 @@ contract TGE is
     Initializable,
     ReentrancyGuardUpgradeable,
     ITGE,
-    ERC2771Context
+    ERC2771Context,
+    Logger
 {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -135,7 +137,7 @@ contract TGE is
     mapping(address => uint256) public whitelistMin;
     mapping(address => uint256) public whitelistMax;
 
-   
+    address public fundReceiverAddress;
 
     // INITIALIZER AND CONSTRUCTOR
 
@@ -166,7 +168,8 @@ contract TGE is
         uint256 _tokenId,
         string memory _uri,
         TGEInfo calldata _info,
-        uint256 _protocolFee
+        uint256 _protocolFee,
+        address _fundReceiverAddress
     ) external initializer {
         __ReentrancyGuard_init();
 
@@ -206,6 +209,8 @@ contract TGE is
             whitelistMax[_info.userWhitelist[i]] = _info.userWhitelistMax[i];
         }
 
+        fundReceiverAddress = _fundReceiverAddress;
+
         createdAt = block.number;
     }
 
@@ -235,20 +240,19 @@ contract TGE is
         // Check purchase price transfer depending on unit of account
         address unitOfAccount = info.unitOfAccount;
 
-        uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
-        uint256 serviceFee = getServiceFee(purchasePrice);
-        uint256 partnerFee = getPartnerFee(purchasePrice);
+         uint256 purchasePrice = (amount * info.price + (1 ether - 1)) / 1 ether;
+        //uint256 serviceFee = getServiceFee(purchasePrice);
 
         if (unitOfAccount == address(0)) {
             require(
-                msg.value >= purchasePrice + serviceFee + partnerFee,
+                msg.value >= purchasePrice,
                 ExceptionsLibrary.INCORRECT_ETH_PASSED
             );
         } else {
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
                 _msgSender(),
                 address(this),
-                purchasePrice + serviceFee + partnerFee
+                purchasePrice
             );
         }
         this.proceedPurchase(_msgSender(), amount);
@@ -437,7 +441,9 @@ contract TGE is
         // Transfer remaining funds to pool
         address unitOfAccount = info.unitOfAccount;
 
-        address pool = IToken(token).pool();
+        address receiver = fundReceiverAddress == address(0)
+            ? IToken(token).pool()
+            : fundReceiverAddress;
 
         uint256 balance = 0;
         if (info.price != 0) {
@@ -457,7 +463,7 @@ contract TGE is
                     );
                 }
                 balance = address(this).balance;
-                payable(pool).sendValue(balance);
+                payable(receiver).sendValue(balance);
             } else {
                 if (serviceFee != 0) {
                     IERC20Upgradeable(unitOfAccount).safeTransfer(
@@ -475,15 +481,19 @@ contract TGE is
                 balance = IERC20Upgradeable(unitOfAccount).balanceOf(
                     address(this)
                 );
-                IERC20Upgradeable(unitOfAccount).safeTransfer(pool, balance);
+                IERC20Upgradeable(unitOfAccount).safeTransfer(
+                    receiver,
+                    balance
+                );
             }
         }
 
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
-            abi.encodeWithSelector(ITGE.transferFunds.selector)
+            abi.encodeWithSelector(ITGE.transferFunds.selector),
+            address(IToken(token).service())
         );
     }
 
@@ -564,7 +574,7 @@ contract TGE is
             whitelistMax[account] = maxs[i];
         }
 
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -573,17 +583,19 @@ contract TGE is
                 accounts,
                 mins,
                 maxs
-            )
+            ),
+            address(IToken(token).service())
         );
     }
 
     function finishTGE() external onlyState(State.Active) onlyWhitelistAdmin {
         info.duration = block.number - createdAt;
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
-            abi.encodeWithSelector(ITGE.finishTGE.selector)
+            abi.encodeWithSelector(ITGE.finishTGE.selector),
+            address(IToken(token).service())
         );
     }
 
@@ -917,13 +929,12 @@ contract TGE is
             }
         }
 
-        
-
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             account,
             address(this),
             0,
-            abi.encodeWithSelector(ITGE.purchase.selector, amount)
+            abi.encodeWithSelector(ITGE.purchase.selector, amount),
+            address(IToken(token).service())
         );
     }
 
@@ -956,7 +967,8 @@ contract TGE is
 
     modifier onlyWhitelistAdmin() {
         require(
-            _msgSender() == info.whitelistAdmin ,
+            _msgSender() == info.whitelistAdmin ||
+                IPool(IToken(token).pool()).isPoolSecretary(_msgSender()),
             ExceptionsLibrary.INVALID_USER
         );
         _;

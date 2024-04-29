@@ -7,15 +7,15 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "./interfaces/IService.sol";
 import "./interfaces/ITokenFactory.sol";
 import "./libraries/ExceptionsLibrary.sol";
-
+import "./utils/Logger.sol";
 /**
  * @title TokenFactory
- * @dev A factory for token contracts, utilizing the Beacon Proxy pattern for creating new contracts. 
+ * @dev A factory for token contracts, utilizing the Beacon Proxy pattern for creating new contracts.
  * Each new contract is a "proxy" pointing to a "beacon" that stores the implementation logic.
  * This enables cheaper creation of new contracts and easier updating of all contracts at once.
  * The contract can also be upgraded, meaning the contract's logic can be replaced while retaining the same contract address and state variables.
  */
-contract TokenFactory is Initializable, ITokenFactory {
+contract TokenFactory is Initializable, ITokenFactory, Logger {
     // STORAGE
 
     /**

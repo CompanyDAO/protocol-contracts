@@ -15,6 +15,7 @@ import "./interfaces/ITGE.sol";
 import "./interfaces/ICustomProposal.sol";
 import "./interfaces/registry/IRecordsRegistry.sol";
 import "./libraries/ExceptionsLibrary.sol";
+import "./utils/Logger.sol";
 
 /**
     * @title Pool Contract
@@ -36,7 +37,8 @@ contract Pool is
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
     GovernorProposals,
-    IPool
+    IPool,
+    Logger
 {
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -63,11 +65,7 @@ contract Pool is
     /// @dev Mapping that stores information about the type of each token. The mapping key is the address of the token contract, and the value is the digital code of the token type.
     mapping(address => IToken.TokenType) public tokenTypeByAddress;
 
-    /**
-     * @notice This collection of addresses is part of the simplified role model of the pool and stores the addresses of accounts that have been assigned the role of pool secretary.
-     * @dev Pool secretary is an internal pool role with responsibilities that include working with invoices and creating proposals. This role serves to give authority, similar to a shareholder, to an account that does not have Governance Tokens (e.g., a hired employee).
-     */
-    EnumerableSetUpgradeable.AddressSet poolSecretary;
+    EnumerableSetUpgradeable.AddressSet gap_AddressSet_1;
 
     /// @dev Identifier of the last executed proposal
     uint256 public lastExecutedProposalId;
@@ -75,14 +73,14 @@ contract Pool is
     /// @dev Mapping that stores the addresses of TGE contracts that have been deployed as part of proposal execution, using the identifiers of those proposals as keys.
     mapping(uint256 => address) public proposalIdToTGE;
 
-    /**
-     * @notice This collection of addresses is part of the simplified role model of the pool and stores the addresses of accounts that have been assigned the role of pool executor.
-     * @dev Pool Executor is an internal pool role with responsibilities that include executing proposals that have ended with a "for" decision in voting and have completed their time in the delayed state.
-     */
-    EnumerableSetUpgradeable.AddressSet poolExecutor;
+    EnumerableSetUpgradeable.AddressSet gap_AddressSet_2;
 
-    /// @dev Operating Agreement Url
-    string public OAurl;
+    /// @dev DAO Metadata Uri
+    string public DAOmetadataURI;
+
+    //address public dividendsManager;
+
+    mapping(uint256 => EnumerableSetUpgradeable.AddressSet) private roles; // 0 - manager role,  1 - secretary , 2 - executor role, 3 - dividend manager role
 
     // EVENTS
 
@@ -140,9 +138,10 @@ contract Pool is
     function setNewOwnerWithSettings(
         address newowner,
         string memory trademark_,
-        NewGovernanceSettings memory governanceSettings_
+        NewGovernanceSettings memory governanceSettings_,
+        bool forceTransfer
     ) external onlyService {
-        require(bytes(trademark).length == 0, ExceptionsLibrary.ALREADY_SET);
+        require(forceTransfer || bytes(trademark).length == 0, ExceptionsLibrary.ALREADY_SET);
         _transferOwnership(address(newowner));
         trademark = trademark_;
         _setGovernanceSettings(governanceSettings_);
@@ -154,13 +153,11 @@ contract Pool is
      * - The pool has attained DAO status, and a proposal including a transaction calling this method has been executed
      * - The pool has not yet attained DAO status, and the pool owner initiates the initial TGE with new governance settings as arguments
      * @param governanceSettings_ Governance settings
-     * @param secretary List of secretary addresses
-     * @param executor List of executor addresses
+     * @param _roles Roles addresses
      */
     function setSettings(
         NewGovernanceSettings memory governanceSettings_,
-        address[] memory secretary,
-        address[] memory executor
+        ITGEFactory.Roles memory _roles
     ) external {
         //only tgeFactory or pool
         require(
@@ -180,22 +177,25 @@ contract Pool is
         }
         _setGovernanceSettings(governanceSettings_);
 
-        address[] memory values = poolSecretary.values();
-        for (uint256 i = 0; i < values.length; i++) {
-            poolSecretary.remove(values[i]);
+        // 0 - manager role,  1 - secretary , 2 - executor role, 3 - dividend manager role
+
+        updateRoleMembers(0, _roles.manager); // Update manager role
+        updateRoleMembers(1, _roles.secretary); // Update secretary role
+        updateRoleMembers(2, _roles.executor); // Update executor role
+    }
+
+    // Define a function to update role members
+    function updateRoleMembers(
+        uint256 roleIndex,
+        address[] memory newMembers
+    ) private {
+        address[] memory existingMembers = roles[roleIndex].values();
+        for (uint256 i = 0; i < existingMembers.length; i++) {
+            roles[roleIndex].remove(existingMembers[i]);
         }
 
-        for (uint256 i = 0; i < secretary.length; i++) {
-            poolSecretary.add(secretary[i]);
-        }
-
-        values = poolExecutor.values();
-        for (uint256 i = 0; i < values.length; i++) {
-            poolExecutor.remove(values[i]);
-        }
-
-        for (uint256 i = 0; i < executor.length; i++) {
-            poolExecutor.add(secretary[i]);
+        for (uint256 i = 0; i < newMembers.length; i++) {
+            roles[roleIndex].add(newMembers[i]);
         }
     }
 
@@ -205,16 +205,12 @@ contract Pool is
      * @param _jurisdiction Digital code of the jurisdiction
      * @param _entityType Digital code of the organization type
      * @param _ein Government registration number of the company
-     * @param _dateOfIncorporation Date of incorporation of the company
-     * @param _OAuri Operating Agreement URL
      */
     function setCompanyInfo(
         uint256 _fee,
         uint256 _jurisdiction,
         uint256 _entityType,
-        string memory _ein,
-        string memory _dateOfIncorporation,
-        string memory _OAuri
+        string memory _ein
     ) external {
         require(
             msg.sender == address(service.registry()),
@@ -224,8 +220,10 @@ contract Pool is
         companyInfo.entityType = _entityType;
         companyInfo.ein = _ein;
         companyInfo.fee = _fee;
-        companyInfo.dateOfIncorporation = _dateOfIncorporation;
-        OAurl = _OAuri;
+    }
+
+    function setDAOmetadataURI(string memory _OAuri) external onlyService {
+        DAOmetadataURI = _OAuri;
     }
 
     // RECEIVE
@@ -247,11 +245,12 @@ contract Pool is
     ) external nonReentrant whenNotPaused {
         _castVote(msg.sender, proposalId, support);
 
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
-            abi.encodeWithSelector(IPool.castVote.selector, proposalId, support)
+            abi.encodeWithSelector(IPool.castVote.selector, proposalId, support),
+            address(service)
         );
     }
 
@@ -275,7 +274,7 @@ contract Pool is
         IToken.TokenType tokenType_
     ) external onlyTGEFactory {
         require(token_ != address(0), ExceptionsLibrary.ADDRESS_ZERO);
-        if (tokenExists(IToken(token_))) return;
+        if (tokenExists(token_)) return;
         if (tokenType_ == IToken.TokenType.Governance) {
             // Check that there is no governance tokens or tge failed
             require(
@@ -317,11 +316,12 @@ contract Pool is
         lastExecutedProposalId = proposalId;
         _executeProposal(proposalId, service);
 
-        service.registry().log(
+        emit CompanyDAOLog(
             msg.sender,
             address(this),
             0,
-            abi.encodeWithSelector(IPool.executeProposal.selector, proposalId)
+            abi.encodeWithSelector(IPool.executeProposal.selector, proposalId),
+            address(service)
         );
     }
 
@@ -364,7 +364,7 @@ contract Pool is
 
         _setLastProposalIdForAddress(proposer, proposalId_);
 
-        service.registry().log(
+        emit CompanyDAOLog(
             proposer,
             address(this),
             0,
@@ -374,7 +374,8 @@ contract Pool is
                 proposeType,
                 core,
                 meta
-            )
+            ),
+            address(service)
         );
 
         return proposalId_;
@@ -396,14 +397,14 @@ contract Pool is
         _transferByOwner(to, amount, unitOfAccount);
     }
 
-    function externalTransferByOwner(
-        address to,
-        uint256 amount,
-        address unitOfAccount
-    ) external onlyService {
-        require(!isDAO(), ExceptionsLibrary.IS_DAO);
-        _transferByOwner(to, amount, unitOfAccount);
-    }
+    // function externalTransferByOwner(
+    //     address to,
+    //     uint256 amount,
+    //     address unitOfAccount
+    // ) external onlyService {
+    //     require(!isDAO(), ExceptionsLibrary.IS_DAO);
+    //     _transferByOwner(to, amount, unitOfAccount);
+    // }
 
     function _transferByOwner(
         address to,
@@ -428,7 +429,7 @@ contract Pool is
             );
 
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
-                msg.sender,
+                address(this),
                 to,
                 amount
             );
@@ -491,19 +492,24 @@ contract Pool is
      * @param token The token to check.
      * @return True if the token exists, false otherwise.
      */
-    function tokenExists(IToken token) public view returns (bool) {
+    function tokenExists(address token) public view returns (bool) {
         return
-            tokenTypeByAddress[address(token)] == IToken.TokenType.None
-                ? false
-                : true;
+            tokenTypeByAddress[token] == IToken.TokenType.None ? false : true;
     }
+
+    // 0 - manager role,  1 - secretary , 2 - executor role, 3 - dividend manager role
+    // function getPoolRoleMembers(
+    //     uint256 roleId
+    // ) external view returns (address[] memory) {
+    //     return isDAO() ? roles[roleId].values() : new address[](0);
+    // }
 
     /**
      * @dev Returns the list of pool secretaries.
      * @return The array of pool secretary addresses.
      */
     function getPoolSecretary() external view returns (address[] memory) {
-        return isDAO() ? poolSecretary.values() : new address[](0);
+        return isDAO() ? roles[1].values() : new address[](0);
     }
 
     /**
@@ -511,8 +517,16 @@ contract Pool is
      * @return The array of pool executor addresses.
      */
     function getPoolExecutor() external view returns (address[] memory) {
-        return isDAO() ? poolExecutor.values() : new address[](0);
+        return isDAO() ? roles[2].values() : new address[](0);
     }
+
+    function getPoolManager() external view returns (address[] memory) {
+        return isDAO() ? roles[0].values() : new address[](0);
+    }
+
+    // function getDividendManager() external view returns (address[] memory) {
+    //     return isDAO() ? roles[3].values() : new address[](0);
+    // }
 
     /**
      * @dev Checks if an address is a pool secretary.
@@ -525,7 +539,9 @@ contract Pool is
     function isPoolSecretary(address account) public view returns (bool) {
         if (isDAO()) {
             return
-                poolSecretary.contains(account) || account == address(service);
+                roles[0].contains(account) ||
+                roles[1].contains(account) ||
+                account == address(service);
         }
 
         return account == owner();
@@ -536,9 +552,9 @@ contract Pool is
      * @param account The address to check.
      * @return True if the address is a pool executor, false otherwise.
      */
-    function isPoolExecutor(address account) public view returns (bool) {
-        return isDAO() ? poolExecutor.contains(account) : false;
-    }
+    // function isPoolExecutor(address account) public view returns (bool) {
+    //     return isDAO() ? roles[2].contains(account) : false;
+    // }
 
     /**
      * @dev Checks if an address is a valid proposer for creating proposals.
@@ -546,14 +562,10 @@ contract Pool is
      * @return True if the address is a valid proposer, false otherwise.
      */
     function isValidProposer(address account) public view returns (bool) {
-        uint256 currentVotes = _getCurrentVotes(account);
-        bool isValid = service.hasRole(
-            service.SERVICE_MANAGER_ROLE(),
-            msg.sender
-        ) ||
+        uint256 currentVotes = getCurrentVotes(account);
+        return
             isPoolSecretary(account) ||
-            (_getCurrentVotes(account) > 0 && currentVotes > proposalThreshold);
-        return isValid;
+            (currentVotes > 0 && currentVotes > proposalThreshold);
     }
 
     /**
@@ -561,15 +573,23 @@ contract Pool is
      * @param account The address to check.
      * @return True if the address is a valid executor, false otherwise.
      */
-    function isValidExecutor(address account) public view returns (bool) {
-        if (
-            poolExecutor.length() == 0 ||
-            isPoolExecutor(account) ||
-            service.hasRole(service.SERVICE_MANAGER_ROLE(), account)
-        ) return true;
+    function isValidExecutor(address account) private view returns (bool) {
+        if (roles[2].length() == 0 || roles[2].contains(account)) return true;
 
         return false;
     }
+
+    // function isValidDividendManager(
+    //     address account
+    // ) public view returns (bool) {
+    //     if (
+    //         roles[3].length() == 0 ||
+    //         (isDAO() ? roles[3].contains(account) : false) ||
+    //         service.hasRole(service.SERVICE_MANAGER_ROLE(), account)
+    //     ) return true;
+
+    //     return false;
+    // }
 
     /**
      * @dev Checks if the last proposal of a specific type is active.
@@ -633,7 +653,7 @@ contract Pool is
      * @param account The account's address.
      * @return The current votes of the account.
      */
-    function _getCurrentVotes(address account) internal view returns (uint256) {
+    function getCurrentVotes(address account) public view returns (uint256) {
         return getGovernanceToken().getVotes(account);
     }
 
@@ -645,23 +665,48 @@ contract Pool is
     function _getBlockTotalVotes(
         uint256 blocknumber
     ) internal view override returns (uint256) {
-        return
-            IToken(tokens[IToken.TokenType.Governance]).getPastTotalSupply(
-                blocknumber
-            );
+        return getGovernanceToken().getPastTotalSupply(blocknumber);
     }
 
-    /**
-     * @dev Internal function to get the past votes of an account at a specific block.
-     * @param account The account's address.
-     * @param blockNumber The block number.
-     * @return The past votes of the account at the given block.
-     */
-    function _getPastVotes(
+    // /**
+    //  * @dev Internal function to get the past votes of an account at a specific block.
+    //  * @param account The account's address.
+    //  * @param blockNumber The block number.
+    //  * @return The past votes of the account at the given block.
+    //  */
+    // function _getPastVotes(
+    //     address account,
+    //     uint256 blockNumber
+    // ) internal view override returns (uint256) {
+    //     if (roles[0].length() == 0) {
+    //         return getGovernanceToken().getPastVotes(account, blockNumber);
+    //     } else if (roles[3].contains(account)) {
+    //         return getGovernanceToken().getPastTotalSupply(blockNumber);
+    //     }
+    //     return 0;
+    // }
+
+    function _getPastVotesForProposal(
         address account,
-        uint256 blockNumber
+        uint256 proposalId
     ) internal view override returns (uint256) {
-        return getGovernanceToken().getPastVotes(account, blockNumber);
+        if (
+            roles[0].length() == 0 ||
+            proposals[proposalId].meta.proposalType ==
+            IRecordsRegistry.EventType.GovernanceSettings
+        ) {
+            return
+                getGovernanceToken().getPastVotes(
+                    account,
+                    proposals[proposalId].vote.startBlock - 1
+                );
+        } else if (roles[0].contains(account)) {
+            return
+                getGovernanceToken().getPastTotalSupply(
+                    proposals[proposalId].vote.startBlock - 1
+                );
+        }
+        return 0;
     }
 
     /**

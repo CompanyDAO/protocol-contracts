@@ -64,7 +64,6 @@ interface IService is IAccessControlEnumerableUpgradeable {
         uint256 amount
     ) external view returns (uint256);
 
-
     function getProtocolCollectedFee(
         address token_
     ) external view returns (uint256);
@@ -113,4 +112,9 @@ interface IService is IAccessControlEnumerableUpgradeable {
     ) external;
 
     function getTrustedForwarder() external view returns (address);
+
+    function setDAOmetadataURI(
+        address _pool,
+        string memory _DAOmetadataURI
+    ) external;
 }

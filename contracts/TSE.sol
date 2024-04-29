@@ -17,13 +17,15 @@ import "./interfaces/IVesting.sol";
 import "./libraries/ExceptionsLibrary.sol";
 import "./interfaces/IPausable.sol";
 import "./utils/CustomContext.sol";
+import "./utils/Logger.sol";
 
 contract TSE is
     Initializable,
     ReentrancyGuardUpgradeable,
     ITSE,
     ERC2771Context,
-    ERC1155HolderUpgradeable
+    ERC1155HolderUpgradeable,
+    Logger
 {
     using AddressUpgradeable for address payable;
     using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -138,10 +140,7 @@ contract TSE is
         uint256 partnerFee = getPartnerFee(purchasePrice);
         uint256 balance = 0;
         if (unitOfAccount == address(0)) {
-            require(
-                msg.value >= purchasePrice + serviceFee + partnerFee,
-                ExceptionsLibrary.WRONG_AMOUNT
-            );
+            require(msg.value >= purchasePrice, ExceptionsLibrary.WRONG_AMOUNT);
             if (serviceFee != 0) {
                 payable(IToken(token).service().protocolTreasury()).sendValue(
                     serviceFee
@@ -161,7 +160,7 @@ contract TSE is
             IERC20Upgradeable(unitOfAccount).safeTransferFrom(
                 _msgSender(),
                 address(this),
-                purchasePrice + serviceFee + partnerFee
+                purchasePrice
             );
 
             if (serviceFee != 0) {
@@ -227,11 +226,12 @@ contract TSE is
             );
         }
 
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
-            abi.encodeWithSelector(ITSE.finishTSE.selector)
+            abi.encodeWithSelector(ITSE.finishTSE.selector),
+            address(IToken(token).service())
         );
     }
 
@@ -296,11 +296,11 @@ contract TSE is
     }
 
     /**
-     * @dev Checks if user is whitelist.
+     * @dev Checks if user is whitelisted.
      * @param account User address
      * @return 'True' if the whitelist is empty (public TSE) or if the address is found in the whitelist, 'False' otherwise.
      */
-    function isUserwhitelist(address account) public view returns (bool) {
+    function isUserwhitelisted(address account) public view returns (bool) {
         return info.userWhitelist.length == 0 || whitelist[account];
     }
 
@@ -340,7 +340,7 @@ contract TSE is
      * @return Amount of tokens that can be purchased
      */
     function maxPurchaseOf(address account) public view returns (uint256) {
-        if (!whitelist[account]) {
+        if (info.userWhitelist.length > 0 && !whitelist[account]) {
             return 0;
         }
 
@@ -396,11 +396,12 @@ contract TSE is
         // Emit event
         emit Purchased(account, amount);
 
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             account,
             address(this),
             0,
-            abi.encodeWithSelector(ITSE.purchase.selector, amount)
+            abi.encodeWithSelector(ITSE.purchase.selector, amount),
+            address(IToken(token).service())
         );
     }
 
@@ -436,7 +437,7 @@ contract TSE is
             whitelistMax[account] = maxs[i];
         }
 
-        IToken(token).service().registry().log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -445,7 +446,8 @@ contract TSE is
                 accounts,
                 mins,
                 maxs
-            )
+            ),
+            address(IToken(token).service())
         );
     }
 
@@ -460,7 +462,7 @@ contract TSE is
     /// @notice Modifier that allows the method to be called only by an account that is whitelist for the TSE or if the TSE is created as public.
     modifier onlywhitelistUser() {
         require(
-            isUserwhitelist(_msgSender()),
+            isUserwhitelisted(_msgSender()),
             ExceptionsLibrary.NOT_WHITELISTED
         );
         _;

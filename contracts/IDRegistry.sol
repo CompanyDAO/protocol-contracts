@@ -1,27 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-// Importing OpenZeppelin's Access Control and Registry Interface
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "./interfaces/registry/IRegistry.sol";
 import "./interfaces/IIDRegistry.sol";
 import "./interfaces/IService.sol";
+import "./interfaces/IToken.sol";
+import "./utils/Logger.sol";
 
-/**
- * @title IDRegistry
- * @dev Manages a registry of whitelisted addresses for various compliances.
- */
-contract IDRegistry is AccessControlEnumerableUpgradeable {
-    // Reference to the IRegistry contract for accessing registry functionalities
-    IRegistry registry;
+contract IDRegistry is AccessControlEnumerableUpgradeable, Logger {
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
 
-    // Constant for compliance admin role
+    IRegistry public registry;
     bytes32 public constant COMPLIANCE_ADMIN = keccak256("COMPLIANCE_ADMIN");
 
-    // Mapping from compliance identifiers to a mapping of addresses to their whitelisted status
+    // Original compliance whitelists
     mapping(bytes32 => mapping(address => bool)) private _whitelists;
 
-    // Events for logging important actions
+    // New token-specific whitelists and blacklists
+    mapping(address => EnumerableSetUpgradeable.AddressSet)
+        private _tokenWhitelists;
+    mapping(address => EnumerableSetUpgradeable.AddressSet)
+        private _tokenBlacklists;
+
     event ComplianceAdminAdded(
         address indexed admin,
         bytes32 indexed compliance
@@ -35,8 +37,17 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
         bytes32 indexed compliance,
         bool status
     );
+    event TokenWhitelisted(
+        address indexed token,
+        address indexed account,
+        bool status
+    );
+    event TokenBlacklisted(
+        address indexed token,
+        address indexed account,
+        bool status
+    );
 
-    // Modifier to restrict function access to only super admins
     modifier onlySuperAdmin() {
         require(
             IService(registry.service()).hasRole(
@@ -48,7 +59,6 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
         _;
     }
 
-    // Modifier to restrict function access to only compliance admins of a specific compliance
     modifier onlyComplianceAdmin(bytes32 compliance) {
         require(
             IService(registry.service()).hasRole(
@@ -62,24 +72,15 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
         _;
     }
 
-    // Constructor to disable initializer for the upgradeable contract pattern
     constructor() {
         _disableInitializers();
     }
 
-    /**
-     * @dev Initializer function, can only be called once
-     * @param registry_ Address of the Registry contract
-     */
     function initialize(IRegistry registry_) external initializer {
+        __AccessControlEnumerable_init();
         registry = registry_;
     }
 
-    /**
-     * @dev Adds a compliance admin for a specific compliance
-     * @param admin Address of the new compliance admin
-     * @param compliance Compliance identifier
-     */
     function addComplianceAdmin(
         address admin,
         bytes32 compliance
@@ -89,11 +90,6 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
         emit ComplianceAdminAdded(admin, compliance);
     }
 
-    /**
-     * @dev Removes a compliance admin for a specific compliance
-     * @param admin Address of the compliance admin to be removed
-     * @param compliance Compliance identifier
-     */
     function removeComplianceAdmin(
         address admin,
         bytes32 compliance
@@ -103,19 +99,14 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
         emit ComplianceAdminRemoved(admin, compliance);
     }
 
-    /**
-     * @dev Adds multiple addresses to the whitelist for a specific compliance.
-     * @param accounts Array of addresses to be whitelisted.
-     * @param compliance Compliance identifier.
-     */
     function addToWhitelist(
         address[] calldata accounts,
         bytes32 compliance
-    ) public onlyComplianceAdmin(compliance) {
+    ) external onlyComplianceAdmin(compliance) {
         for (uint256 i = 0; i < accounts.length; i++) {
             _whitelists[compliance][accounts[i]] = true;
         }
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -123,23 +114,19 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
                 IIDRegistry.addToWhitelist.selector,
                 accounts,
                 compliance
-            )
+            ),
+            address(registry.service())
         );
     }
 
-    /**
-     * @dev Removes multiple addresses from the whitelist for a specific compliance.
-     * @param accounts Array of addresses to be removed from the whitelist.
-     * @param compliance Compliance identifier.
-     */
     function removeFromWhitelist(
         address[] calldata accounts,
         bytes32 compliance
-    ) public onlyComplianceAdmin(compliance) {
+    ) external onlyComplianceAdmin(compliance) {
         for (uint256 i = 0; i < accounts.length; i++) {
             _whitelists[compliance][accounts[i]] = false;
         }
-        registry.log(
+        emit CompanyDAOLog(
             _msgSender(),
             address(this),
             0,
@@ -147,7 +134,8 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
                 IIDRegistry.removeFromWhitelist.selector,
                 accounts,
                 compliance
-            )
+            ),
+            address(registry.service())
         );
     }
 
@@ -169,17 +157,219 @@ contract IDRegistry is AccessControlEnumerableUpgradeable {
     /**
      * @dev Checks if an address is whitelisted for a specific compliance
      * @param account Address to check the whitelist status for
-     * @param compliance Compliance identifier
+     * @param token token address
      * @return True if the address is whitelisted or if the compliance identifier is zero bytes
      */
     function isWhitelisted(
         address account,
-        bytes32 compliance
+        address token
     ) public view returns (bool) {
+        bytes32 compliance = IToken(token).compliance();
         return
-            compliance == bytes32(0) ||
             isServiceContract(account) ||
-            _whitelists[compliance][account];
+            ((compliance == bytes32(0) || _whitelists[compliance][account]) &&
+                isWhitelistedForToken(account, token) &&
+                !isBlacklistedForToken(account, token));
+    }
+
+    function isWhitelistedForToken(
+        address token,
+        address account
+    ) public view returns (bool) {
+        return (_tokenWhitelists[token].values().length == 0 ||
+            _tokenWhitelists[token].contains(account));
+    }
+
+    function isBlacklistedForToken(
+        address token,
+        address account
+    ) public view returns (bool) {
+        return _tokenBlacklists[token].contains(account);
+    }
+
+    // Retrieves the whitelist for a specific token
+    function getTokenWhitelist(
+        address token
+    ) public view returns (address[] memory) {
+        uint256 whitelistSize = _tokenWhitelists[token].length();
+        address[] memory whitelistAddresses = new address[](whitelistSize);
+
+        for (uint256 i = 0; i < whitelistSize; i++) {
+            whitelistAddresses[i] = _tokenWhitelists[token].at(i);
+        }
+
+        return whitelistAddresses;
+    }
+
+    // Retrieves the blacklist for a specific token
+    function getTokenBlacklist(
+        address token
+    ) public view returns (address[] memory) {
+        uint256 blacklistSize = _tokenBlacklists[token].length();
+        address[] memory blacklistAddresses = new address[](blacklistSize);
+
+        for (uint256 i = 0; i < blacklistSize; i++) {
+            blacklistAddresses[i] = _tokenBlacklists[token].at(i);
+        }
+
+        return blacklistAddresses;
+    }
+
+    // Updates both the whitelist and blacklist for a specific token
+    function setTokenLists(
+        address token,
+        address[] calldata newWhitelist,
+        address[] calldata newBlacklist
+    ) external {
+        require(
+            IPool(IToken(token).pool()).isPoolSecretary(msg.sender),
+            "IDRegistry: Caller is not a pool secretary"
+        );
+
+        // Reset whitelist - remove existing entries
+        while (_tokenWhitelists[token].length() > 0) {
+            address lastWhitelistAddress = _tokenWhitelists[token].at(
+                _tokenWhitelists[token].length() - 1
+            );
+            _tokenWhitelists[token].remove(lastWhitelistAddress);
+        }
+        // Populate the new whitelist
+        for (uint256 i = 0; i < newWhitelist.length; i++) {
+            _tokenWhitelists[token].add(newWhitelist[i]);
+        }
+
+        // Reset blacklist - remove existing entries
+        while (_tokenBlacklists[token].length() > 0) {
+            address lastBlacklistAddress = _tokenBlacklists[token].at(
+                _tokenBlacklists[token].length() - 1
+            );
+            _tokenBlacklists[token].remove(lastBlacklistAddress);
+        }
+        // Populate the new blacklist
+        for (uint256 i = 0; i < newBlacklist.length; i++) {
+            _tokenBlacklists[token].add(newBlacklist[i]);
+        }
+
+        emit CompanyDAOLog(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IIDRegistry.setTokenLists.selector,
+                token,
+                newWhitelist,
+                newBlacklist
+            ),
+            address(registry.service())
+        );
+    }
+
+    // Adds multiple addresses to the token-specific whitelist
+    function addToTokenWhitelist(
+        address token,
+        address[] calldata accounts
+    ) external {
+        require(
+            IPool(IToken(token).pool()).isPoolSecretary(msg.sender),
+            "IDRegistry: Caller is not a pool secretary"
+        );
+
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _tokenWhitelists[token].add(accounts[i]);
+        }
+
+        emit CompanyDAOLog(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IIDRegistry.addToTokenWhitelist.selector,
+                token,
+                accounts
+            ),
+            address(registry.service())
+        );
+    }
+
+    // Removes multiple addresses from the token-specific whitelist
+    function removeFromTokenWhitelist(
+        address token,
+        address[] calldata accounts
+    ) external {
+        require(
+            IPool(IToken(token).pool()).isPoolSecretary(msg.sender),
+            "IDRegistry: Caller is not a pool secretary"
+        );
+
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _tokenWhitelists[token].remove(accounts[i]);
+        }
+
+        emit CompanyDAOLog(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IIDRegistry.removeFromTokenWhitelist.selector,
+                token,
+                accounts
+            ),
+            address(registry.service())
+        );
+    }
+
+    // Adds multiple addresses to the token-specific blacklist
+    function addToTokenBlacklist(
+        address token,
+        address[] calldata accounts
+    ) external {
+        require(
+            IPool(IToken(token).pool()).isPoolSecretary(msg.sender),
+            "IDRegistry: Caller is not a pool secretary"
+        );
+
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _tokenBlacklists[token].add(accounts[i]);
+        }
+
+        emit CompanyDAOLog(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IIDRegistry.addToTokenBlacklist.selector,
+                token,
+                accounts
+            ),
+            address(registry.service())
+        );
+    }
+
+    // Removes multiple addresses from the token-specific blacklist
+    function removeFromTokenBlacklist(
+        address token,
+        address[] calldata accounts
+    ) external {
+        require(
+            IPool(IToken(token).pool()).isPoolSecretary(msg.sender),
+            "IDRegistry: Caller is not a pool secretary"
+        );
+
+        for (uint256 i = 0; i < accounts.length; i++) {
+            _tokenBlacklists[token].remove(accounts[i]);
+        }
+
+        emit CompanyDAOLog(
+            _msgSender(),
+            address(this),
+            0,
+            abi.encodeWithSelector(
+                IIDRegistry.removeFromTokenBlacklist.selector,
+                token,
+                accounts
+            ),
+            address(registry.service())
+        );
     }
 
     /**

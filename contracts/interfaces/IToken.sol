@@ -57,6 +57,8 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
 
     function symbol() external view returns (string memory);
 
+    function compliance() external view returns (bytes32);
+
     function tokenType() external view returns (TokenType);
 
     function lastTGE() external view returns (address);
@@ -100,5 +102,5 @@ interface IToken is IVotesUpgradeable, IERC20Upgradeable {
         uint256 amount
     ) external payable;
 
-    function claimDividends( uint256 limit) external;
+    function claimDividends(uint256 limit) external;
 }

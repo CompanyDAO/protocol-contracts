@@ -53,8 +53,10 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
         globalProposalIds[pool][proposalId] = globalProposalId;
     }
 
-    function _setIndexAddress(uint256 index, address poolAddress) internal override {
-
+    function _setIndexAddress(
+        uint256 index,
+        address poolAddress
+    ) internal override {
         companyAddress[index] = poolAddress;
     }
 
@@ -101,6 +103,6 @@ contract Registry is CompaniesRegistry, RecordsRegistry, TokensRegistry {
             ExceptionsLibrary.INVALID_USER
         );
         // Emit event
-        emit Log(sender, receiver, value, data);
+        emit CompanyDAOLog(sender, receiver, value, data, address(service));
     }
 }

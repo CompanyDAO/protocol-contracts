@@ -17,11 +17,12 @@ import "../interfaces/ITGE.sol";
 import "../interfaces/IToken.sol";
 import "../interfaces/ICustomProposal.sol";
 import "../libraries/ExceptionsLibrary.sol";
+
 /**
-* @title Governor Proposals Contract
-* @notice Contract for tracking and typing the created proposals.
-* @dev The final implementation of the voting logic is placed in this module, which inherits from the Governor contract and is inherited by pool contracts.
-*/
+ * @title Governor Proposals Contract
+ * @notice Contract for tracking and typing the created proposals.
+ * @dev The final implementation of the voting logic is placed in this module, which inherits from the Governor contract and is inherited by pool contracts.
+ */
 abstract contract GovernorProposals is
     Initializable,
     Governor,
