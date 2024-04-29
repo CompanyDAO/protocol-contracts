@@ -1,6 +1,6 @@
 # CompanyDAO Protocol Contracts
 
-![thumb](https://raw.githubusercontent.com/CompanyDAO/protocol-contracts/main/images/main.jpg)
+![thumb](https://raw.githubusercontent.com/CompanyDAO/protocol-contracts/main/images/new-main.jpg)
 
 ## INSTALLATION
 
@@ -70,25 +70,36 @@ This set of smart contracts is used for the on-chain purchase of pre-established
 - However, by default, each purchase of Governance token units by an address during a TGE leads to delegation to itself, if it has not previously delegated its Voting Power to another address.
 - **1 unit of Governance Token = 1 Vote**
 - Issuing new units of Governance Token is only possible within a TGE.
+- Starting with version 1.4 the new `Pool Manager` role is available to be granted to one account per pool to speed up and simplify the operating activities of the pools.
 
 #### 1.3 Fees
 
-The protocol provides for 2 types of fees:
+The protocol provides for 3 types of fees:
 - **Protocol Fee** - paid in gas coins at the time of pool purchase;
-- **Protocol Token Fee** - paid in the pool's Governance tokens after a successful TGE.
+- **Partner Fee** - paid to the speicified beneficiary address in units of account in case of successful TGE;
+- **Service Fee** - paid to the CompanyDAO Treasury in units of account  in case of successful TGE;
+- _Protocol Token Fee_ -  deprecated and abolished.
 
 ##### Protocol Fee
 
 - The `purchasePool` function is **payable**, i.e., when it's called to buy a pool, a 'Value' transfer occurs to the Service contract's address simultaneously with passing Governance Settings for configuring the purchased pool.
 - Coins collected from user-invoked functions are held on the Service contract until the ADMIN initiates the call of the transferCollectedFees(address to) method to transfer all accumulated coins to the specified address.
 
-##### Protocol Token Fee
+##### Service and Partner Fees
 
-- When the `Governance Token Generation Event` ends with the status `Successful`, it becomes possible to launch the `transferFunds()` method in this contract.
-- In addition to transferring the collected funds to the pool contract (the main goal of the TGE), minting of an additional amount of Governance Tokens happens to the `ProtocolTokenTreasury` address.
-- The Treasury address and the size of the commission (percentage of the total number of sold token units) are specified by the **ADMIN** in the Service contract.
+- When the `Token Generation Event` ends with the status `Successful`, it becomes possible to launch the `transferFunds()` method in this contract.
+- The collected units of account are split into 3 parts:
+- - main funds to be transferred to  the pool contract (the main goal of the TGE) or to the specified `TGE Fund Receiver address` (available starting with v1.4) as the equivalent of issued and distributed tokens;
+- - service fees to be transferred to the `ProtocolTreasury` address;
+- - partner fees to be transferred to the specified by an initializer of the TGE as the marketing (or whatever) reward.
+- The Treasury address and the size of the commission (percentage of the total  number of accepted tokens of unit of account) are specified by the **ADMIN** in the Service contract.
+- The beneficiary address of Partner fee is specified before the launch of the TGE. 
 
 _Even if there are token units with deferred minting for users (e.g., vesting program), the protocol commission is calculated from the total number of sold tokens immediately upon the launch of transferFunds()._
+
+#### 1.4 Token Sale Event (OTC transfer)
+
+Starting with v1.4 it is available to launch a TSE event. That type of contract allows anyone to create a market order with a fixed price, a list of participants and to set the duration of the event. This feature enables seamless market processes and can be a supportive tool for any company to redistribute their tokens according to their economic model.
 
 
 ### 2. Role Model
@@ -144,7 +155,22 @@ _This role is intended for accounts managed by the protocol backend. Thus, the s
 - The list of addresses that have executor powers is stored in each of the Pool contracts and can be changed with each change in Governance settings.
 - This address can initiate `execute` transactions for Pool on Proposals that have `Awaiting Execution` status.
 
+#### **POOL MANAGER** 
+- The account which is granted this role has the vote power that equals to the whole total supply of Governance tokens that is available at the moment of creating a ballot.
 
+### 2.4 Role Model of TGE Contracts
+
+#### **WHITELIST ADMIN**
+- The account which is granted this role has the authority to adjust whitelist of TGE participants. This feature allows to manage the TGE processing in more precise way.
+
+#### **FUND RECEIVER**
+- This address is set to be the beneficiary of tokens issuance. It can be a 3rd-party treasury or a personal wallet. This feature increases the level of assets security.
+
+### 2.5 Role Model of TSE Contracts
+
+#### **SELLER**
+- The address which is used to launch the TSE event has a special authority to stop the event or to edit the list of those who are allowed to partake the event.
+- Also this account is supposed to be a beneficiary which receives the collected funds.
 
 ### 3. Public customer functions
 
@@ -207,6 +233,19 @@ In case the specified `softcap` was not reached during the TGE, token purchasers
 ```
 
 This function affects all the user's tokens in vesting (that is, they will be reimbursed after the first launch), as well as all tokens on the account balance.
+
+#### TSE.sol => purchase
+
+If the TSE is public or the user's account address is included in the whitelist of accounts admitted to the TSE, then the result of this function call will be the user purchasing tokens.
+
+```
+    function purchase(
+        uint256 amount // number of tokens being purchased
+    )
+```
+
+The user obtains the full amount of purchased tokens immediately which are non-refundable.
+
 
 #### Vesting.sol => claim
 
@@ -333,4 +372,3 @@ HASHEX [ [website](https://hashex.org/) ] [
 [Open-Zeppelin Capped Upgradable](https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/token/ERC20/extensions/ERC20CappedUpgradeable.sol)
 
 [Open-Zeppelin ERC1155](https://github.com/OpenZeppelin/openzeppelin-contracts/tree/master/contracts/token/ERC1155)
-
